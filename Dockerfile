@@ -7,7 +7,8 @@
 # cannot run pnpm 11.
 FROM node:26-slim AS build
 ENV PNPM_HOME=/pnpm
-ENV PATH=$PNPM_HOME:$PATH
+# pnpm 11 puts its binary in a bin/ folder of its home.
+ENV PATH=$PNPM_HOME/bin:$PATH
 RUN apt-get update \
   && apt-get install -y --no-install-recommends ca-certificates curl \
   && rm -rf /var/lib/apt/lists/* \
