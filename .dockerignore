@@ -1,0 +1,9 @@
+# What the image never needs: installed packages, build output, and git.
+node_modules
+.next
+out
+.git
+*.tsbuildinfo
+.DS_Store
+.env
+.env.*
