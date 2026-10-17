@@ -13,7 +13,9 @@ import { ROLE_COLOURS } from '@/components/onboarding/field-scene';
 import { JourneyContext } from '@/components/onboarding/journey-context';
 import { ARRIVE_MS } from '@/components/onboarding/journey-machine';
 import { rememberLanding } from '@/components/onboarding/landing';
+import { ROUTES } from '@/components/onboarding/stations';
 import { QUIET_FIELD } from '@/components/onboarding/time-field';
+import { TravelLink } from '@/components/onboarding/travel-link';
 import { usePrefersReducedMotion } from '@/hooks/use-prefers-reduced-motion';
 
 import {
@@ -180,6 +182,9 @@ export function Playground(): ReactNode {
   const [isDirectVisit] = useState(isResting);
   const [time, setTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
+  // Whether the film has reached its end, played or scrubbed there: from
+  // then on, the way on to the docs shows under the card.
+  const [hasEnded, setHasEnded] = useState(false);
   // The film's time for the clock and the handlers, between renders.
   const timeRef = useRef(0);
   // Whether the film has been started, by itself or by the reader: after
@@ -191,6 +196,9 @@ export function Playground(): ReactNode {
     const clamped = Math.min(Math.max(next, 0), DURATION);
     timeRef.current = clamped;
     setTime(clamped);
+    if (clamped >= DURATION) {
+      setHasEnded(true);
+    }
   }, []);
 
   // Starts the film once the page has arrived.
@@ -232,6 +240,7 @@ export function Playground(): ReactNode {
       setTime(next);
       if (next >= DURATION) {
         setIsPlaying(false);
+        setHasEnded(true);
         rememberLanding('docs');
 
         return;
@@ -325,82 +334,103 @@ export function Playground(): ReactNode {
   const isAtEnd = time >= DURATION;
 
   return (
-    // The welcome video's shape from tablet width up. Narrower, a 16:9 card
-    // would leave the scene no height, so the scene keeps its own shape and
-    // the card grows to fit. The field behind stays put while the mouse is
-    // on the card.
-    <div
-      {...QUIET_FIELD}
-      className="panel flex flex-col gap-4 p-6 md:aspect-video"
-    >
-      <StoryScene
-        scene={scene}
-        label={describeScene(scene)}
-        isPlaying={isPlaying}
-        onPress={toggle}
-        onLookAround={() => {
-          hasStarted.current = true;
-          setIsPlaying(false);
-        }}
-      />
-
+    <div className="relative">
       {/*
-       * The current caption, read out as it changes, over every caption
-       * kept hidden in the same cell: the cell is two lines tall, or as tall
-       * as the longest caption if that is more, so the card never moves as
-       * they change. A caption starts on the top line. Being the one shown,
-       * it is the one read, links and all.
+       * The welcome video's shape from tablet width up. Narrower, a 16:9 card
+       * would leave the scene no height, so the scene keeps its own shape and
+       * the card grows to fit. The field behind stays put while the mouse is
+       * on the card.
        */}
-      <div className="grid min-h-[2lh]">
-        {BEATS.map((beat) => (
-          <p
-            key={beat.id}
-            aria-hidden
-            className="invisible col-start-1 row-start-1 text-center text-pretty"
-          >
-            <Caption parts={beat.caption} />
-          </p>
-        ))}
-        <p
-          aria-live="polite"
-          className="col-start-1 row-start-1 self-start text-center text-pretty"
-        >
-          <span
-            key={scene.beat.id}
-            className="motion-safe:animate-caption-arrive"
-          >
-            <Caption parts={scene.beat.caption} />
-          </span>
-        </p>
-      </div>
-
-      {/* The play button beside the timeline, the track and its chapters' names centred on it together. */}
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          aria-label={isPlaying ? 'Pause' : isAtEnd ? 'Play again' : 'Play'}
-          className="btn btn-secondary w-9 shrink-0 px-0"
-          onClick={toggle}
-        >
-          <TransportIcon
-            kind={isPlaying ? 'pause' : isAtEnd ? 'replay' : 'play'}
-          />
-        </button>
-        <StoryTimeline
-          time={time}
-          duration={DURATION}
-          chapters={CHAPTER_SPANS}
-          marks={BEAT_STARTS}
-          valueText={`${chapter.title}, ${clock(time)} of ${clock(DURATION)}`}
-          onSeek={(next) => {
+      <div
+        {...QUIET_FIELD}
+        className="panel flex flex-col gap-4 p-6 md:aspect-video"
+      >
+        <StoryScene
+          scene={scene}
+          label={describeScene(scene)}
+          isPlaying={isPlaying}
+          onPress={toggle}
+          onLookAround={() => {
             hasStarted.current = true;
-            seek(next);
+            setIsPlaying(false);
           }}
-          onScrub={scrub}
-          onStep={step}
-          onToggle={toggle}
         />
+
+        {/*
+         * The current caption, read out as it changes, over every caption
+         * kept hidden in the same cell: the cell is two lines tall, or as tall
+         * as the longest caption if that is more, so the card never moves as
+         * they change. A caption starts on the top line. Being the one shown,
+         * it is the one read, links and all.
+         */}
+        <div className="grid min-h-[2lh]">
+          {BEATS.map((beat) => (
+            <p
+              key={beat.id}
+              aria-hidden
+              className="invisible col-start-1 row-start-1 text-center text-pretty"
+            >
+              <Caption parts={beat.caption} />
+            </p>
+          ))}
+          <p
+            aria-live="polite"
+            className="col-start-1 row-start-1 self-start text-center text-pretty"
+          >
+            <span
+              key={scene.beat.id}
+              className="motion-safe:animate-caption-arrive"
+            >
+              <Caption parts={scene.beat.caption} />
+            </span>
+          </p>
+        </div>
+
+        {/* The play button beside the timeline, the track and its chapters' names centred on it together. */}
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            aria-label={isPlaying ? 'Pause' : isAtEnd ? 'Play again' : 'Play'}
+            className="btn btn-secondary w-9 shrink-0 px-0"
+            onClick={toggle}
+          >
+            <TransportIcon
+              kind={isPlaying ? 'pause' : isAtEnd ? 'replay' : 'play'}
+            />
+          </button>
+          <StoryTimeline
+            time={time}
+            duration={DURATION}
+            chapters={CHAPTER_SPANS}
+            marks={BEAT_STARTS}
+            valueText={`${chapter.title}, ${clock(time)} of ${clock(DURATION)}`}
+            onSeek={(next) => {
+              hasStarted.current = true;
+              seek(next);
+            }}
+            onScrub={scrub}
+            onStep={step}
+            onToggle={toggle}
+          />
+        </div>
       </div>
+      {/*
+       * The way on, once the film has ended: the docs' own primary button, as
+       * "Try it" under the welcome video, and as far below the card. Outside
+       * the layout, so the card does not move as it comes.
+       */}
+      {hasEnded && (
+        <div className="absolute inset-x-0 top-full mt-10 flex justify-center motion-safe:animate-way-on-arrive">
+          <TravelLink
+            href={ROUTES.docs}
+            landing="docs"
+            className="wave-docs-hero__action"
+            data-variant="primary"
+          >
+            Start building
+          </TravelLink>
+        </div>
+      )}
     </div>
   );
 }

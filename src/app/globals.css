@@ -50,6 +50,8 @@
   --animate-docs-arrive: docs-arrive 600ms ease-out both;
   /* A caption of the playground's story, as its beat starts. */
   --animate-caption-arrive: caption-arrive 500ms ease-out both;
+  /* The playground's way on, under its card, as the film ends. */
+  --animate-way-on-arrive: way-on-arrive 600ms ease-out both;
 
   @keyframes stage-arrive {
     from {
@@ -72,6 +74,12 @@
   }
 
   @keyframes caption-arrive {
+    from {
+      opacity: 0;
+    }
+  }
+
+  @keyframes way-on-arrive {
     from {
       opacity: 0;
     }
