@@ -1,0 +1,173 @@
+/*
+ * Tailwind reads class names from `src/` only, never from node_modules or
+ * the build's output.
+ */
+@import 'tailwindcss' source(none);
+@source '../';
+
+/*
+ * The site wears the documentation stylesheet's look: its colours and its
+ * typefaces, but its accent in graphite (below). Each token here is an alias
+ * of one of its tokens, so the home page and `/docs` cannot drift apart, and
+ * Tailwind gets utilities for them (`bg-bg`, `text-fg-muted`,
+ * `border-border`).
+ *
+ * The `--wave-docs-*` tokens come from `@waveso/docs/styles.css`, which the
+ * root layout imports for every page.
+ */
+@theme {
+  --color-bg: var(--wave-docs-bg);
+  --color-bg-subtle: var(--wave-docs-bg-subtle);
+  --color-border: var(--wave-docs-border);
+  --color-border-strong: var(--wave-docs-border-strong);
+  --color-fg: var(--wave-docs-fg);
+  --color-fg-muted: var(--wave-docs-fg-muted);
+  --color-accent: var(--wave-docs-accent);
+  --color-accent-hover: var(--wave-docs-accent-hover);
+  --color-accent-fg: var(--wave-docs-accent-fg);
+
+  --font-sans: var(--wave-docs-font-sans);
+  --font-mono: var(--wave-docs-font-mono);
+
+  /*
+   * The onboarding's motion. Every one is applied behind `motion-safe:`, so
+   * none runs for a reader who asked for reduced motion.
+   *
+   * A page arrives from a distance and leaves past the viewer, which is the
+   * same direction the field behind it flies: forward. The durations of the
+   * first two are relied on by journey-machine.ts.
+   *
+   * None of the arrivals has a last keyframe, so each ends on the element's
+   * own style and leaves nothing behind.
+   *
+   * Only opacity and scale are animated. They are composited without
+   * repainting. A blur here, repainted on every frame over a whole page, cut
+   * a trip to 25 frames a second on a machine that holds 120.
+   */
+  --animate-stage-arrive: stage-arrive 700ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-stage-leave: stage-leave 500ms cubic-bezier(0.7, 0, 0.84, 0) both;
+  /* The documentation, at the end of the trip in. Opacity only. */
+  --animate-docs-arrive: docs-arrive 600ms ease-out both;
+  /* A caption of the playground's story, as its beat starts. */
+  --animate-caption-arrive: caption-arrive 500ms ease-out both;
+
+  @keyframes stage-arrive {
+    from {
+      opacity: 0;
+      scale: 0.9;
+    }
+  }
+
+  @keyframes stage-leave {
+    to {
+      opacity: 0;
+      scale: 1.3;
+    }
+  }
+
+  @keyframes docs-arrive {
+    from {
+      opacity: 0;
+    }
+  }
+
+  @keyframes caption-arrive {
+    from {
+      opacity: 0;
+    }
+  }
+}
+
+/*
+ * Graphite: Intuition's mono palette, from white to near black with a cool,
+ * slightly violet cast, in Tailwind's steps (`bg-graphite-900`,
+ * `text-graphite-500`). Static, so every step is a CSS variable even where no
+ * utility uses it yet.
+ */
+@theme static {
+  --color-graphite-0: #ffffff;
+  --color-graphite-50: #f2f3f7;
+  --color-graphite-100: #e2e2ea;
+  --color-graphite-200: #c6cbd9;
+  --color-graphite-300: #9a9aaf;
+  --color-graphite-400: #7e7e8f;
+  --color-graphite-500: #656575;
+  --color-graphite-600: #535362;
+  --color-graphite-700: #2e2e3a;
+  --color-graphite-800: #262631;
+  --color-graphite-900: #16161e;
+  --color-graphite-950: #07070c;
+}
+
+/*
+ * The accent in graphite: near black where the documentation stylesheet
+ * ships Wave Blue, for links, buttons, the active page and the playground's
+ * timeline, on the docs as on the onboarding; the docs header's grid in
+ * light graphite. Callouts keep their colours: each one means something.
+ *
+ * Unlayered, so it outranks the stylesheet's tokens, which sit in a layer.
+ */
+:root {
+  --wave-docs-accent: var(--color-graphite-900);
+  --wave-docs-accent-hover: var(--color-graphite-700);
+  --wave-docs-accent-fg: var(--color-graphite-0);
+  --wave-docs-accent-subtle: var(--color-graphite-50);
+  --wave-docs-hero-grid: var(--color-graphite-100);
+  --wave-docs-hero-grid-strong: var(--color-graphite-200);
+}
+
+/*
+ * The docs home's header: the onboarding's universe as the trip into the
+ * docs ends, every claim drawn (`/docs/hero-atoms.svg`, drawn from the
+ * field itself), in place of the stylesheet's grid. Its ellipse behind the
+ * words, its fade and its vignette stay as they are.
+ *
+ * Unlayered, so it outranks the stylesheet's own rule.
+ */
+.wave-docs-hero::before {
+  rotate: none;
+  background: url('/docs/hero-atoms.svg') center / cover no-repeat;
+}
+
+/*
+ * A diagram in the docs, a fence marked `diagram`: drawn in text, so its
+ * lines keep their places against each other, and centred as a whole in its
+ * box. Wider than the box, it scrolls as any code does.
+ */
+.wave-docs-code[data-lang='diagram'] code {
+  display: block;
+  width: fit-content;
+  margin-inline: auto;
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex h-9 items-center justify-center rounded-md px-4 text-sm font-medium outline-offset-2 outline-accent focus-visible:outline-2 disabled:opacity-40;
+  }
+
+  .btn-primary {
+    @apply bg-accent text-accent-fg not-disabled:hover:bg-accent-hover;
+  }
+
+  .btn-secondary {
+    @apply border border-border-strong text-fg not-disabled:hover:bg-bg-subtle;
+  }
+
+  /* A text input or a select. */
+  .field {
+    @apply h-9 rounded-md border border-border-strong bg-bg-subtle px-3 text-sm text-fg outline-offset-2 outline-accent placeholder:text-fg-muted focus-visible:outline-2;
+  }
+
+  /* The playground's first input, the one the whole step is about. */
+  .field-lg {
+    @apply h-14 rounded-lg px-4 text-xl;
+  }
+
+  /*
+   * The playground's card. Opaque, so it reads cleanly over the field, and
+   * lifted off it by a wide, soft shadow.
+   */
+  .panel {
+    @apply rounded-2xl border border-border bg-bg shadow-2xl shadow-fg/10;
+  }
+}

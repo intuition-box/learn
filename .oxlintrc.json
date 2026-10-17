@@ -1,0 +1,26 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": [
+    "react",
+    "typescript",
+    "oxc",
+    "unicorn",
+    "jsx-a11y",
+    "nextjs",
+    "vitest"
+  ],
+  "options": {
+    "typeAware": true,
+    "denyWarnings": true,
+    "reportUnusedDisableDirectives": "error"
+  },
+  "rules": {
+    "react/rules-of-hooks": "error",
+    // An inline <svg> is named for screen readers with role="img". There is
+    // no tag to use in its place.
+    "jsx-a11y/prefer-tag-over-role": "off",
+    // Vitest takes a failure message as expect's second argument.
+    "vitest/valid-expect": ["error", { "maxArgs": 2 }]
+  },
+  "ignorePatterns": [".next", "out", "next-env.d.ts"]
+}

@@ -1,0 +1,25 @@
+{
+  "pages": [
+    "index",
+    "get-started",
+    "concepts",
+    "node",
+    "build",
+    "agents",
+    "extend",
+    "reference",
+    "---Links---",
+    { "title": "Try the onboarding", "href": "/" },
+    {
+      "title": "GitHub",
+      "href": "https://github.com/0xIntuition/intuition-core"
+    },
+    { "title": "Explorer", "href": "https://explorer.intuition.systems" },
+    { "title": "Portal", "href": "https://portal.intuition.systems/" },
+    { "title": "Bridge", "href": "https://bridge.intuition.systems/" },
+    {
+      "title": "Testnet faucet",
+      "href": "https://testnet.hub.intuition.systems/"
+    }
+  ]
+}

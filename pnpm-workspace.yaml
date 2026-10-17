@@ -1,0 +1,6 @@
+# pnpm 11 keeps its settings in this file, in a single-package repo too.
+
+# pnpm refuses a version published under 24 hours ago. @waveso/docs is exempt,
+# so a release of it can be installed here the day it ships.
+minimumReleaseAgeExclude:
+  - '@waveso/*'

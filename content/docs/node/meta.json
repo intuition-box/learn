@@ -1,0 +1,14 @@
+{
+  "title": "Node",
+  "pages": [
+    "run-a-node",
+    "write-data",
+    "index-the-chain",
+    "local-devnet",
+    "explorer",
+    "configuration",
+    "container-images",
+    "operate-a-node",
+    "troubleshooting"
+  ]
+}

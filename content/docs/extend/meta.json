@@ -1,0 +1,9 @@
+{
+  "title": "Extend",
+  "pages": [
+    "classification-plugins",
+    "enrichment-plugins",
+    "enrichment-providers",
+    "indexing-scope"
+  ]
+}

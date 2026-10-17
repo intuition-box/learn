@@ -1,0 +1,14 @@
+{
+  "title": "Build",
+  "pages": [
+    "packages",
+    "read-the-chain",
+    "publish-onchain",
+    "deposit-and-redeem",
+    "rest-api",
+    "query-with-sql",
+    "atom-services",
+    "networks-and-contracts",
+    "fee-proxy"
+  ]
+}

@@ -1,0 +1,12 @@
+node_modules
+.next
+# The static export `pnpm build` writes.
+out
+next-env.d.ts
+*.tsbuildinfo
+.DS_Store
+.env
+.env.*
+!.env.example
+# pnpm only: a stray npm lockfile must never be committed.
+package-lock.json
