@@ -1,6 +1,15 @@
-# pnpm 11 keeps its settings in this file, in a single-package repo too.
-
-# pnpm refuses a version published under 24 hours ago. @waveso/docs is exempt,
-# so a release of it can be installed here the day it ships.
 minimumReleaseAgeExclude:
   - '@waveso/*'
+  - '@next/env@16.5.0-canary.38'
+  - '@next/swc-darwin-arm64@16.5.0-canary.38'
+  - '@next/swc-darwin-x64@16.5.0-canary.38'
+  - '@next/swc-linux-arm64-gnu@16.5.0-canary.38'
+  - '@next/swc-linux-arm64-musl@16.5.0-canary.38'
+  - '@next/swc-linux-x64-gnu@16.5.0-canary.38'
+  - '@next/swc-linux-x64-musl@16.5.0-canary.38'
+  - '@next/swc-win32-arm64-msvc@16.5.0-canary.38'
+  - '@next/swc-win32-x64-msvc@16.5.0-canary.38'
+  - next@16.5.0-canary.38
+overrides:
+  '@types/react': 19.3.0
+  '@types/react-dom': 19.3.0
