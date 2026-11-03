@@ -176,7 +176,7 @@ type Menu = Pick<
  * Above each of two globes, the menu of whose perspective it is: the room
  * between the menu and the globe, and the least room left under the globe.
  */
-const GLOBE_MENU = { gap: 24, under: 24 } as const;
+const GLOBE_MENU = { gap: 24, under: 32 } as const;
 /**
  * An atom set back on the cloud, there but in none of the triples it shows:
  * how much of its shape shows, and of its name.
@@ -509,13 +509,17 @@ export function StoryScene(props: StorySceneProps): ReactNode {
     /**
      * Fades a canvas out toward its four edges, so a line or a name that
      * runs past one, when a narrow screen follows the story or the plane is
-     * dragged, runs off softly.
+     * dragged, runs off softly; `amount` of the way, where less runs past.
      */
     function fadeEdges(
       target: CanvasRenderingContext2D,
       width: number,
       height: number,
+      amount = 1,
     ): void {
+      if (amount <= 0) {
+        return;
+      }
       target.globalCompositeOperation = 'destination-out';
       // Each gradient runs from an edge inward: left, right, top, bottom.
       for (const [fromX, fromY, toX, toY] of [
@@ -525,7 +529,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
         [0, height, 0, height - EDGE_FADE_PX],
       ] as const) {
         const fade = target.createLinearGradient(fromX, fromY, toX, toY);
-        fade.addColorStop(0, 'rgba(0, 0, 0, 1)');
+        fade.addColorStop(0, `rgba(0, 0, 0, ${amount})`);
         fade.addColorStop(1, 'rgba(0, 0, 0, 0)');
         target.fillStyle = fade;
         // The band along that edge, the whole length of the canvas.
@@ -1740,9 +1744,21 @@ export function StoryScene(props: StorySceneProps): ReactNode {
             continue;
           }
           const textWidth = context.measureText(atom.label).width;
-          const left = at.x - textWidth / 2 - badge.padding;
-          const right = at.x + textWidth / 2 + badge.padding;
-          const top = at.y + ATOM_SHARE * radius * at.scale * 0.5 + badge.gap;
+          const half = textWidth / 2 + badge.padding;
+          const shape = ATOM_SHARE * radius * at.scale * 0.5;
+          // Inside the film, however the reader turns it: a name that would
+          // run off its foot sits above its atom, and one at a side moves in.
+          const x = Math.min(
+            Math.max(at.x, half + BADGE_SPACING_PX),
+            width - half - BADGE_SPACING_PX,
+          );
+          const under = at.y + shape + badge.gap;
+          const top =
+            under + badge.height > height - BADGE_SPACING_PX
+              ? at.y - shape - badge.gap - badge.height
+              : under;
+          const left = x - half;
+          const right = x + half;
           const bottom = top + badge.height;
           // Names in a row of the cloud sit along one line, so only their
           // sides can meet; in another row, a name can sit under them.
@@ -1768,7 +1784,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
             showing(atom.id, 'name') *
             atom.presence ** 2 *
             (0.35 + 0.65 * frontness(at.z));
-          drawBadge(context, atom.label, at.x, top, badge);
+          drawBadge(context, atom.label, x, top, badge);
         }
 
         // An atom on its way out, still in the cloud's focus as it leaves it:
@@ -1817,7 +1833,8 @@ export function StoryScene(props: StorySceneProps): ReactNode {
         );
       }
 
-      fadeEdges(context, width, height);
+      // All of it in view, nothing runs past an edge to fade.
+      fadeEdges(context, width, height, 1 - whole);
       // Above each globe, whose perspective it is, closed, coming as the two
       // split: over the fade, as the page's, not the picture's.
       if (other !== null) {
