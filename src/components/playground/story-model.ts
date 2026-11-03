@@ -415,12 +415,12 @@ const WHOLE_VIEW: Camera = {
  * are. They are on the graph, set back, from the moment it is one graph.
  */
 const NON_BELIEVERS_ATOMS: Partial<Record<AtomId, AtomState>> = {
-  ai: { at: onSphere(0.34, 0.08), role: 'identity' },
-  is: { at: onSphere(1.31, -0.14), role: 'predicate' },
-  dangerous: { at: onSphere(2.29, -0.33), role: 'object' },
-  willDecrease: { at: onSphere(1.68, 0.62), role: 'predicate' },
-  willRemove: { at: onSphere(-0.05, 0.27), role: 'predicate' },
-  jobs: { at: onSphere(-0.7, 0.38), role: 'object' },
+  ai: { at: onSphere(0.85, 0.2), role: 'identity' },
+  is: { at: onSphere(1.58, -0.171), role: 'predicate' },
+  dangerous: { at: onSphere(2.4, -0.35), role: 'object' },
+  willDecrease: { at: onSphere(1.05, 0.72), role: 'predicate' },
+  willRemove: { at: onSphere(0.275, 0.31), role: 'predicate' },
+  jobs: { at: onSphere(-0.95, 0.42), role: 'object' },
   threatens: { at: onSphere(0.05, -0.2), role: 'predicate' },
   peace: { at: onSphere(-0.26, -0.47), role: 'object' },
 };
@@ -1331,7 +1331,7 @@ export interface OtherScene {
   aside: number;
   /** Whose perspectives the two are, the cloud's and the copy's, shown above them. */
   viewers: readonly [string, string];
-  /** The cloud's own atoms, where they stand on it, and its triples. */
+  /** The cloud's atoms, where they stand on it, each in the role the copy's triples give it. */
   atoms: readonly DrawnAtom[];
   triples: DrawnTriple[];
   /**
@@ -1602,10 +1602,47 @@ function otherAt(
     }),
   );
 
+  // Each atom of its triples in the role they give it there: an object
+  // only, not the subject of another too, is a square on it. It takes that
+  // role as its triples grow.
+  const roleOn = (id: AtomId): Role | undefined => {
+    const roles = [...other.trusted, ...other.triples].flatMap((triple) => {
+      const { subject, predicate, object } = TRIPLES[triple];
+
+      return [
+        ...(subject === id ? ['subject'] : []),
+        ...(predicate === id ? ['predicate'] : []),
+        ...(object === id ? ['object'] : []),
+      ];
+    });
+    if (roles.includes('predicate')) {
+      return 'predicate';
+    }
+    if (roles.includes('subject')) {
+      return roles.includes('object') ? 'subjectAndObject' : 'identity';
+    }
+
+    return roles.includes('object') ? 'object' : undefined;
+  };
+  const own = atoms.map((atom): DrawnAtom => {
+    const role = roleOn(atom.id);
+
+    return role === undefined || role === atom.role.to
+      ? atom
+      : {
+          ...atom,
+          role: {
+            from: atom.role.to,
+            to: role,
+            progress: at(OTHER_OPENING.triples),
+          },
+        };
+  });
+
   return {
     aside: at(OTHER_OPENING.aside),
     viewers: other.viewers,
-    atoms,
+    atoms: own,
     setBack,
     triples: [
       ...triples.map((triple) => ({

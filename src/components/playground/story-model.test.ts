@@ -566,7 +566,9 @@ describe('perspectives', () => {
     expect(at(0).other?.aside).toBe(0);
     expect(at(0.3).other?.aside).toBe(1);
     expect(ai(0)).toBe(1);
-    expect(at(0.5).other?.atoms).toEqual(at(0.5).atoms);
+    expect(
+      at(0.5).other?.atoms.map(({ id, at: where }) => ({ id, where })),
+    ).toEqual(at(0.5).atoms.map(({ id, at: where }) => ({ id, where })));
     expect(at(0.5).setBack.get('ai')).toBe(1);
     expect(at(0.5).setBack.has('spacex')).toBe(false);
     expect(at(0.3).other?.setBack.get('ai')).toBe(1);
@@ -603,7 +605,14 @@ describe('perspectives', () => {
     // None of the cloud's triples: each one draws back on the copy.
     expect(scene.triples.every((triple) => onCopy(triple.id) === 0)).toBe(true);
     // Every atom stays; those in none of its triples are set back.
-    expect(scene.other?.atoms).toEqual(scene.atoms);
+    expect(
+      scene.other?.atoms.map(({ id, at: where }) => ({ id, where })),
+    ).toEqual(scene.atoms.map(({ id, at: where }) => ({ id, where })));
+    // The current Earth economy only the object of a triple there: a square.
+    const economy = (atoms: readonly Scene['atoms'][number][] | undefined) =>
+      atoms?.find((atom) => atom.id === 'currentEarthEconomy')?.role.to;
+    expect(economy(scene.atoms)).toBe('subjectAndObject');
+    expect(economy(scene.other?.atoms)).toBe('object');
     for (const id of [
       'elonMusk',
       'spacex',
