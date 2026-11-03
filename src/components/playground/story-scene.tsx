@@ -2,7 +2,7 @@ import { type ReactNode, useEffect, useRef } from 'react';
 
 import { readCssColour } from '@/components/onboarding/field-gl';
 import { ROLE_COLOURS } from '@/components/onboarding/field-scene';
-import { STAR_ICON, USER_ICON } from '@/lib/icons';
+import { MEDAL_ICON, USER_ICON } from '@/lib/icons';
 import {
   arcPoint,
   axisAngle,
@@ -152,28 +152,31 @@ function cellsOf(
 }
 
 /**
- * A ranked list's top three, a star before each name: platinum, gold,
- * copper, the first the brightest. And the star's size, in a name's units,
- * and the room after it.
+ * A ranked list's top three, a medal before each name, outside its badge
+ * and as tall, its place in its ring: gold, silver, copper. And how tall
+ * its numeral stands against the ring's radius, as the one in the icon does.
  */
 const RANK_COLOURS: readonly Rgb[] = [
-  [229, 228, 226],
   [227, 179, 65],
+  [168, 169, 173],
   [184, 115, 51],
 ];
-const STAR = { size: 12, gap: 4 } as const;
+const MEDAL = { numeral: 1.116 } as const;
 
-/** A star before a name: its colour, and how far it has come, 0 to 1. */
-interface Star {
+/** A medal before a name: its colour, its place, and how far it has come, 0 to 1. */
+interface Medal {
   colour: Rgb;
+  place: number;
   amount: number;
 }
 
-/** The star before a name ranked in a list's top three, as far as `amount` has come. */
-function starOf(rank: number | undefined, amount: number): Star | undefined {
+/** The medal before a name ranked in a list's top three, as far as `amount` has come. */
+function medalOf(rank: number | undefined, amount: number): Medal | undefined {
   const colour = rank === undefined ? undefined : RANK_COLOURS[rank];
 
-  return colour === undefined || amount <= 0 ? undefined : { colour, amount };
+  return rank === undefined || colour === undefined || amount <= 0
+    ? undefined
+    : { colour, place: rank + 1, amount };
 }
 
 /** A position on its line: a small pill of the page's colour, ringed with a hairline. */
@@ -253,8 +256,8 @@ interface Lifted extends Placement {
   named: number;
   /** Where its name goes on the plane, when not under it. */
   nameSide?: 'left' | 'right';
-  /** The star before its name, ranked in a list. */
-  star?: Star;
+  /** The medal before its name, ranked in a list. */
+  medal?: Medal;
 }
 
 /** Where the plane is: the claim on it, and how it is placed on the canvas. */
@@ -454,8 +457,51 @@ export function StoryScene(props: StorySceneProps): ReactNode {
       path: new Path2D(path.d),
       opacity: path.opacity,
     }));
-    const starPath = new Path2D(STAR_ICON.paths[0]?.d ?? '');
+    const medalPath = new Path2D(MEDAL_ICON.paths[0]?.d ?? '');
     const fontFamily = getComputedStyle(canvas).fontFamily;
+
+    /**
+     * A medal, `size` across, its top left at `x`, `y`: the rosette, then
+     * its place in the ring, centred on what the numeral covers, as tall as
+     * the icon's own.
+     */
+    function drawMedal(
+      target: CanvasRenderingContext2D,
+      medal: Medal,
+      x: number,
+      y: number,
+      size: number,
+    ): void {
+      const { box, ring } = MEDAL_ICON;
+      const scale = size / box.size;
+      target.save();
+      target.globalAlpha *= medal.amount;
+      target.fillStyle = rgba(medal.colour);
+      target.translate(x, y);
+      target.save();
+      target.scale(scale, scale);
+      target.translate(-box.x, -box.y);
+      target.fill(medalPath, 'evenodd');
+      target.restore();
+      const numeral = String(medal.place);
+      target.font = `700 100px ${fontFamily}`;
+      const tall = target.measureText(numeral);
+      const fontSize =
+        (100 * ring.radius * MEDAL.numeral * scale) /
+        (tall.actualBoundingBoxAscent + tall.actualBoundingBoxDescent);
+      target.font = `700 ${fontSize}px ${fontFamily}`;
+      target.textAlign = 'left';
+      target.textBaseline = 'alphabetic';
+      const set = target.measureText(numeral);
+      target.fillText(
+        numeral,
+        (ring.x - box.x) * scale -
+          (set.actualBoundingBoxRight - set.actualBoundingBoxLeft) / 2,
+        (ring.y - box.y) * scale +
+          (set.actualBoundingBoxAscent - set.actualBoundingBoxDescent) / 2,
+      );
+      target.restore();
+    }
 
     /**
      * Fades a canvas out toward its four edges, so a line or a name that
@@ -520,38 +566,32 @@ export function StoryScene(props: StorySceneProps): ReactNode {
       x: number,
       top: number,
       badge: Badge,
-      star?: Star,
+      medal?: Medal,
     ): void {
       const textWidth = target.measureText(label).width;
-      // A star before the name takes room in the badge as it comes.
-      const room =
-        star === undefined ? 0 : (STAR.size + STAR.gap) * star.amount;
-      const left = x - (textWidth + room) / 2 - badge.padding;
+      const left = x - textWidth / 2 - badge.padding;
       target.fillStyle = rgba(ink);
       target.beginPath();
       target.roundRect(
         left,
         top,
-        textWidth + room + badge.padding * 2,
+        textWidth + badge.padding * 2,
         badge.height,
         badge.height / 2,
       );
       target.fill();
-      if (star !== undefined && star.amount > 0) {
-        const alpha = target.globalAlpha;
-        target.save();
-        target.translate(
-          left + badge.padding,
-          top + (badge.height - STAR.size) / 2,
+      // A medal before the badge, outside it, as tall.
+      if (medal !== undefined && medal.amount > 0) {
+        drawMedal(
+          target,
+          medal,
+          left - PLANE.medal.gap - badge.height,
+          top,
+          badge.height,
         );
-        target.scale(STAR.size / STAR_ICON.size, STAR.size / STAR_ICON.size);
-        target.globalAlpha = alpha * star.amount;
-        target.fillStyle = rgba(star.colour);
-        target.fill(starPath);
-        target.restore();
       }
       target.fillStyle = rgba(page);
-      target.fillText(label, x + room / 2, top + badge.height / 2 + 0.5);
+      target.fillText(label, x, top + badge.height / 2 + 0.5);
     }
 
     /**
@@ -742,13 +782,13 @@ export function StoryScene(props: StorySceneProps): ReactNode {
       named = 1,
       nameSide?: 'left' | 'right',
       sideness = 1,
-      star?: Star,
+      medal?: Medal,
     ): void {
       drawShape(target, placement.x, placement.y, placement.size, role);
       if (named > 0) {
         const alpha = target.globalAlpha;
         target.globalAlpha = alpha * named;
-        drawName(target, label, placement, nameSide, sideness, star);
+        drawName(target, label, placement, nameSide, sideness, medal);
         target.globalAlpha = alpha;
       }
     }
@@ -765,7 +805,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
       placement: Placement,
       side?: 'left' | 'right',
       sideness = 1,
-      star?: Star,
+      medal?: Medal,
     ): void {
       const { badge } = PLANE;
       target.save();
@@ -783,15 +823,17 @@ export function StoryScene(props: StorySceneProps): ReactNode {
             placement.size / 2 +
             (badge.gap + badge.height / 2) * scale,
         };
-        // A star in the badge widens it away from the shape, so the side
-        // nearest the shape stays where it is.
+        // A medal stands before the badge: to the right of the shape, the
+        // badge moves over to make room for it as it comes.
         const room =
-          star === undefined ? 0 : (STAR.size + STAR.gap) * star.amount;
+          medal === undefined || direction < 0
+            ? 0
+            : (badge.height + PLANE.medal.gap) * medal.amount;
         const beside = {
           x:
             placement.x +
             (placement.size / 2 +
-              (badge.gap + badge.padding + (textWidth + room) / 2) * scale) *
+              (badge.gap + room + badge.padding + textWidth / 2) * scale) *
               direction,
           y: placement.y,
         };
@@ -800,7 +842,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
           lerp(under.y, beside.y, sideness),
         );
         target.scale(scale, scale);
-        drawBadge(target, label, 0, -badge.height / 2, badge, star);
+        drawBadge(target, label, 0, -badge.height / 2, badge, medal);
       } else {
         target.translate(placement.x, placement.y + placement.size / 2);
         target.scale(placement.badgeScale, placement.badgeScale);
@@ -1090,7 +1132,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
           atom.named,
           atom.nameSide,
           out?.amount ?? 1,
-          starOf(atom.rank, atom.ranked),
+          medalOf(atom.rank, atom.ranked),
         );
       }
       // Plain words, not yet atoms: written after an atom, breaking apart,
@@ -1328,19 +1370,19 @@ export function StoryScene(props: StorySceneProps): ReactNode {
           presence: number;
           named: number;
           nameSide?: 'left' | 'right';
-          star?: Star;
+          medal?: Medal;
         }
       >();
       if (planeView !== null) {
         for (const atom of planeView.blended.atoms) {
-          const star = starOf(atom.rank, atom.ranked);
+          const medal = medalOf(atom.rank, atom.ranked);
           onPlane.set(atom.id, {
             x: planeView.origin.x + atom.x * planeView.zoom,
             y: planeView.origin.y + atom.y * planeView.zoom,
             presence: atom.presence,
             named: atom.named,
             ...(atom.nameSide === undefined ? {} : { nameSide: atom.nameSide }),
-            ...(star === undefined ? {} : { star }),
+            ...(medal === undefined ? {} : { medal }),
           });
         }
       }
@@ -1451,7 +1493,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
           ...(target.nameSide === undefined
             ? {}
             : { nameSide: target.nameSide }),
-          ...(target.star === undefined ? {} : { star: target.star }),
+          ...(target.medal === undefined ? {} : { medal: target.medal }),
           x: lerp(from.x, target.x, amount),
           y: lerp(from.y, target.y, amount),
           size: lerp(
@@ -1699,7 +1741,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
             isNamed ? out.named : 0,
             out.nameSide,
             out.amount,
-            out.star,
+            out.medal,
           );
           if (isNamed && out.named === 0) {
             drawName(context, atom.label, out.origin);

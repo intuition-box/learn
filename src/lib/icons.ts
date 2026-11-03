@@ -59,13 +59,23 @@ export const TRIPLE_ICON: Icon = {
   ],
 };
 
-/** A star, five-pointed, its points rounded. */
-export const STAR_ICON: Icon = {
-  size: 18,
+/** An icon with an open ring in it, where whoever draws it sets something. */
+export interface RingedIcon extends Icon {
+  /** Where its shape stands, in the icon's units: its top left, and its size. */
+  box: { x: number; y: number; size: number };
+  /** The ring's middle and radius, in the icon's units. */
+  ring: { x: number; y: number; radius: number };
+}
+
+/** A medal: a rosette round an open ring, the place it stands for set in the ring. */
+export const MEDAL_ICON: RingedIcon = {
+  size: 31.701,
   paths: [
     {
-      d: 'M13.4814 16.29C13.3623 16.29 13.2421 16.2617 13.1328 16.2041L8.99998 14.0322L4.86718 16.2041C4.61428 16.3364 4.30757 16.314 4.07717 16.147C3.84667 15.979 3.73148 15.6944 3.77928 15.4131L4.56928 10.8125L1.22648 7.55419C1.02238 7.35499 0.948182 7.05659 1.03698 6.78519C1.12488 6.51369 1.35928 6.31599 1.64248 6.27489L6.26158 5.60349L8.32697 1.41799C8.58087 0.906285 9.41878 0.906285 9.67268 1.41799L11.7381 5.60349L16.3572 6.27489C16.6404 6.31589 16.8748 6.51369 16.9627 6.78519C17.0516 7.05669 16.9773 7.35499 16.7732 7.55419L13.4304 10.8125L14.2204 15.4131C14.2683 15.6943 14.153 15.979 13.9225 16.147C13.7916 16.2417 13.6367 16.29 13.4814 16.29Z',
-      opacity: 0.4,
+      d: 'M23.957,19.572l0.32-4.617l3.039-3.489l-3.039-3.49l-0.32-4.617l-4.615-0.32L15.852,0l-3.491,3.039l-4.616,0.32l-0.32,4.618l-3.038,3.49l3.038,3.489l0.32,4.616l4.617,0.319l3.491,3.037l3.49-3.037L23.957,19.572z M15.791,17.826c-3.546,0-6.422-2.875-6.422-6.42s2.875-6.422,6.422-6.422c3.547,0,6.422,2.876,6.422,6.422C22.213,14.952,19.337,17.826,15.791,17.826z',
+      opacity: 1,
     },
   ],
+  box: { x: 4.387, y: 0, size: 22.929 },
+  ring: { x: 15.791, y: 11.406, radius: 6.422 },
 };

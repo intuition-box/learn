@@ -147,6 +147,8 @@ export const PLANE = {
    * the predicate; and how far along a member's line its weight shows.
    */
   list: { rowStep: 80, reach: 170, weightAt: 0.45 },
+  /** A ranked member's medal, before its name and as tall: the room between them. */
+  medal: { gap: 4 },
   /** How much of an atom set back shows, and of the lines from it. */
   faded: 0.3,
 } as const;
@@ -479,7 +481,11 @@ function layList(list: PlaneList, measure: (atom: AtomId) => number): Laid {
   const { rowStep, reach } = PLANE.list;
   const slot = (atom: AtomId): number =>
     Math.max(measure(atom) + PLANE.badge.padding * 2, PLANE.atomSize);
+  // Ranked, its members' medals stand before their names.
+  const medals =
+    list.isRanked === true ? PLANE.badge.height + PLANE.medal.gap : 0;
   const names =
+    medals +
     Math.max(...list.members.map((member) => slot(member.atom))) +
     PLANE.badge.gap;
   const across =
