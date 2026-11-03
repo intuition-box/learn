@@ -543,47 +543,55 @@ describe('perspectives', () => {
       at(0.68).triples.find((triple) => triple.id === 'elonBelieves')?.progress,
     ).toBe(0);
     expect(nested.role.to).toBe('predicate');
-    expect(present(settled('one-graph'))).toHaveLength(18);
+    // Every atom, the non-believers' among them, set back from the start.
+    expect(present(settled('one-graph'))).toHaveLength(26);
+    expect(settled('one-graph').setBack.get('ai')).toBe(1);
+    expect(settled('one-graph').setBack.has('spacex')).toBe(false);
     expect(
       settled('one-graph').triples.every((triple) => triple.progress === 1),
     ).toBe(true);
   });
 
-  it('moves the cloud aside as its copy splits off and turns; then, on the copy alone, the triples it does not trust draw back, its own atoms arrive, and its own triples grow', () => {
+  it('moves the cloud aside as its copy splits off, the atoms only the copy uses fading in on both; then, on the copy alone, the triples it does not trust draw back, and its own grow', () => {
     const { start, motionMs } = beat('another-perspective');
-    const otherAt = (share: number) => sceneAt(start + motionMs * share).other;
+    const at = (share: number) => sceneAt(start + motionMs * share);
     const onCopy = (share: number, id: string) =>
-      otherAt(share)?.triples.find((triple) => triple.id === id)?.progress;
-    const ownAtom = (share: number) =>
-      otherAt(share)?.atoms.find((atom) => atom.id === 'ai')?.presence;
+      at(share).other?.triples.find((triple) => triple.id === id)?.progress;
+    const ai = (share: number) =>
+      at(share).atoms.find((atom) => atom.id === 'ai')?.presence;
 
     expect(settled('one-graph').other).toBeNull();
-    // A copy at first, facing as the cloud does; then turned its own way.
-    expect(otherAt(0)?.aside).toBe(0);
-    for (const [index, value] of settled('one-graph').camera.facing.entries()) {
-      expect(otherAt(0)?.facing[index]).toBeCloseTo(value, 9);
-    }
-    expect(otherAt(0.3)?.aside).toBe(1);
-    expect(otherAt(0.3)?.facing).not.toEqual(otherAt(0)?.facing);
+    // A copy at first, its atoms the cloud's, where they stand on it, those
+    // only the copy's triples use already there, set back on both.
+    expect(at(0).other?.aside).toBe(0);
+    expect(at(0.3).other?.aside).toBe(1);
+    expect(ai(0)).toBe(1);
+    expect(at(0.5).other?.atoms).toEqual(at(0.5).atoms);
+    expect(at(0.5).setBack.get('ai')).toBe(1);
+    expect(at(0.5).setBack.has('spacex')).toBe(false);
+    expect(at(0.3).other?.setBack.get('ai')).toBe(1);
+    expect(at(0.3).other?.setBack.get('spacex')).toBe(0);
+    // Then what it does not trust draws back, and its own triples grow.
     expect(onCopy(0.3, 'elonBelieves')).toBe(1);
-    expect(onCopy(0.45, 'elonBelieves')).toBeGreaterThan(0);
-    expect(onCopy(0.45, 'elonBelieves')).toBeLessThan(1);
-    expect(onCopy(0.54, 'anthropicBestAiCompany')).toBe(0);
-    expect(otherAt(0.54)?.quieted).toBe(1);
-    expect(ownAtom(0.54)).toBe(0);
-    expect(ownAtom(0.72)).toBe(1);
-    expect(onCopy(0.72, 'aiThreatensDemocracy')).toBe(0);
+    expect(onCopy(0.46, 'elonBelieves')).toBeGreaterThan(0);
+    expect(onCopy(0.46, 'elonBelieves')).toBeLessThan(1);
+    expect(onCopy(0.56, 'anthropicBestAiCompany')).toBe(0);
+    expect(at(0.56).other?.setBack.get('spacex')).toBe(1);
+    expect(onCopy(0.6, 'aiThreatensPeace')).toBe(0);
+    // As its own triples grow, the atoms they join come forward on it.
+    expect(at(0.9).other?.setBack.get('ai')).toBe(0);
+    expect(at(0.9).setBack.get('ai')).toBe(1);
     for (const id of [
       'aiIsDangerous',
       'aiDecreasesEconomy',
       'aiRemovesJobs',
-      'aiThreatensDemocracy',
+      'aiThreatensPeace',
     ]) {
-      expect(onCopy(0.94, id)).toBe(1);
+      expect(onCopy(0.9, id)).toBe(1);
     }
   });
 
-  it('keeps every triple on the cloud: the other perspective is the copy’s alone, and names only the atoms of the triples it trusts', () => {
+  it('keeps every triple on the cloud: the other perspective is the copy’s alone, and sets back the atoms in none of the triples it trusts', () => {
     const scene = settled('another-perspective');
     const onCopy = (id: string) =>
       scene.other?.triples.find((triple) => triple.id === id)?.progress;
@@ -594,20 +602,24 @@ describe('perspectives', () => {
     );
     // None of the cloud's triples: each one draws back on the copy.
     expect(scene.triples.every((triple) => onCopy(triple.id) === 0)).toBe(true);
-    // Every atom keeps its shape; only those of its own triples keep their
-    // names.
-    expect(scene.other?.atoms.length).toBe(scene.atoms.length + 8);
-    expect(scene.other?.unnamed).toEqual(
-      expect.arrayContaining([
-        'elonMusk',
-        'spacex',
-        'xai',
-        'believes',
-        'anthropic',
-      ]),
-    );
-    expect(scene.other?.unnamed).not.toContain('currentEarthEconomy');
-    expect(scene.other?.unnamed).not.toContain('ai');
+    // Every atom stays; those in none of its triples are set back.
+    expect(scene.other?.atoms).toEqual(scene.atoms);
+    for (const id of [
+      'elonMusk',
+      'spacex',
+      'xai',
+      'believes',
+      'anthropic',
+    ] as const) {
+      expect(scene.other?.setBack.get(id)).toBe(1);
+    }
+    expect(scene.other?.setBack.get('currentEarthEconomy')).toBe(0);
+    // Whose perspectives the two are, above them.
+    expect(scene.other?.viewers).toEqual([
+      'Optimistic builders',
+      'My pessimistic friends',
+    ]);
+    expect(scene.other?.setBack.get('ai')).toBe(0);
   });
 });
 

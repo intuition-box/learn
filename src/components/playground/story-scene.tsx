@@ -166,6 +166,26 @@ function medalOf(rank: number | undefined, amount: number): Medal | undefined {
     : { colour, place: rank + 1, amount };
 }
 
+/** A menu of perspectives, as drawn: where it is, what it offers, and how far it shows and opens. */
+type Menu = Pick<
+  BlendedPicker,
+  'x' | 'y' | 'width' | 'options' | 'chosen' | 'presence' | 'open' | 'highlight'
+>;
+
+/**
+ * Above each of two globes, the menu of whose perspective it is: the room
+ * between the menu and the globe, and the least room left under the globe.
+ */
+const GLOBE_MENU = { gap: 24, under: 24 } as const;
+/**
+ * An atom set back on the cloud, there but in none of the triples it shows:
+ * how much of its shape shows, and of its name.
+ */
+const SET_BACK = { shape: PLANE.faded, name: 0.1 } as const;
+
+/** The room above a globe for its menu. */
+const GLOBE_MENU_ROOM = PLANE.picker.height + GLOBE_MENU.gap;
+
 /** A position on its line: a small pill of the page's colour, ringed with a hairline. */
 const WEIGHT = { height: 18, padding: 6, fontSize: 11 } as const;
 
@@ -1190,34 +1210,33 @@ export function StoryScene(props: StorySceneProps): ReactNode {
           ratio * origin.x,
           ratio * origin.y,
         );
-        drawPicker(blended.picker);
+        drawMenu(plane, blended.picker);
         plane.setTransform(ratio, 0, 0, ratio, 0, 0);
       }
     }
 
     /**
-     * The menu of perspectives above the claim, in the plane's units:
-     * closed, the one chosen and its chevrons, on ink, as a name is; open,
-     * the people to choose from in a list below it, the one highlighted
-     * lighter.
+     * A menu of perspectives, in `target`'s units: closed, the one chosen and
+     * its chevrons, on ink, as a name is; open, the people to choose from in
+     * a list below it, the one highlighted lighter.
      */
-    function drawPicker(picker: BlendedPicker): void {
-      if (plane === null || plane === undefined || picker.presence <= 0) {
+    function drawMenu(target: CanvasRenderingContext2D, picker: Menu): void {
+      if (picker.presence <= 0) {
         return;
       }
       const { height, padding, chevrons, row, inset, radius } = PLANE.picker;
       const { x, y, width, options } = picker;
-      plane.save();
-      plane.font = `500 ${PLANE.badge.fontSize}px ${fontFamily}`;
-      plane.textAlign = 'left';
-      plane.textBaseline = 'middle';
-      plane.globalAlpha = picker.presence;
-      plane.fillStyle = rgba(ink);
-      plane.beginPath();
-      plane.roundRect(x, y, width, height, radius);
-      plane.fill();
-      plane.fillStyle = rgba(page);
-      plane.fillText(
+      target.save();
+      target.font = `500 ${PLANE.badge.fontSize}px ${fontFamily}`;
+      target.textAlign = 'left';
+      target.textBaseline = 'middle';
+      target.globalAlpha = picker.presence;
+      target.fillStyle = rgba(ink);
+      target.beginPath();
+      target.roundRect(x, y, width, height, radius);
+      target.fill();
+      target.fillStyle = rgba(page);
+      target.fillText(
         options[picker.chosen] ?? '',
         x + padding,
         y + height / 2 + 0.5,
@@ -1227,57 +1246,57 @@ export function StoryScene(props: StorySceneProps): ReactNode {
         x: x + width - padding - chevrons / 2,
         y: y + height / 2,
       };
-      plane.strokeStyle = rgba(page, 0.7);
-      plane.lineWidth = 1.5;
-      plane.lineCap = 'round';
-      plane.lineJoin = 'round';
-      plane.beginPath();
+      target.strokeStyle = rgba(page, 0.7);
+      target.lineWidth = 1.5;
+      target.lineCap = 'round';
+      target.lineJoin = 'round';
+      target.beginPath();
       for (const direction of [-1, 1]) {
-        plane.moveTo(middle.x - 3.5, middle.y + 2 * direction);
-        plane.lineTo(middle.x, middle.y + 5.5 * direction);
-        plane.lineTo(middle.x + 3.5, middle.y + 2 * direction);
+        target.moveTo(middle.x - 3.5, middle.y + 2 * direction);
+        target.lineTo(middle.x, middle.y + 5.5 * direction);
+        target.lineTo(middle.x + 3.5, middle.y + 2 * direction);
       }
-      plane.stroke();
+      target.stroke();
 
       if (picker.open > 0) {
         // Open, the list drops a little as it shows.
         const { drop } = PLANE.picker;
         const top = y + height + drop - (1 - picker.open) * drop;
-        plane.globalAlpha = picker.presence * picker.open;
-        plane.shadowColor = 'rgba(0, 0, 0, 0.18)';
-        plane.shadowBlur = 16;
-        plane.shadowOffsetY = 6;
-        plane.fillStyle = rgba(ink);
-        plane.beginPath();
-        plane.roundRect(
+        target.globalAlpha = picker.presence * picker.open;
+        target.shadowColor = 'rgba(0, 0, 0, 0.18)';
+        target.shadowBlur = 16;
+        target.shadowOffsetY = 6;
+        target.fillStyle = rgba(ink);
+        target.beginPath();
+        target.roundRect(
           x,
           top,
           width,
           options.length * row + inset * 2,
           radius,
         );
-        plane.fill();
-        plane.shadowColor = 'transparent';
-        plane.fillStyle = rgba(page, 0.14);
-        plane.beginPath();
-        plane.roundRect(
+        target.fill();
+        target.shadowColor = 'transparent';
+        target.fillStyle = rgba(page, 0.14);
+        target.beginPath();
+        target.roundRect(
           x + inset,
           top + inset + picker.highlight * row,
           width - inset * 2,
           row,
           radius - inset / 2,
         );
-        plane.fill();
-        plane.fillStyle = rgba(page);
+        target.fill();
+        target.fillStyle = rgba(page);
         for (const [index, option] of options.entries()) {
-          plane.fillText(
+          target.fillText(
             option,
             x + padding,
             top + inset + (index + 0.5) * row + 0.5,
           );
         }
       }
-      plane.restore();
+      target.restore();
     }
 
     /** A faint dashed outline, round the path `trace` gives: a perspective's shape. */
@@ -1376,14 +1395,34 @@ export function StoryScene(props: StorySceneProps): ReactNode {
 
       const view = viewOf(camera, width, height);
       // With another perspective beside it, the cloud moves aside into a
-      // square cell of its own, and its copy, splitting off, takes the other.
+      // square cell of its own, and its copy, splitting off, takes the other;
+      // each leaves room above it for the menu of whose perspective it is.
+      // Side by side, the two stand right under their menus, the menus at
+      // the top of the film, as large as the room under them allows.
       const { other } = state.props.scene;
       const aside = other?.aside ?? 0;
       const cells = cellsOf(width, height);
-      const radius = lerp(view.radius, cells.side * WHOLE_SHARE, aside);
+      const reachShare = EYE_DISTANCE / Math.sqrt(EYE_DISTANCE ** 2 - 1);
+      const isSideBySide = cells.first.y === cells.second.y;
+      const splitRadius = isSideBySide
+        ? Math.min(
+            cells.side * WHOLE_SHARE,
+            (height - GLOBE_MENU_ROOM - GLOBE_MENU.under) / (2 * reachShare),
+          )
+        : (cells.side - GLOBE_MENU_ROOM) * WHOLE_SHARE;
+      const radius = lerp(view.radius, splitRadius, aside);
+      // Side by side, each shrinks from its top, which moves from where the
+      // one graph's was to just under its menu, at the film's top throughout.
+      const top = lerp(
+        height / 2 - view.radius * reachShare,
+        GLOBE_MENU_ROOM,
+        aside,
+      );
       const centreOf = (cell: ScreenPoint): ScreenPoint => ({
         x: lerp(width / 2, cell.x, aside),
-        y: lerp(height / 2, cell.y, aside),
+        y: isSideBySide
+          ? top + radius * reachShare
+          : lerp(height / 2, cell.y + GLOBE_MENU_ROOM / 2, aside),
       });
       // The film's turn brings what the camera faces to the front; the
       // reader's comes after it.
@@ -1411,10 +1450,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
           };
         };
       const project = projectFrom(centreOf(cells.first), orientation);
-      const projectOther = projectFrom(
-        centreOf(cells.second),
-        multiply(state.turn, turnToFace(other?.facing ?? view.facing)),
-      );
+      const projectOther = projectFrom(centreOf(cells.second), orientation);
       // All of it in view, its outline, round: the copy's too.
       const whole = camera.whole ?? 0;
       if (whole > 0) {
@@ -1482,17 +1518,25 @@ export function StoryScene(props: StorySceneProps): ReactNode {
       /**
        * A sphere of atoms and the triples between them, as `project` turns
        * and places it, at `opacity`: the cloud, or its copy. `lifted` says
-       * which atoms are on their way out to the plane, and `quiet` whose
-       * names go, and how far. It returns the lines that reach out of it to
-       * the plane.
+       * which atoms are on their way out to the plane, and `setBack` those in
+       * none of its triples, and how far. It returns the lines that reach out
+       * of it to the plane.
        */
       const drawSphere = (
-        sphere: { atoms: Scene['atoms']; triples: Scene['triples'] },
+        sphere: {
+          atoms: readonly Scene['atoms'][number][];
+          triples: readonly Scene['triples'][number][];
+        },
         project: (direction: Vec3) => Projected,
         lifted: ReadonlyMap<AtomId, Lifted>,
         opacity: number,
-        quiet: { ids: ReadonlySet<AtomId>; amount: number } | null = null,
+        setBack: ReadonlyMap<AtomId, number>,
       ): Line[] => {
+        // An atom in none of its triples, its shape and its name, set back.
+        const showing = (id: AtomId, part: keyof typeof SET_BACK): number =>
+          lerp(1, SET_BACK[part], setBack.get(id) ?? 0);
+        const isSetBack = (id: AtomId): boolean =>
+          (setBack.get(id) ?? 0) >= 0.5;
         // Each triple's line, under the atoms, drawn as far as it has got. An
         // atom on its way out of the cloud takes its end of the line with it,
         // and the plane draws that end again, sharp: a reminder of where it
@@ -1648,7 +1692,10 @@ export function StoryScene(props: StorySceneProps): ReactNode {
           .sort((a, b) => a.at.z - b.at.z);
         for (const { atom, at } of shown) {
           context.globalAlpha =
-            opacity * atom.presence * (0.2 + 0.8 * frontness(at.z));
+            opacity *
+            showing(atom.id, 'shape') *
+            atom.presence *
+            (0.2 + 0.8 * frontness(at.z));
           drawShape(
             context,
             at.x,
@@ -1680,12 +1727,16 @@ export function StoryScene(props: StorySceneProps): ReactNode {
           ...atoms
             .filter((atom) => atom.presence > 0 && lifted.has(atom.id))
             .map((atom) => ({ atom, at: project(atom.at), isLeaving: true })),
-        ].sort((a, b) => b.at.z - a.at.z);
+        ]
+          // Those its triples join first, then those set back.
+          .sort(
+            (a, b) =>
+              Number(isSetBack(a.atom.id)) - Number(isSetBack(b.atom.id)) ||
+              b.at.z - a.at.z,
+          );
         const namedHere = new Set<AtomId>();
         for (const { atom, at, isLeaving } of naming) {
-          const voice =
-            quiet !== null && quiet.ids.has(atom.id) ? 1 - quiet.amount : 1;
-          if (at.z < 0.1 || voice <= 0) {
+          if (at.z < 0.1) {
             continue;
           }
           const textWidth = context.measureText(atom.label).width;
@@ -1714,7 +1765,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
           }
           context.globalAlpha =
             opacity *
-            voice *
+            showing(atom.id, 'name') *
             atom.presence ** 2 *
             (0.35 + 0.65 * frontness(at.z));
           drawBadge(context, atom.label, at.x, top, badge);
@@ -1748,16 +1799,51 @@ export function StoryScene(props: StorySceneProps): ReactNode {
 
         return reaching;
       };
-      const reaching = drawSphere({ atoms, triples }, project, lifted, 1);
+      const reaching = drawSphere(
+        { atoms, triples },
+        project,
+        lifted,
+        1,
+        state.props.scene.setBack,
+      );
       // The copy over the cloud as it splits off, the two one at first.
       if (other !== null) {
-        drawSphere(other, projectOther, new Map(), Math.min(aside * 4, 1), {
-          ids: new Set(other.unnamed),
-          amount: other.quieted,
-        });
+        drawSphere(
+          other,
+          projectOther,
+          new Map(),
+          Math.min(aside * 4, 1),
+          other.setBack,
+        );
       }
 
       fadeEdges(context, width, height);
+      // Above each globe, whose perspective it is, closed, coming as the two
+      // split: over the fade, as the page's, not the picture's.
+      if (other !== null) {
+        const { padding, chevrons, height: tall } = PLANE.picker;
+        context.font = `500 ${PLANE.badge.fontSize}px ${fontFamily}`;
+        const across =
+          Math.max(
+            ...other.viewers.map((viewer) => context.measureText(viewer).width),
+          ) +
+          padding * 3 +
+          chevrons;
+        const reach = radius * reachShare;
+        for (const [chosen, projecting] of [project, projectOther].entries()) {
+          const middle = projecting([0, 0, 0]);
+          drawMenu(context, {
+            x: middle.x - across / 2,
+            y: isSideBySide ? 0 : middle.y - reach - GLOBE_MENU.gap - tall,
+            width: across,
+            options: other.viewers,
+            chosen,
+            presence: aside,
+            open: 0,
+            highlight: chosen,
+          });
+        }
+      }
       drawPlane(planeView, reaching, lifted);
     }
 
