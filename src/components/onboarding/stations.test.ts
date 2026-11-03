@@ -4,9 +4,8 @@ import { isDocsPath, linkLevelFor, stationFor } from './stations';
 import { LINK_LEVELS } from './time-field-geometry';
 
 describe('stationFor', () => {
-  it('gives each page of the onboarding its own station, in order', () => {
-    expect(stationFor('/')).toBe(0);
-    expect(stationFor('/play')).toBe(1);
+  it('gives each page of the onboarding its own station, in order: the film, then the docs', () => {
+    expect(stationFor('/')).toBe(1);
     expect(stationFor('/docs')).toBe(2);
   });
 
@@ -14,16 +13,17 @@ describe('stationFor', () => {
     expect(stationFor('/docs/node')).toBe(2);
   });
 
-  it('puts an unknown path at the first station', () => {
+  it('puts an unknown path at the first station, before the film', () => {
     expect(stationFor('/nowhere')).toBe(0);
+    expect(stationFor('/play')).toBe(0);
     // Not the documentation, though it starts with the same letters.
     expect(stationFor('/docsify')).toBe(0);
   });
 });
 
 describe('linkLevelFor', () => {
-  it('draws more links on each page along the way', () => {
-    const levels = ['/', '/play', '/docs'].map(linkLevelFor);
+  it('draws more links on each page along the way, and none off it', () => {
+    const levels = ['/nowhere', '/', '/docs'].map(linkLevelFor);
 
     expect(levels).toEqual([
       LINK_LEVELS.none,

@@ -1,36 +1,28 @@
 # Intuition Learn
 
-The entry point to Intuition for builders: a welcome, a hands-on
-introduction, and the technical documentation.
+The entry point to Intuition for builders: a short film that introduces it,
+and the technical documentation.
 
 ## Why
 
 Most people meet a protocol through its reference documentation, before
 they know why it exists or what it makes possible. Intuition Learn answers
-three questions, in order, and lets each reader stop at the one that
-answers theirs:
+two questions, in order, and lets each reader stop at the one that answers
+theirs:
 
-| Step                    | Question                    | Path    |
-| ----------------------- | --------------------------- | ------- |
-| Welcome (the wow)       | Why does this matter?       | `/`     |
-| Playground (the aha)    | What can I build with it?   | `/play` |
-| Documentation (the how) | How do I integrate with it? | `/docs` |
+| Step                    | Question                                  | Path    |
+| ----------------------- | ----------------------------------------- | ------- |
+| The film (the aha)      | What is Intuition, and what can it build? | `/`     |
+| Documentation (the how) | How do I integrate with it?               | `/docs` |
 
 It is written for three audiences: investors, builders, and teams
 integrating Intuition into their products. An investor may need only the
-first step; an engineer integrating the protocol needs all three, and
-returns straight to the documentation after the first visit.
+film; an engineer integrating the protocol needs both, and returns straight
+to the documentation after the first visit.
 
-## The three steps
+## The two steps
 
-### 1. Welcome
-
-A video of a minute or less on where data technology is heading: beyond
-attention markets, toward data that is portable, verifiable, and
-composable. It gives investors, builders, and the community a reason to
-care, then one way forward, to the playground.
-
-### 2. Playground
+### 1. The film
 
 A short film, played on a 3D graph the reader can turn, pause, and scrub,
 that explains Intuition's data model before anyone opens a terminal. Its
@@ -56,7 +48,7 @@ for the next chapters:
 - **Composable value.** Others build on published data, adding utility and
   value that flows back to its contributors.
 
-### 3. Documentation
+### 2. Documentation
 
 The technical documentation for Intuition Core and the v2 protocol
 packages. The way software is built is changing, and agents are now part of
@@ -71,15 +63,14 @@ The introduction never stands in the way. The site remembers the last
 choice a visitor made, in their browser's `localStorage`, and opens there
 next time:
 
-| Choice                        | The next visit opens on |
-| ----------------------------- | ----------------------- |
-| "Try it", on the welcome page | The playground          |
-| "Skip to docs", from any step | The documentation       |
-| Playing the film to its end   | The documentation       |
+| Choice                               | The next visit opens on |
+| ------------------------------------ | ----------------------- |
+| "Skip to docs", from the film's page | The documentation       |
+| "Start building", at the film's end  | The documentation       |
 
-A small script runs before the welcome page paints, so a returning visitor
+A small script runs before the film's page paints, so a returning visitor
 never sees it flash by. With storage off, in a private window for example,
-the site opens on the welcome page, as for a first visit.
+the site opens on the film, as for a first visit.
 
 ## Visual direction
 
@@ -115,7 +106,7 @@ pnpm dev
 
 ```text
 content/docs/                 The documentation, in Markdown; meta.json sets the order.
-src/app/                      Routes: the welcome page, /play, /docs, llms.txt, the sitemap.
+src/app/                      Routes: the film at /, /docs, llms.txt, the sitemap; /play forwards to /.
 src/components/onboarding/    The field of atoms, the journey between pages, returning visitors.
 src/components/playground/    The film: its story, the 2D plane, the 3D scene, the timeline.
 src/lib/                      The site's URL, the documentation route, sphere math, icons.

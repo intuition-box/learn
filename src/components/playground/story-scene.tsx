@@ -83,7 +83,7 @@ const DEPTH_OF_FIELD = { blurPx: 4, fade: 0.4, risePx: 106 } as const;
  * least at which its words still read. Below that, on a narrow screen, it
  * stays at the least and follows the newest triple.
  */
-const PLANE_ZOOM = { max: 1.15, min: 0.82 } as const;
+const PLANE_ZOOM = { max: 1.4, min: 0.82 } as const;
 /** The room the plane keeps from the edges, in CSS pixels. */
 const PLANE_MARGIN_PX = 20;
 /** How far in from each edge, in CSS pixels, the scene fades out. */
@@ -2036,9 +2036,9 @@ export function StoryScene(props: StorySceneProps): ReactNode {
   });
 
   return (
-    // Square on a phone; from tablet width up it fills the card the
-    // playground gives it, the welcome video's shape.
-    <div className="relative aspect-square w-full md:aspect-auto md:min-h-0 md:flex-1">
+    // Taller than wide on a phone; from tablet width up it fills the card
+    // the film's page gives it.
+    <div className="relative aspect-[4/5] w-full md:aspect-auto md:min-h-0 md:flex-1">
       <canvas
         ref={canvasRef}
         role="img"

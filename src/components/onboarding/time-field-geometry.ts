@@ -157,7 +157,7 @@ const FIRST_CLAIM_WINDOWS: readonly ViewWindow[] = [
 
 /** The link level for each moment of the onboarding. */
 export const LINK_LEVELS = {
-  /** The video: atoms only. */
+  /** Any page but the film and the docs, a 404 for one: atoms only. */
   none: 0,
   /** The playground's first step: a couple of claims. */
   few: 0.1,

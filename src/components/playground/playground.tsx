@@ -336,14 +336,15 @@ export function Playground(): ReactNode {
   return (
     <div className="relative">
       {/*
-       * The welcome video's shape from tablet width up. Narrower, a 16:9 card
-       * would leave the scene no height, so the scene keeps its own shape and
-       * the card grows to fit. The field behind stays put while the mouse is
-       * on the card.
+       * From tablet width up, the card takes the first view: as tall as the
+       * screen allows under the top bar, leaving room for the way on below
+       * it, within bounds. Narrower, the scene keeps its own shape and the
+       * card grows to fit. The field behind stays put while the mouse is on
+       * the card.
        */}
       <div
         {...QUIET_FIELD}
-        className="panel flex flex-col gap-4 p-6 md:aspect-video"
+        className="panel flex flex-col gap-4 p-6 md:h-[calc(100dvh-13rem)] md:max-h-[60rem] md:min-h-[32rem] md:p-12"
       >
         <StoryScene
           scene={scene}
@@ -363,7 +364,7 @@ export function Playground(): ReactNode {
          * they change. A caption starts on the top line. Being the one shown,
          * it is the one read, links and all.
          */}
-        <div className="grid min-h-[2lh]">
+        <div className="grid min-h-[2lh] md:text-lg">
           {BEATS.map((beat) => (
             <p
               key={beat.id}
@@ -415,9 +416,9 @@ export function Playground(): ReactNode {
         </div>
       </div>
       {/*
-       * The way on, once the film has ended: the docs' own primary button, as
-       * "Try it" under the welcome video, and as far below the card. Outside
-       * the layout, so the card does not move as it comes.
+       * The way on, once the film has ended: the docs' own primary button,
+       * under the card. Outside the layout, so the card does not move as it
+       * comes.
        */}
       {hasEnded && (
         <div className="absolute inset-x-0 top-full mt-10 flex justify-center motion-safe:animate-way-on-arrive">

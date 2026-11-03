@@ -59,13 +59,16 @@ function open({
 }
 
 describe('landingGateScript', () => {
-  it('leaves a first visit on the welcome page', () => {
+  it('leaves a first visit on the film', () => {
     expect(open({})).toBeNull();
   });
 
-  it('sends a returning visitor where they chose', () => {
-    expect(open({ stored: 'play' })).toBe('/play');
+  it('sends a returning visitor who chose the docs on to them', () => {
     expect(open({ stored: 'docs' })).toBe('/docs');
+  });
+
+  it('leaves the film for a choice from before it was the front page, never sending it to itself', () => {
+    expect(open({ stored: 'play' })).toBeNull();
   });
 
   it('sends them on when they come from another site', () => {
@@ -74,7 +77,7 @@ describe('landingGateScript', () => {
     );
   });
 
-  it('leaves the welcome page when it was reached from within the site', () => {
+  it('leaves the film when it was reached from within the site', () => {
     expect(
       open({
         stored: 'docs',
@@ -83,14 +86,14 @@ describe('landingGateScript', () => {
     ).toBeNull();
   });
 
-  it('leaves the welcome page on a reload, back or forward', () => {
+  it('leaves the film on a reload, back or forward', () => {
     expect(open({ stored: 'docs', navigation: 'reload' })).toBeNull();
     expect(open({ stored: 'docs', navigation: 'back_forward' })).toBeNull();
   });
 
-  it('acts on the welcome page only', () => {
+  it('acts on the film’s page only', () => {
     expect(open({ stored: 'docs', pathname: '/play' })).toBeNull();
-    expect(open({ stored: 'play', pathname: '/docs' })).toBeNull();
+    expect(open({ stored: 'docs', pathname: '/docs' })).toBeNull();
   });
 
   it('ignores anything stored that is not a landing', () => {
@@ -99,7 +102,7 @@ describe('landingGateScript', () => {
     expect(open({ stored: '__proto__' })).toBeNull();
   });
 
-  it('leaves the welcome page when storage is blocked', () => {
+  it('leaves the film when storage is blocked', () => {
     expect(open({ isStorageBlocked: true })).toBeNull();
   });
 });
@@ -117,7 +120,7 @@ describe('rememberLanding', () => {
       },
     });
 
-    for (const landing of ['play', 'docs'] as const satisfies Landing[]) {
+    for (const landing of ['docs'] as const satisfies Landing[]) {
       rememberLanding(landing);
       expect(open({ stored: stored.get(LANDING_KEY) ?? null })).toBe(
         `/${landing}`,
