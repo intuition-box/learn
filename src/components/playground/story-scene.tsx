@@ -19,7 +19,6 @@ import { dotsAlong, PIXELS_PER_DOT } from './story-dots';
 import {
   ATOMS,
   type AtomId,
-  type FlatScene,
   type PlaneState,
   type Role,
   type Scene,
@@ -115,19 +114,6 @@ const SIDE_COLOURS = {
 } as const;
 /** A perspective's outline, round or square: a faint fill, a dashed hairline. */
 const OUTLINE = { fill: 0.025, stroke: 0.12, dash: [3, 4] } as const;
-/**
- * The flat perspective: its square, as a share of its cell; the room inside
- * it, as a share of the square; its corners; its atoms, as a share of the
- * cloud's; and how far its atoms have come before their names do.
- */
-const FLAT = {
-  square: 0.9,
-  inset: 0.1,
-  cornerPx: 10,
-  atomScale: 1.25,
-  namesFrom: 0.8,
-} as const;
-
 /**
  * Two square cells for two perspectives of the cloud, the first for the
  * cloud and the second for the map: side by side on a wide canvas, one
@@ -291,10 +277,6 @@ function readToken(name: string): Rgb {
 
 function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
-}
-
-function clamp01(value: number): number {
-  return Math.min(Math.max(value, 0), 1);
 }
 
 function easeOutCubic(t: number): number {
@@ -1315,151 +1297,6 @@ export function StoryScene(props: StorySceneProps): ReactNode {
       target.restore();
     }
 
-    /**
-     * The flat perspective: the cloud's atoms on a map of it, in a square
-     * `side` across round `cell`. Each atom leaves its place on the cloud
-     * for its place on the map, then the map's lines grow, straight, and
-     * the names come, as many as fit.
-     */
-    function drawFlat(
-      flat: FlatScene,
-      cell: ScreenPoint,
-      side: number,
-      project: (direction: Vec3) => Projected,
-      radius: number,
-      badge: Badge,
-    ): void {
-      if (context === null || context === undefined) {
-        return;
-      }
-      const square = side * FLAT.square;
-      const left = cell.x - square / 2;
-      const top = cell.y - square / 2;
-      const inset = square * FLAT.inset;
-      context.globalAlpha = flat.arrive;
-      drawOutline(context, (target) => {
-        target.roundRect(left, top, square, square, FLAT.cornerPx);
-      });
-      context.globalAlpha = 1;
-      const size = ATOM_SHARE * radius * FLAT.atomScale;
-      const placed = state.props.scene.atoms.flatMap((atom) => {
-        const spot = flat.places.get(atom.id);
-        if (spot === undefined || atom.presence <= 0) {
-          return [];
-        }
-        const from = project(atom.at);
-        const to = {
-          x: left + inset + spot.x * (square - inset * 2),
-          y: top + inset + spot.y * (square - inset * 2),
-        };
-
-        return [
-          {
-            atom,
-            x: lerp(from.x, to.x, flat.arrive),
-            y: lerp(from.y, to.y, flat.arrive),
-            size: lerp(ATOM_SHARE * radius * from.scale, size, flat.arrive),
-            alpha:
-              atom.presence *
-              lerp(0.2 + 0.8 * ((from.z + 1) / 2), 1, flat.arrive),
-          },
-        ];
-      });
-      if (flat.arrive <= 0) {
-        return;
-      }
-      const at = (id: AtomId) => placed.find((spot) => spot.atom.id === id);
-      context.lineCap = 'round';
-      for (const { id, progress } of flat.triples) {
-        const { subject, predicate, object } = TRIPLES[id];
-        const points = [at(subject), at(predicate), at(object)].flatMap(
-          (spot) => (spot === undefined ? [] : [{ x: spot.x, y: spot.y }]),
-        );
-        if (points.length === 3 && progress > 0) {
-          drawLine(context, {
-            id: `flat:${id}`,
-            points,
-            units: segmentLengths(points).reduce((sum, part) => sum + part, 0),
-            progress,
-            alpha: 1,
-            flow: state.props.scene.flow,
-          });
-        }
-      }
-      for (const spot of placed) {
-        context.globalAlpha = spot.alpha;
-        drawShape(context, spot.x, spot.y, spot.size, spot.atom.role);
-      }
-      // The names as the atoms land, those it names first first, each
-      // where it does not meet another.
-      const named = clamp01(
-        (flat.arrive - FLAT.namesFrom) / (1 - FLAT.namesFrom),
-      );
-      if (named > 0) {
-        context.font = `500 ${badge.fontSize}px ${fontFamily}`;
-        context.textAlign = 'center';
-        context.textBaseline = 'middle';
-        context.globalAlpha = named;
-        // Those it names first, then the things, then the predicates.
-        const rank = ({ atom }: (typeof placed)[number]): number => {
-          const index = flat.namedFirst.indexOf(atom.id);
-          if (index !== -1) {
-            return index;
-          }
-
-          return (
-            flat.namedFirst.length + (atom.role.to === 'predicate' ? 1 : 0)
-          );
-        };
-        const taken: Array<{
-          left: number;
-          right: number;
-          top: number;
-          bottom: number;
-        }> = [];
-        for (const spot of placed.toSorted((a, b) => rank(a) - rank(b))) {
-          if (flat.unnamed.includes(spot.atom.id)) {
-            continue;
-          }
-          const textWidth = context.measureText(spot.atom.label).width;
-          // Under the atom, or to its left, level with it.
-          const isLeft = flat.namedLeft.includes(spot.atom.id);
-          const width = textWidth + badge.padding * 2;
-          const box = isLeft
-            ? {
-                left: spot.x - spot.size / 2 - badge.gap - width,
-                right: spot.x - spot.size / 2 - badge.gap,
-                top: spot.y - badge.height / 2,
-                bottom: spot.y + badge.height / 2,
-              }
-            : {
-                left: spot.x - width / 2,
-                right: spot.x + width / 2,
-                top: spot.y + spot.size / 2 + badge.gap,
-                bottom: spot.y + spot.size / 2 + badge.gap + badge.height,
-              };
-          const isCovering = taken.some(
-            (other) =>
-              box.left < other.right + BADGE_SPACING_PX &&
-              box.right > other.left - BADGE_SPACING_PX &&
-              box.top < other.bottom + BADGE_SPACING_PX &&
-              box.bottom > other.top - BADGE_SPACING_PX,
-          );
-          if (!isCovering) {
-            taken.push(box);
-            drawBadge(
-              context,
-              spot.atom.label,
-              (box.left + box.right) / 2,
-              box.top,
-              badge,
-            );
-          }
-        }
-      }
-      context.globalAlpha = 1;
-    }
-
     function draw(): void {
       if (canvas === null || context === null || context === undefined) {
         return;
@@ -1538,16 +1375,16 @@ export function StoryScene(props: StorySceneProps): ReactNode {
       const rise = state.pan.y * PAN_PARALLAX;
 
       const view = viewOf(camera, width, height);
-      // With a second perspective beside it, the cloud moves aside into a
-      // square cell of its own, and the map takes the other.
-      const { flat } = state.props.scene;
-      const aside = flat?.aside ?? 0;
+      // With another perspective beside it, the cloud moves aside into a
+      // square cell of its own, and its copy, splitting off, takes the other.
+      const { other } = state.props.scene;
+      const aside = other?.aside ?? 0;
       const cells = cellsOf(width, height);
       const radius = lerp(view.radius, cells.side * WHOLE_SHARE, aside);
-      const centre = {
-        x: lerp(width / 2, cells.first.x, aside),
-        y: lerp(height / 2, cells.first.y, aside),
-      };
+      const centreOf = (cell: ScreenPoint): ScreenPoint => ({
+        x: lerp(width / 2, cell.x, aside),
+        y: lerp(height / 2, cell.y, aside),
+      });
       // The film's turn brings what the camera faces to the front; the
       // reader's comes after it.
       const orientation = multiply(state.turn, turnToFace(view.facing));
@@ -1558,31 +1395,44 @@ export function StoryScene(props: StorySceneProps): ReactNode {
         (LIFT_PX + radius * view.facing[1]) * (1 - (camera.whole ?? 0)) +
         depth * DEPTH_OF_FIELD.risePx +
         (camera.raise ?? 0) * radius;
-      const project = (direction: Vec3): Projected => {
-        const [x, y, z] = rotate(orientation, direction);
-        const scale = EYE_DISTANCE / (EYE_DISTANCE - z);
+      // A sphere round `centre`, the cloud or its copy, turned to `facing`;
+      // the reader's turn turns both.
+      const projectFrom =
+        (centre: ScreenPoint, turned: Quat) =>
+        (direction: Vec3): Projected => {
+          const [x, y, z] = rotate(turned, direction);
+          const scale = EYE_DISTANCE / (EYE_DISTANCE - z);
 
-        return {
-          x: centre.x + slide + x * radius * scale,
-          y: centre.y - lift + rise - y * radius * scale,
-          z,
-          scale,
+          return {
+            x: centre.x + slide + x * radius * scale,
+            y: centre.y - lift + rise - y * radius * scale,
+            z,
+            scale,
+          };
         };
-      };
-      // All of it in view, its outline: round, as the map's is square.
+      const project = projectFrom(centreOf(cells.first), orientation);
+      const projectOther = projectFrom(
+        centreOf(cells.second),
+        multiply(state.turn, turnToFace(other?.facing ?? view.facing)),
+      );
+      // All of it in view, its outline, round: the copy's too.
       const whole = camera.whole ?? 0;
       if (whole > 0) {
-        const middle = project([0, 0, 0]);
-        context.globalAlpha = whole;
-        drawOutline(context, (target) => {
-          target.arc(
-            middle.x,
-            middle.y,
-            (radius * EYE_DISTANCE) / Math.sqrt(EYE_DISTANCE ** 2 - 1),
-            0,
-            2 * Math.PI,
-          );
-        });
+        for (const projecting of other === null
+          ? [project]
+          : [project, projectOther]) {
+          const middle = projecting([0, 0, 0]);
+          context.globalAlpha = whole;
+          drawOutline(context, (target) => {
+            target.arc(
+              middle.x,
+              middle.y,
+              (radius * EYE_DISTANCE) / Math.sqrt(EYE_DISTANCE ** 2 - 1),
+              0,
+              2 * Math.PI,
+            );
+          });
+        }
         context.globalAlpha = 1;
       }
       /** 0 at the back of the cloud to 1 at the front. */
@@ -1629,246 +1479,282 @@ export function StoryScene(props: StorySceneProps): ReactNode {
         });
       }
 
-      // Each triple's line, under the atoms, drawn as far as it has got. An
-      // atom on its way out of the cloud takes its end of the line with it,
-      // and the plane draws that end again, sharp: a reminder of where it
-      // came from, so it holds still.
-      const reaching: Line[] = [];
-      context.lineCap = 'round';
-      context.lineJoin = 'round';
-      for (const triple of triples) {
-        if (triple.progress <= 0) {
-          continue;
-        }
-        const [subject, predicate, object] = triple.points;
-        const path: Vec3[] = [];
-        for (const [from, to] of [
-          [subject, predicate],
-          [predicate, object],
-        ] as const) {
-          for (
-            let step = path.length === 0 ? 0 : 1;
-            step <= ARC_STEPS;
-            step++
-          ) {
-            path.push(arcPoint(from, to, step / ARC_STEPS));
+      /**
+       * A sphere of atoms and the triples between them, as `project` turns
+       * and places it, at `opacity`: the cloud, or its copy. `lifted` says
+       * which atoms are on their way out to the plane, and `quiet` whose
+       * names go, and how far. It returns the lines that reach out of it to
+       * the plane.
+       */
+      const drawSphere = (
+        sphere: { atoms: Scene['atoms']; triples: Scene['triples'] },
+        project: (direction: Vec3) => Projected,
+        lifted: ReadonlyMap<AtomId, Lifted>,
+        opacity: number,
+        quiet: { ids: ReadonlySet<AtomId>; amount: number } | null = null,
+      ): Line[] => {
+        // Each triple's line, under the atoms, drawn as far as it has got. An
+        // atom on its way out of the cloud takes its end of the line with it,
+        // and the plane draws that end again, sharp: a reminder of where it
+        // came from, so it holds still.
+        const reaching: Line[] = [];
+        const { atoms, triples } = sphere;
+        context.lineCap = 'round';
+        context.lineJoin = 'round';
+        for (const triple of triples) {
+          if (triple.progress <= 0) {
+            continue;
           }
-        }
-        const projected = path.map(project);
-        const last = projected.length - 1;
-        const ends = TRIPLES[triple.id];
-        // A triple whose three atoms all come out comes out whole, with
-        // them: each point of its line moves with the atoms either side of
-        // it, from the curve round the cloud to a straight line between
-        // them, as far as they have come.
-        const outs = [ends.subject, ends.predicate, ends.object].map((id) =>
-          lifted.get(id),
-        );
-        const [outSubject, outPredicate, outObject] = outs;
-        const isWhole =
-          outSubject !== undefined &&
-          outPredicate !== undefined &&
-          outObject !== undefined;
-        // Otherwise, how much of each point an atom at either end pulls with
-        // it.
-        const pulls = [
-          {
-            out: outSubject,
-            end: projected[0],
-            weight: (index: number) => Math.max(1 - index / ARC_STEPS, 0) ** 2,
-          },
-          {
-            out: outObject,
-            end: projected[last],
-            weight: (index: number) =>
-              Math.max(1 - (last - index) / ARC_STEPS, 0) ** 2,
-          },
-        ];
-        const points = projected.map((point, index) => {
-          if (isWhole) {
-            // Along the straight line between its atoms where they are,
-            // off it as far as the curve was, less as they come out.
-            const isFirstHalf = index <= ARC_STEPS;
-            const share = isFirstHalf
-              ? index / ARC_STEPS
-              : (index - ARC_STEPS) / ARC_STEPS;
-            const [from, to] = isFirstHalf
-              ? [outSubject, outPredicate]
-              : [outPredicate, outObject];
-            const [start, end] = isFirstHalf
-              ? [projected[0], projected[ARC_STEPS]]
-              : [projected[ARC_STEPS], projected[last]];
-            const amount = lerp(from.amount, to.amount, share);
-            const chord = {
-              x: lerp(start?.x ?? point.x, end?.x ?? point.x, share),
-              y: lerp(start?.y ?? point.y, end?.y ?? point.y, share),
-            };
-
-            return {
-              x: lerp(from.x, to.x, share) + (point.x - chord.x) * (1 - amount),
-              y: lerp(from.y, to.y, share) + (point.y - chord.y) * (1 - amount),
-            };
-          }
-          let { x, y } = point;
-          for (const { out, end, weight } of pulls) {
-            if (out !== undefined && end !== undefined) {
-              x += (out.x - end.x) * weight(index);
-              y += (out.y - end.y) * weight(index);
+          const [subject, predicate, object] = triple.points;
+          const path: Vec3[] = [];
+          for (const [from, to] of [
+            [subject, predicate],
+            [predicate, object],
+          ] as const) {
+            for (
+              let step = path.length === 0 ? 0 : 1;
+              step <= ARC_STEPS;
+              step++
+            ) {
+              path.push(arcPoint(from, to, step / ARC_STEPS));
             }
           }
-
-          return { x, y };
-        });
-        const units =
-          (angleBetween(subject, predicate) + angleBetween(predicate, object)) *
-          DOT_UNITS_PER_RADIAN;
-        // A line round the back of the cloud fades, as its atoms do.
-        const nearness = 0.15 + 0.85 * frontness(project(predicate).z);
-        // Coming out whole, it sharpens on the plane as it leaves the cloud,
-        // as its atoms do.
-        const comeOut = isWhole
-          ? Math.min(outSubject.amount, outPredicate.amount, outObject.amount)
-          : 0;
-        drawLine(context, {
-          id: triple.id,
-          points,
-          units,
-          progress: triple.progress,
-          alpha: nearness * (1 - comeOut),
-          flow: cloudFlow,
-        });
-        if (isWhole) {
-          reaching.push({
-            id: triple.id,
-            points,
-            units,
-            progress: triple.progress,
-            alpha: comeOut,
-            flow: cloudFlow,
-          });
-        } else if (pulls.some(({ out }) => out !== undefined)) {
-          reaching.push({
-            id: triple.id,
-            points,
-            units,
-            progress: triple.progress,
-            alpha: cloud,
-            flow: cloudFlow,
-            fade: points.map((_, index) =>
-              Math.min(
-                pulls.reduce(
-                  (sum, { out, weight }) =>
-                    sum + (out === undefined ? 0 : weight(index) * out.amount),
-                  0,
-                ),
-                1,
-              ),
-            ),
-          });
-        }
-      }
-
-      // The atoms, back to front, so nearer ones cover farther ones. Each
-      // grows in as it arrives.
-      const shown = atoms
-        .filter((atom) => atom.presence > 0 && !lifted.has(atom.id))
-        .map((atom) => ({ atom, at: project(atom.at) }))
-        .sort((a, b) => a.at.z - b.at.z);
-      for (const { atom, at } of shown) {
-        context.globalAlpha = atom.presence * (0.2 + 0.8 * frontness(at.z));
-        drawShape(
-          context,
-          at.x,
-          at.y,
-          ATOM_SHARE * radius * at.scale * (0.55 + 0.45 * atom.presence),
-          atom.role,
-        );
-      }
-
-      // Their names, in ink badges under them, after the shape arrives, and
-      // only on the half of the cloud that faces the viewer. Nearest first:
-      // where the cloud curves away its atoms close up, and a name that
-      // would cover a nearer one is left out until the cloud turns.
-      context.font = `500 ${badge.fontSize}px ${fontFamily}`;
-      context.textAlign = 'center';
-      context.textBaseline = 'middle';
-      const placed: Array<{
-        left: number;
-        right: number;
-        top: number;
-        bottom: number;
-        /** How far up the cloud its atom stands: the row it is in. */
-        row: number;
-      }> = [];
-      // An atom on its way out keeps the name it had here, or the lack of
-      // one: its place among the names is still where it stood.
-      const naming = [
-        ...shown.map(({ atom, at }) => ({ atom, at, isLeaving: false })),
-        ...atoms
-          .filter((atom) => atom.presence > 0 && lifted.has(atom.id))
-          .map((atom) => ({ atom, at: project(atom.at), isLeaving: true })),
-      ].sort((a, b) => b.at.z - a.at.z);
-      const namedHere = new Set<AtomId>();
-      for (const { atom, at, isLeaving } of naming) {
-        if (at.z < 0.1) {
-          continue;
-        }
-        const textWidth = context.measureText(atom.label).width;
-        const left = at.x - textWidth / 2 - badge.padding;
-        const right = at.x + textWidth / 2 + badge.padding;
-        const top = at.y + ATOM_SHARE * radius * at.scale * 0.5 + badge.gap;
-        const bottom = top + badge.height;
-        // Names in a row of the cloud sit along one line, so only their
-        // sides can meet; in another row, a name can sit under them.
-        const row = atom.at[1];
-        const isCovering = placed.some(
-          (other) =>
-            left < other.right + BADGE_SPACING_PX &&
-            right > other.left - BADGE_SPACING_PX &&
-            (Math.abs(row - other.row) < ROW_APART ||
-              (top < other.bottom + BADGE_SPACING_PX &&
-                bottom > other.top - BADGE_SPACING_PX)),
-        );
-        if (isCovering) {
-          continue;
-        }
-        placed.push({ left, right, top, bottom, row });
-        if (isLeaving) {
-          namedHere.add(atom.id);
-          continue;
-        }
-        context.globalAlpha =
-          atom.presence ** 2 * (0.35 + 0.65 * frontness(at.z));
-        drawBadge(context, atom.label, at.x, top, badge);
-      }
-
-      // An atom on its way out, still in the cloud's focus as it leaves it:
-      // the plane draws it again, sharpening as it comes.
-      for (const atom of atoms) {
-        const out = lifted.get(atom.id);
-        if (out !== undefined && out.amount < 1) {
-          context.globalAlpha =
-            atom.presence * (1 - out.amount) * (0.2 + 0.8 * frontness(out.z));
-          // One whose name is a word on the plane leaves its name here.
-          const isNamed = namedHere.has(atom.id);
-          drawAtom(
-            context,
-            atom.label,
-            out,
-            atom.role,
-            isNamed ? out.named : 0,
-            out.nameSide,
-            out.amount,
-            out.medal,
+          const projected = path.map(project);
+          const last = projected.length - 1;
+          const ends = TRIPLES[triple.id];
+          // A triple whose three atoms all come out comes out whole, with
+          // them: each point of its line moves with the atoms either side of
+          // it, from the curve round the cloud to a straight line between
+          // them, as far as they have come.
+          const outs = [ends.subject, ends.predicate, ends.object].map((id) =>
+            lifted.get(id),
           );
-          if (isNamed && out.named === 0) {
-            drawName(context, atom.label, out.origin);
+          const [outSubject, outPredicate, outObject] = outs;
+          const isWhole =
+            outSubject !== undefined &&
+            outPredicate !== undefined &&
+            outObject !== undefined;
+          // Otherwise, how much of each point an atom at either end pulls with
+          // it.
+          const pulls = [
+            {
+              out: outSubject,
+              end: projected[0],
+              weight: (index: number) =>
+                Math.max(1 - index / ARC_STEPS, 0) ** 2,
+            },
+            {
+              out: outObject,
+              end: projected[last],
+              weight: (index: number) =>
+                Math.max(1 - (last - index) / ARC_STEPS, 0) ** 2,
+            },
+          ];
+          const points = projected.map((point, index) => {
+            if (isWhole) {
+              // Along the straight line between its atoms where they are,
+              // off it as far as the curve was, less as they come out.
+              const isFirstHalf = index <= ARC_STEPS;
+              const share = isFirstHalf
+                ? index / ARC_STEPS
+                : (index - ARC_STEPS) / ARC_STEPS;
+              const [from, to] = isFirstHalf
+                ? [outSubject, outPredicate]
+                : [outPredicate, outObject];
+              const [start, end] = isFirstHalf
+                ? [projected[0], projected[ARC_STEPS]]
+                : [projected[ARC_STEPS], projected[last]];
+              const amount = lerp(from.amount, to.amount, share);
+              const chord = {
+                x: lerp(start?.x ?? point.x, end?.x ?? point.x, share),
+                y: lerp(start?.y ?? point.y, end?.y ?? point.y, share),
+              };
+
+              return {
+                x:
+                  lerp(from.x, to.x, share) +
+                  (point.x - chord.x) * (1 - amount),
+                y:
+                  lerp(from.y, to.y, share) +
+                  (point.y - chord.y) * (1 - amount),
+              };
+            }
+            let { x, y } = point;
+            for (const { out, end, weight } of pulls) {
+              if (out !== undefined && end !== undefined) {
+                x += (out.x - end.x) * weight(index);
+                y += (out.y - end.y) * weight(index);
+              }
+            }
+
+            return { x, y };
+          });
+          const units =
+            (angleBetween(subject, predicate) +
+              angleBetween(predicate, object)) *
+            DOT_UNITS_PER_RADIAN;
+          // A line round the back of the cloud fades, as its atoms do.
+          const nearness = 0.15 + 0.85 * frontness(project(predicate).z);
+          // Coming out whole, it sharpens on the plane as it leaves the cloud,
+          // as its atoms do.
+          const comeOut = isWhole
+            ? Math.min(outSubject.amount, outPredicate.amount, outObject.amount)
+            : 0;
+          drawLine(context, {
+            id: triple.id,
+            points,
+            units,
+            progress: triple.progress,
+            alpha: nearness * (1 - comeOut) * opacity,
+            flow: cloudFlow,
+          });
+          if (isWhole) {
+            reaching.push({
+              id: triple.id,
+              points,
+              units,
+              progress: triple.progress,
+              alpha: comeOut,
+              flow: cloudFlow,
+            });
+          } else if (pulls.some(({ out }) => out !== undefined)) {
+            reaching.push({
+              id: triple.id,
+              points,
+              units,
+              progress: triple.progress,
+              alpha: cloud,
+              flow: cloudFlow,
+              fade: points.map((_, index) =>
+                Math.min(
+                  pulls.reduce(
+                    (sum, { out, weight }) =>
+                      sum +
+                      (out === undefined ? 0 : weight(index) * out.amount),
+                    0,
+                  ),
+                  1,
+                ),
+              ),
+            });
           }
         }
-      }
-      context.globalAlpha = 1;
-      if (flat !== null) {
-        drawFlat(flat, cells.second, cells.side, project, radius, badge);
+
+        // The atoms, back to front, so nearer ones cover farther ones. Each
+        // grows in as it arrives.
+        const shown = atoms
+          .filter((atom) => atom.presence > 0 && !lifted.has(atom.id))
+          .map((atom) => ({ atom, at: project(atom.at) }))
+          .sort((a, b) => a.at.z - b.at.z);
+        for (const { atom, at } of shown) {
+          context.globalAlpha =
+            opacity * atom.presence * (0.2 + 0.8 * frontness(at.z));
+          drawShape(
+            context,
+            at.x,
+            at.y,
+            ATOM_SHARE * radius * at.scale * (0.55 + 0.45 * atom.presence),
+            atom.role,
+          );
+        }
+
+        // Their names, in ink badges under them, after the shape arrives, and
+        // only on the half of the cloud that faces the viewer. Nearest first:
+        // where the cloud curves away its atoms close up, and a name that
+        // would cover a nearer one is left out until the cloud turns.
+        context.font = `500 ${badge.fontSize}px ${fontFamily}`;
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        const placed: Array<{
+          left: number;
+          right: number;
+          top: number;
+          bottom: number;
+          /** How far up the cloud its atom stands: the row it is in. */
+          row: number;
+        }> = [];
+        // An atom on its way out keeps the name it had here, or the lack of
+        // one: its place among the names is still where it stood.
+        const naming = [
+          ...shown.map(({ atom, at }) => ({ atom, at, isLeaving: false })),
+          ...atoms
+            .filter((atom) => atom.presence > 0 && lifted.has(atom.id))
+            .map((atom) => ({ atom, at: project(atom.at), isLeaving: true })),
+        ].sort((a, b) => b.at.z - a.at.z);
+        const namedHere = new Set<AtomId>();
+        for (const { atom, at, isLeaving } of naming) {
+          const voice =
+            quiet !== null && quiet.ids.has(atom.id) ? 1 - quiet.amount : 1;
+          if (at.z < 0.1 || voice <= 0) {
+            continue;
+          }
+          const textWidth = context.measureText(atom.label).width;
+          const left = at.x - textWidth / 2 - badge.padding;
+          const right = at.x + textWidth / 2 + badge.padding;
+          const top = at.y + ATOM_SHARE * radius * at.scale * 0.5 + badge.gap;
+          const bottom = top + badge.height;
+          // Names in a row of the cloud sit along one line, so only their
+          // sides can meet; in another row, a name can sit under them.
+          const row = atom.at[1];
+          const isCovering = placed.some(
+            (other) =>
+              left < other.right + BADGE_SPACING_PX &&
+              right > other.left - BADGE_SPACING_PX &&
+              (Math.abs(row - other.row) < ROW_APART ||
+                (top < other.bottom + BADGE_SPACING_PX &&
+                  bottom > other.top - BADGE_SPACING_PX)),
+          );
+          if (isCovering) {
+            continue;
+          }
+          placed.push({ left, right, top, bottom, row });
+          if (isLeaving) {
+            namedHere.add(atom.id);
+            continue;
+          }
+          context.globalAlpha =
+            opacity *
+            voice *
+            atom.presence ** 2 *
+            (0.35 + 0.65 * frontness(at.z));
+          drawBadge(context, atom.label, at.x, top, badge);
+        }
+
+        // An atom on its way out, still in the cloud's focus as it leaves it:
+        // the plane draws it again, sharpening as it comes.
+        for (const atom of atoms) {
+          const out = lifted.get(atom.id);
+          if (out !== undefined && out.amount < 1) {
+            context.globalAlpha =
+              atom.presence * (1 - out.amount) * (0.2 + 0.8 * frontness(out.z));
+            // One whose name is a word on the plane leaves its name here.
+            const isNamed = namedHere.has(atom.id);
+            drawAtom(
+              context,
+              atom.label,
+              out,
+              atom.role,
+              isNamed ? out.named : 0,
+              out.nameSide,
+              out.amount,
+              out.medal,
+            );
+            if (isNamed && out.named === 0) {
+              drawName(context, atom.label, out.origin);
+            }
+          }
+        }
+        context.globalAlpha = 1;
+
+        return reaching;
+      };
+      const reaching = drawSphere({ atoms, triples }, project, lifted, 1);
+      // The copy over the cloud as it splits off, the two one at first.
+      if (other !== null) {
+        drawSphere(other, projectOther, new Map(), Math.min(aside * 4, 1), {
+          ids: new Set(other.unnamed),
+          amount: other.quieted,
+        });
       }
 
       fadeEdges(context, width, height);

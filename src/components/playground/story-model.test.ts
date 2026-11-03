@@ -549,59 +549,65 @@ describe('perspectives', () => {
     ).toBe(true);
   });
 
-  it("moves the cloud aside, then flies its atoms to the map, then grows the map's lines", () => {
-    const { start, motionMs } = beat('flat');
-    const flatAt = (share: number) => sceneAt(start + motionMs * share).flat;
+  it('moves the cloud aside as its copy splits off and turns; then, on the copy alone, the triples it does not trust draw back, its own atoms arrive, and its own triples grow', () => {
+    const { start, motionMs } = beat('another-perspective');
+    const otherAt = (share: number) => sceneAt(start + motionMs * share).other;
+    const onCopy = (share: number, id: string) =>
+      otherAt(share)?.triples.find((triple) => triple.id === id)?.progress;
+    const ownAtom = (share: number) =>
+      otherAt(share)?.atoms.find((atom) => atom.id === 'ai')?.presence;
 
-    expect(settled('one-graph').flat).toBeNull();
-    expect(flatAt(0.3)).toMatchObject({ aside: expect.any(Number), arrive: 0 });
-    expect(flatAt(0.35)?.aside).toBe(1);
-    expect(flatAt(0.7)?.arrive).toBe(1);
-    expect(flatAt(0.7)?.triples.every((triple) => triple.progress === 0)).toBe(
-      true,
-    );
-    expect(flatAt(1)?.triples.every((triple) => triple.progress === 1)).toBe(
-      true,
-    );
+    expect(settled('one-graph').other).toBeNull();
+    // A copy at first, facing as the cloud does; then turned its own way.
+    expect(otherAt(0)?.aside).toBe(0);
+    for (const [index, value] of settled('one-graph').camera.facing.entries()) {
+      expect(otherAt(0)?.facing[index]).toBeCloseTo(value, 9);
+    }
+    expect(otherAt(0.3)?.aside).toBe(1);
+    expect(otherAt(0.3)?.facing).not.toEqual(otherAt(0)?.facing);
+    expect(onCopy(0.3, 'elonBelieves')).toBe(1);
+    expect(onCopy(0.45, 'elonBelieves')).toBeGreaterThan(0);
+    expect(onCopy(0.45, 'elonBelieves')).toBeLessThan(1);
+    expect(onCopy(0.54, 'anthropicBestAiCompany')).toBe(0);
+    expect(otherAt(0.54)?.quieted).toBe(1);
+    expect(ownAtom(0.54)).toBe(0);
+    expect(ownAtom(0.72)).toBe(1);
+    expect(onCopy(0.72, 'aiThreatensDemocracy')).toBe(0);
+    for (const id of [
+      'aiIsDangerous',
+      'aiDecreasesEconomy',
+      'aiRemovesJobs',
+      'aiThreatensDemocracy',
+    ]) {
+      expect(onCopy(0.94, id)).toBe(1);
+    }
   });
 
-  it('puts every atom on the map, inside its square, each keeping its neighbours', () => {
-    const places = settled('flat').flat?.places;
-    const spots = [...(places?.values() ?? [])];
+  it('keeps every triple on the cloud: the other perspective is the copy’s alone, and names only the atoms of the triples it trusts', () => {
+    const scene = settled('another-perspective');
+    const onCopy = (id: string) =>
+      scene.other?.triples.find((triple) => triple.id === id)?.progress;
 
-    expect(places?.size).toBe(18);
-    expect(
-      spots.every(({ x, y }) => x >= 0 && x <= 1 && y >= 0 && y <= 1),
-    ).toBe(true);
-    // Left to right as round the cloud, the chain on one line across.
-    const x = (id: AtomId) => places?.get(id)?.x ?? Number.NaN;
-    const y = (id: AtomId) => places?.get(id)?.y ?? Number.NaN;
-    expect(x('elonMusk')).toBeLessThan(x('spacex'));
-    expect(x('spacex')).toBeLessThan(x('aiCompany'));
-    expect(y('elonMusk')).toBeCloseTo(y('aiCompany'), 9);
-    expect(y('ordersOfMagnitude')).toBeLessThan(y('spacex'));
-  });
-
-  it('leaves out, on the flat map alone, the triples it does not trust', () => {
-    const scene = settled('perspectives');
-    const onMap = (id: string) =>
-      scene.flat?.triples.find((triple) => triple.id === id)?.progress;
-
-    expect(onMap('elonBelieves')).toBe(0);
-    expect(onMap('beliefSourced')).toBe(0);
-    expect(onMap('spacexWorth')).toBe(0);
-    expect(onMap('openaiBestAiCompany')).toBe(0);
-    expect(onMap('xaiBestAiCompany')).toBe(1);
     expect(scene.triples.every((triple) => triple.progress === 1)).toBe(true);
-    expect(scene.flat?.namedFirst).toEqual(['anthropic']);
-    expect(scene.flat?.namedLeft).toEqual(['anthropic']);
-    expect(scene.flat?.unnamed).toEqual([
-      'openai',
-      'believes',
-      'tweet',
-      'sourcedBy',
-      'willBeWorth',
-    ]);
+    expect(scene.triples.some((triple) => triple.id === 'aiIsDangerous')).toBe(
+      false,
+    );
+    // None of the cloud's triples: each one draws back on the copy.
+    expect(scene.triples.every((triple) => onCopy(triple.id) === 0)).toBe(true);
+    // Every atom keeps its shape; only those of its own triples keep their
+    // names.
+    expect(scene.other?.atoms.length).toBe(scene.atoms.length + 8);
+    expect(scene.other?.unnamed).toEqual(
+      expect.arrayContaining([
+        'elonMusk',
+        'spacex',
+        'xai',
+        'believes',
+        'anthropic',
+      ]),
+    );
+    expect(scene.other?.unnamed).not.toContain('currentEarthEconomy');
+    expect(scene.other?.unnamed).not.toContain('ai');
   });
 });
 

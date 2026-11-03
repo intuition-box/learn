@@ -81,6 +81,14 @@ export const ATOMS = {
   tweet: { label: 'Tweet' },
   openai: { label: 'OpenAI' },
   anthropic: { label: 'Anthropic' },
+  ai: { label: 'AI' },
+  is: { label: 'is' },
+  dangerous: { label: 'dangerous' },
+  willDecrease: { label: 'will decrease' },
+  willRemove: { label: 'will remove' },
+  jobs: { label: 'jobs' },
+  threatens: { label: 'threatens' },
+  democracy: { label: 'democracy' },
 } as const satisfies Record<string, { label: string }>;
 
 export type AtomId = keyof typeof ATOMS;
@@ -153,6 +161,26 @@ export const TRIPLES = {
     predicate: 'sourcedBy',
     object: 'tweet',
     subjectTriple: 'what Elon Musk believes',
+  },
+  aiIsDangerous: {
+    subject: 'ai',
+    predicate: 'is',
+    object: 'dangerous',
+  },
+  aiDecreasesEconomy: {
+    subject: 'ai',
+    predicate: 'willDecrease',
+    object: 'currentEarthEconomy',
+  },
+  aiRemovesJobs: {
+    subject: 'ai',
+    predicate: 'willRemove',
+    object: 'jobs',
+  },
+  aiThreatensDemocracy: {
+    subject: 'ai',
+    predicate: 'threatens',
+    object: 'democracy',
   },
 } as const satisfies Record<string, TripleAtoms>;
 
@@ -231,16 +259,20 @@ interface StageState {
    * unless a beat takes it away.
    */
   cloud?: { shown: number; during?: During };
-  /** A second perspective of the cloud: its atoms flat, on a map. */
-  flat?: FlatState;
+  /** Another perspective of the cloud: a copy of it beside it, its triples its own. */
+  other?: OtherState;
 }
 
-/** The flat perspective, as a beat leaves it. */
-interface FlatState {
-  /** The triples it does not trust, and leaves out. */
-  distrusted?: readonly TripleId[];
-  /** When those it trusts no longer draw back. */
-  during?: During;
+/** Another perspective, as a beat leaves it. */
+interface OtherState {
+  /** The cloud's triples it trusts: the rest draw back on it alone. */
+  trusted: readonly TripleId[];
+  /** Atoms of its own, and where they stand on it. */
+  atoms: Partial<Record<AtomId, AtomState>>;
+  /** Triples of its own, between its atoms and the cloud's. */
+  triples: readonly TripleId[];
+  /** What it turns to face as it splits off: its own triples, in front. */
+  facing: Vec3;
 }
 
 interface BeatSpec {
@@ -375,6 +407,34 @@ const WHOLE_VIEW: Camera = {
   facing: lookingDown(1.55, 0.3),
   zoom: 0.35,
   whole: 1,
+};
+
+/**
+ * Another perspective of the same atoms, the non-believers': it trusts none
+ * of the believers' triples, and says AI is dangerous, will decrease the
+ * current Earth economy, will remove jobs, and threatens democracy, the
+ * fear of AI on the rise as the film is made. AI in the middle, a claim
+ * out from it each way, laid out so every name stays clear of the next.
+ */
+const ANOTHER_PERSPECTIVE: OtherState = {
+  trusted: [],
+  atoms: {
+    ai: { at: onSphere(1.08, -0.17), role: 'identity' },
+    is: { at: onSphere(0.65, -0.4), role: 'predicate' },
+    dangerous: { at: onSphere(-0.04, -0.76), role: 'object' },
+    willDecrease: { at: onSphere(2.36, 0.09), role: 'predicate' },
+    willRemove: { at: onSphere(1.74, -0.39), role: 'predicate' },
+    jobs: { at: onSphere(2.47, -0.64), role: 'object' },
+    threatens: { at: onSphere(0.74, 0.13), role: 'predicate' },
+    democracy: { at: onSphere(0.43, 0.4), role: 'object' },
+  },
+  triples: [
+    'aiIsDangerous',
+    'aiDecreasesEconomy',
+    'aiRemovesJobs',
+    'aiThreatensDemocracy',
+  ],
+  facing: lookingDown(1.53, -0.26),
 };
 
 /**
@@ -1009,8 +1069,8 @@ const BEAT_SPECS: readonly BeatSpec[] = [
       'Everything so far is one graph: every atom and triple, on one graph.',
     ],
     alt: 'Every atom and triple of the story, on one graph.',
-    // The list goes back into the cloud, which comes into focus as the
-    // camera pulls back to show all of it. Then the atoms the plane held
+    // The list, its menu and its frame go back into the cloud, which comes
+    // into focus as the camera pulls back to show all of it. Then the atoms the plane held
     // arrive in their places on it, and their triples' lines grow.
     motionMs: 5200,
     stage: {
@@ -1036,38 +1096,21 @@ const BEAT_SPECS: readonly BeatSpec[] = [
     },
   },
   {
-    id: 'flat',
-    chapter: 'perspectives',
-    caption: ['The same atoms can be seen another way.'],
-    alt: 'Two perspectives of the same atoms: the graph, round, and beside it a map of it, flat.',
-    // The cloud moves aside; its atoms leave it, each for its place on a
-    // flat map of it; then the map's lines grow, subject to object.
-    motionMs: 5200,
-    stage: { ...STORY_GRAPH, camera: WHOLE_VIEW, flat: {} },
-  },
-  {
-    id: 'perspectives',
+    id: 'another-perspective',
     chapter: 'perspectives',
     caption: [
-      'Two perspectives of the same atoms: what you see depends on whose triples you trust.',
+      'The same atoms can be seen another way, and everyone who reads them has a perspective of their own:\nwho they follow, the atoms they stake on, and the triples they create.',
     ],
-    alt: 'Two perspectives of the same atoms: the round one with every triple, the flat one without the triples it does not trust.',
-    // The flat perspective does not trust what Elon Musk believes, nor
-    // where it comes from, nor that OpenAI is the best AI company: those
-    // lines draw back on the map alone.
-    motionMs: 3000,
+    alt: 'Two perspectives of the same atoms, side by side: the believers’, the graph so far; and the non-believers’, which trusts none of their triples, and says AI is dangerous, will decrease the current Earth economy, will remove jobs, and threatens democracy.',
+    // The cloud moves aside as a copy of it splits off to the other side,
+    // turning to face what it says of AI. On the copy alone, the triples it
+    // does not trust draw back, and the names of the atoms it no longer
+    // uses go. Then its own atoms arrive, and its own triples grow.
+    motionMs: 7000,
     stage: {
       ...STORY_GRAPH,
       camera: WHOLE_VIEW,
-      flat: {
-        distrusted: [
-          'elonBelieves',
-          'spacexWorth',
-          'beliefSourced',
-          'openaiBestAiCompany',
-        ],
-        during: [0.2, 0.7],
-      },
+      other: ANOTHER_PERSPECTIVE,
     },
   },
 ];
@@ -1269,28 +1312,20 @@ export interface DrawnTriple {
   progress: number;
 }
 
-/** The flat perspective as drawn at a moment. */
-export interface FlatScene {
-  /** How far the cloud has moved aside for it, 0 to 1. */
+/** Another perspective as drawn at a moment: the cloud's copy, beside it. */
+export interface OtherScene {
+  /** How far the cloud has moved aside, and the copy with it, to its own side, 0 to 1. */
   aside: number;
-  /** How far its atoms have come from the cloud to the map, 0 to 1. */
-  arrive: number;
-  /** Each atom's place on the map, from 0 to 1 across and down. */
-  places: ReadonlyMap<AtomId, { x: number; y: number }>;
-  /** Each triple's line on the map, drawn from its subject as far as `progress`. */
-  triples: ReadonlyArray<{ id: TripleId; progress: number }>;
+  /** What the copy faces, turning from what the cloud does as it splits off. */
+  facing: Vec3;
+  atoms: DrawnAtom[];
+  triples: DrawnTriple[];
   /**
-   * Atoms that keep their names where names would meet, before the rest,
-   * the things before the predicates: it names Anthropic, the cloud OpenAI.
+   * Atoms in none of the triples it trusts: they keep their shapes, and
+   * their names go, `quieted` of the way, as those triples draw back.
    */
-  namedFirst: readonly AtomId[];
-  /** Names set beside their atoms, to the left, not under them: near the map's foot. */
-  namedLeft: readonly AtomId[];
-  /**
-   * Atoms it leaves unnamed: OpenAI, which the cloud names as it names
-   * Anthropic, and those whose triples it does not trust.
-   */
-  unnamed: readonly AtomId[];
+  unnamed: AtomId[];
+  quieted: number;
 }
 
 export interface Scene {
@@ -1320,8 +1355,8 @@ export interface Scene {
   depth: number;
   /** How much of the cloud shows, 0 to 1. */
   cloud: number;
-  /** The flat perspective beside the cloud, or `null`. */
-  flat: FlatScene | null;
+  /** Another perspective beside the cloud, or `null`. */
+  other: OtherScene | null;
   /**
    * How far the dots along the lines have flowed: the film's time, held at
    * 0 when motion is reduced.
@@ -1359,49 +1394,16 @@ function along(progress: number, during: During = [0, 1]): number {
 }
 
 /**
- * When, as the flat perspective opens, the cloud moves aside, the atoms fly
- * to the map, and its lines grow.
+ * When, as another perspective opens, the cloud moves aside as its copy
+ * splits off from it; the triples the copy does not trust draw back on it;
+ * its own atoms arrive; and its own triples grow.
  */
-const FLAT_OPENING = {
-  aside: [0, 0.35],
-  arrive: [0.3, 0.7],
-  lines: [0.7, 1],
+const OTHER_OPENING = {
+  aside: [0, 0.3],
+  distrust: [0.36, 0.54],
+  atoms: [0.56, 0.72],
+  triples: [0.74, 0.94],
 } as const satisfies Record<string, During>;
-
-/**
- * Each atom's place on the flat map: the cloud's longitude across and its
- * latitude down, stretched to fill a square, so every atom keeps its
- * neighbours.
- */
-function mapOf(
-  atoms: Partial<Record<AtomId, AtomState>>,
-): ReadonlyMap<AtomId, { x: number; y: number }> {
-  const spots = Object.entries(atoms).flatMap(([id, state]) => {
-    if (state === undefined) {
-      return [];
-    }
-    const [x, y, z] = state.at;
-
-    return [
-      {
-        id: id as AtomId,
-        lon: Math.atan2(x, z),
-        lat: Math.asin(Math.min(Math.max(y, -1), 1)),
-      },
-    ];
-  });
-  const lons = spots.map((spot) => spot.lon);
-  const lats = spots.map((spot) => spot.lat);
-  const [west, east] = [Math.min(...lons), Math.max(...lons)];
-  const [south, north] = [Math.min(...lats), Math.max(...lats)];
-
-  return new Map(
-    spots.map(({ id, lon, lat }) => [
-      id,
-      { x: (lon - west) / (east - west), y: (north - lat) / (north - south) },
-    ]),
-  );
-}
 
 /** The atom ids, in the order they are listed. */
 const ATOM_IDS = Object.keys(ATOMS) as AtomId[];
@@ -1478,10 +1480,16 @@ export function sceneAt(time: number, isStill = false): Scene {
     });
   }
 
+  const cameraFacing = arcPoint(
+    previous.camera.facing,
+    target.camera.facing,
+    camera,
+  );
+
   return {
     beat,
     camera: {
-      facing: arcPoint(previous.camera.facing, target.camera.facing, camera),
+      facing: cameraFacing,
       focus: arcPoint(
         previous.camera.focus ?? previous.camera.facing,
         target.camera.focus ?? target.camera.facing,
@@ -1519,41 +1527,80 @@ export function sceneAt(time: number, isStill = false): Scene {
     ),
     flow: isStill ? 0 : time,
     cloudFlow: isStill ? 0 : cloudFlowAt(time),
-    flat: flatAt(previous, target, progress, triples),
+    other: otherAt(previous, target, progress, cameraFacing, atoms, triples),
   };
 }
 
-/** The flat perspective `progress` of the way from one beat's to the next. */
-function flatAt(
+/** Another perspective `progress` of the way from one beat's to the next: see `OTHER_OPENING`. */
+function otherAt(
   previous: StageState,
   target: StageState,
   progress: number,
-  drawn: readonly DrawnTriple[],
-): FlatScene | null {
-  const was = previous.flat;
-  const is = target.flat;
-  if (was === undefined && is === undefined) {
+  facing: Vec3,
+  atoms: readonly DrawnAtom[],
+  triples: readonly DrawnTriple[],
+): OtherScene | null {
+  const other = target.other ?? previous.other;
+  if (other === undefined) {
     return null;
   }
-  const isOpening = was === undefined;
-  const trusts = (flat: FlatState | undefined, id: TripleId): number =>
-    flat !== undefined && !(flat.distrusted ?? []).includes(id) ? 1 : 0;
-  const lines = along(
-    progress,
-    isOpening ? FLAT_OPENING.lines : (is?.during ?? was?.during),
+  const isOpening = previous.other === undefined;
+  const at = (window: During): number =>
+    isOpening ? along(progress, window) : 1;
+  const own = (Object.keys(other.atoms) as AtomId[]).flatMap(
+    (id): DrawnAtom[] => {
+      const state = other.atoms[id];
+
+      return state === undefined
+        ? []
+        : [
+            {
+              id,
+              label: ATOMS[id].label,
+              at: state.at,
+              role: { from: state.role, to: state.role, progress: 1 },
+              presence: at(OTHER_OPENING.atoms),
+            },
+          ];
+    },
+  );
+  const all = [...atoms, ...own];
+  const point = (id: AtomId): Vec3 =>
+    all.find((atom) => atom.id === id)?.at ?? FRONT;
+
+  // The atoms of the triples it trusts, its own among them, keep their names.
+  const trusted = [...other.trusted, ...other.triples];
+  const named = new Set(
+    trusted.flatMap((id) => {
+      const { subject, predicate, object } = TRIPLES[id];
+
+      return [subject, predicate, object];
+    }),
   );
 
   return {
-    aside: isOpening ? along(progress, FLAT_OPENING.aside) : 1,
-    arrive: isOpening ? along(progress, FLAT_OPENING.arrive) : 1,
-    places: mapOf(target.atoms),
-    triples: drawn.map(({ id }) => ({
-      id,
-      progress: lerp(trusts(was, id), trusts(is, id), lines),
-    })),
-    namedFirst: ['anthropic'],
-    namedLeft: ['anthropic'],
-    unnamed: ['openai', 'believes', 'tweet', 'sourcedBy', 'willBeWorth'],
+    aside: at(OTHER_OPENING.aside),
+    facing: arcPoint(facing, other.facing, at(OTHER_OPENING.aside)),
+    atoms: all,
+    unnamed: all.map((atom) => atom.id).filter((id) => !named.has(id)),
+    quieted: at(OTHER_OPENING.distrust),
+    triples: [
+      ...triples.map((triple) => ({
+        ...triple,
+        progress: other.trusted.includes(triple.id)
+          ? triple.progress
+          : triple.progress * (1 - at(OTHER_OPENING.distrust)),
+      })),
+      ...other.triples.map((id): DrawnTriple => {
+        const { subject, predicate, object } = TRIPLES[id];
+
+        return {
+          id,
+          points: [point(subject), point(predicate), point(object)],
+          progress: at(OTHER_OPENING.triples),
+        };
+      }),
+    ],
   };
 }
 
