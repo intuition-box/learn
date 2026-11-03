@@ -408,15 +408,15 @@ describe('nested triples', () => {
 });
 
 describe('vaults', () => {
-  it('takes away what rose from the whole triple, and hangs its two vaults below it', () => {
+  it('takes away what rose from the whole triple, and hangs the vaults of what he believes below it', () => {
     expect(describeScene(settled('vaults'))).toBe(
-      'A triple: Elon Musk believes (SpaceX will be worth (orders of magnitude more than current Earth economy)). 6 people have a position in its two vaults: 3 against it, and 3 for it.',
+      'A triple: Elon Musk believes (SpaceX will be worth (orders of magnitude more than current Earth economy)). 6 people have a position in the two vaults of SpaceX will be worth (orders of magnitude more than current Earth economy): 3 against it, and 3 for it.',
     );
   });
 
   it('then shows each position: 400, 200 and 20 against, 200, 150 and 80 for', () => {
     expect(describeScene(settled('positions'))).toBe(
-      'A triple: Elon Musk believes (SpaceX will be worth (orders of magnitude more than current Earth economy)). 6 people have a position in its two vaults: 3 against it, with 400, 200 and 20, and 3 for it, with 200, 150 and 80.',
+      'A triple: Elon Musk believes (SpaceX will be worth (orders of magnitude more than current Earth economy)). 6 people have a position in the two vaults of SpaceX will be worth (orders of magnitude more than current Earth economy): 3 against it, with 400, 200 and 20 (620 in all), and 3 for it, with 200, 150 and 80 (430 in all).',
     );
   });
 
@@ -432,12 +432,13 @@ describe('vaults', () => {
     expect(settled('positions').cloud).toBe(0);
   });
 
-  it('keeps the plane where the triple stands, on the same frame, from chapter to chapter', () => {
+  it('keeps the plane where the triple stands from chapter to chapter, and follows what he believes, whose vaults they are', () => {
     const sourced = settled('sourced');
     const vaults = sceneAt(beat('vaults').start);
 
     expect(vaults.plane.from).toEqual(sourced.plane.to);
-    expect(vaults.plane.to?.focus).toBe(sourced.plane.to?.focus);
+    expect(vaults.plane.to?.focus).toBe('worth');
+    expect(vaults.plane.to?.vaults?.frame).toBe('worth');
     expect(vaults.depth).toBe(sourced.depth);
   });
 });

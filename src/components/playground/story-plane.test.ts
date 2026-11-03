@@ -387,12 +387,27 @@ describe("a triple's vaults", () => {
     const frame = layout.frames.find((candidate) => candidate.id === 'belief');
     const [trunk, ...rest] = layout.vaultLines;
 
-    expect(trunk?.from).toEqual({
+    // From the people up: the trunk ends at the middle of the bottom of
+    // the frame; every person's line ends where it starts, through one of
+    // two vaults, and a side's lines run together from its vault.
+    expect(trunk?.points.at(-1)).toEqual({
       x: (frame?.x ?? 0) + (frame?.width ?? 0) / 2,
       y: frame?.bottom,
     });
     expect(trunk?.side).toBeNull();
-    expect(rest.filter((line) => line.from === trunk?.to)).toHaveLength(2);
+    expect(rest.every((line) => line.points.at(-1) === trunk?.points[0])).toBe(
+      true,
+    );
+    expect(new Set(rest.map((line) => line.points[1]))).toHaveProperty(
+      'size',
+      2,
+    );
+    for (const side of ['against', 'for'] as const) {
+      const lines = rest.filter((line) => line.side === side);
+      expect(
+        lines.every((line) => line.points[1] === lines[0]?.points[1]),
+      ).toBe(true);
+    }
     // Against on the left, for on the right, each person's position on
     // their line, left to right as given.
     const people = layout.people.toSorted((a, b) => a.x - b.x);
@@ -495,24 +510,117 @@ describe("a triple's vaults", () => {
     ).toBe(true);
   });
 
-  it('grows each line once the one it leaves from is drawn', () => {
-    const early: string[] = [];
-    for (let step = 0; step <= 60; step++) {
-      const lines = hanging(0.6 + (0.4 * step) / 60).vaultLines;
-      for (const line of lines) {
-        const parent = lines.find(
-          (candidate) =>
-            candidate.to.x === line.from.x && candidate.to.y === line.from.y,
-        );
-        if (line.presence > 0 && (parent?.presence ?? 1) < 1) {
-          early.push(line.id);
+  it('grows each person’s line from them up, 150ms after the one before, and the trunk on from the first to reach it', () => {
+    // The change 4400ms long: its lines' stage, 0.6 to 0.95, 1540ms.
+    const durationMs = 4400;
+    const timed = (t: number) =>
+      planeAt(SOURCED, HUNG, t, measureText, labelOf, WEIGHED, durationMs)
+        .vaultLines;
+    const [trunk, ...people] = timed(0.6);
+    const startOf = (id: string): number => {
+      for (let step = 0; step <= 3500; step++) {
+        const t = 0.6 + (0.35 * step) / 3500;
+        if ((timed(t).find((line) => line.id === id)?.presence ?? 0) > 0) {
+          return t;
         }
       }
-    }
 
-    expect(early).toEqual([]);
-    expect(hanging(0.7).vaultLines.map((line) => line.presence)).toContain(1);
-    expect(hanging(0.7).vaultLines.map((line) => line.presence)).toContain(0);
+      return 1;
+    };
+    const starts = people.map((line) => startOf(line.id) * durationMs);
+
+    // In turn, left to right, each about 150ms after the one before.
+    for (const [index, start] of starts.slice(1).entries()) {
+      expect(start - (starts[index] ?? 0)).toBeCloseTo(150, -1);
+    }
+    // The trunk once the first line reaches it, and so before the last
+    // person's line has.
+    const trunkStart = startOf(trunk?.id ?? '');
+    const atTrunk = timed(trunkStart);
+    expect(
+      atTrunk.filter((line) => line.presence === 1).length,
+    ).toBeGreaterThan(0);
+    expect(
+      atTrunk.some((line) => line.id !== trunk?.id && line.presence < 1),
+    ).toBe(true);
+    // All of it drawn as the stage ends.
+    expect(timed(0.95).every((line) => line.presence === 1)).toBe(true);
+    // Without a duration, the people's lines start together.
+    expect(
+      hanging(0.601)
+        .vaultLines.filter((line) => line.turn !== undefined)
+        .every((line) => line.presence > 0),
+    ).toBe(true);
+  });
+
+  describe('from what he believes, the whole claim set back', () => {
+    const INNER: PlaneClaim = {
+      ...HUNG,
+      isFrameHidden: true,
+      vaults: { ...POSITIONS, frame: 'worth' },
+      faded: ['elonMusk', 'believes'],
+    };
+    const settingBack = (t: number) =>
+      planeAt(SOURCED, INNER, t, measureText, labelOf, INNER);
+    const atom = (plane: ReturnType<typeof settingBack>, id: AtomId) =>
+      plane.atoms.find((candidate) => candidate.id === id);
+    const link = (plane: ReturnType<typeof settingBack>, id: string) =>
+      plane.links.find((candidate) => candidate.id === id);
+    const frame = (plane: ReturnType<typeof settingBack>, id: string) =>
+      plane.frames.find((candidate) => candidate.id === id);
+
+    it('hangs from the middle of the bottom of the inner frame, its rows where the whole claim’s would be', () => {
+      const inner = layoutPlane(DEEPEST, measure, {
+        frame: 'object',
+        vaults: { ...POSITIONS, frame: 'worth' },
+      });
+      const whole = layoutPlane(DEEPEST, measure, {
+        frame: 'object',
+        vaults: POSITIONS,
+      });
+      const worth = inner.frames.find((candidate) => candidate.id === 'worth');
+      const [trunk] = inner.vaultLines;
+
+      expect(trunk?.points.at(-1)).toEqual({
+        x: (worth?.x ?? 0) + (worth?.width ?? 0) / 2,
+        y: worth?.bottom,
+      });
+      expect(trunk?.points[0]?.y).toBe(whole.vaultLines[0]?.points[0]?.y);
+      expect(inner.people.map((person) => person.y)).toEqual(
+        whole.people.map((person) => person.y),
+      );
+      expect(inner.bottom).toBe(whole.bottom);
+    });
+
+    it('takes the whole claim’s frame away as it rises, and keeps its room', () => {
+      expect(frame(settingBack(0), 'belief')?.presence).toBe(1);
+      expect(frame(settingBack(0.17), 'belief')?.presence).toBeGreaterThan(0);
+      expect(frame(settingBack(0.17), 'belief')?.presence).toBeLessThan(1);
+      expect(frame(settingBack(0.35), 'belief')?.presence).toBe(0);
+      expect(frame(settingBack(1), 'worth')?.presence).toBe(1);
+      expect(settingBack(1).fit?.width).toBe(hanging(1).fit?.width);
+      expect(settingBack(1).atoms.map(({ id, x }) => ({ id, x }))).toEqual(
+        hanging(1).atoms.map(({ id, x }) => ({ id, x })),
+      );
+    });
+
+    it('sets back Elon Musk, believes and the lines from them as it rises, and nothing else', () => {
+      expect(atom(settingBack(0), 'elonMusk')?.faded).toBe(0);
+      expect(atom(settingBack(0.17), 'believes')?.faded).toBeGreaterThan(0);
+      expect(atom(settingBack(0.35), 'believes')?.faded).toBe(1);
+      expect(atom(settingBack(0.35), 'elonMusk')?.faded).toBe(1);
+      expect(link(settingBack(1), 'belief:0')?.faded).toBe(1);
+      expect(link(settingBack(1), 'belief:1')?.faded).toBe(1);
+      expect(atom(settingBack(1), 'spacex')?.faded).toBe(0);
+      expect(link(settingBack(1), 'worth:0')?.faded).toBe(0);
+    });
+
+    it('brings them back as the plane closes', () => {
+      const closing = planeAt(INNER, null, 0.45, measureText, labelOf);
+
+      expect(atom(closing, 'elonMusk')?.faded).toBe(0);
+      expect(frame(closing, 'belief')?.presence).toBe(0);
+    });
   });
 
   it('shows the positions, then the side each line leads to', () => {
@@ -522,6 +630,19 @@ describe("a triple's vaults", () => {
     expect(line(weighing(0))).toMatchObject({ weighed: 0, sided: 0 });
     expect(line(weighing(0.4))).toMatchObject({ weighed: 1, sided: 0 });
     expect(line(weighing(1))).toMatchObject({ weighed: 1, sided: 1 });
+    // Where a side's lines run together, all the positions in its vault,
+    // once, as they take the vault's colour.
+    const totals = (plane: ReturnType<typeof weighing>) =>
+      plane.vaultLines.flatMap((candidate) =>
+        candidate.total === undefined
+          ? []
+          : [{ side: candidate.side, value: candidate.total.value }],
+      );
+    expect(totals(weighing(1))).toEqual([
+      { side: 'against', value: 620 },
+      { side: 'for', value: 430 },
+    ]);
+    expect(line(weighing(0.4))?.sided).toBe(0);
     // Nothing else moves.
     expect(weighing(0.5).atoms).toEqual(weighing(0).atoms);
     expect(weighing(0.5).people).toEqual(weighing(0).people);

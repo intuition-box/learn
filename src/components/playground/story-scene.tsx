@@ -653,7 +653,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
       if (plane === null || plane === undefined) {
         return null;
       }
-      const { from, to, progress, fit } = state.props.scene.plane;
+      const { from, to, progress, fit, durationMs } = state.props.scene.plane;
       if (from === null && to === null) {
         state.planeBox = null;
 
@@ -667,6 +667,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
         (text) => plane.measureText(text).width,
         (atom) => ATOMS[atom].label,
         fit,
+        durationMs,
       );
       // Sized once, by the claim the chapter builds to, so it does not zoom
       // again at each step; or by the claim itself, without one.
@@ -988,7 +989,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
           points: [from, to],
           units: Math.hypot(to.x - from.x, to.y - from.y),
           progress: link.presence,
-          alpha: 1,
+          alpha: lerp(1, PLANE.faded, link.faded),
           flow: state.props.scene.flow,
         });
       }
@@ -1013,19 +1014,20 @@ export function StoryScene(props: StorySceneProps): ReactNode {
       }
 
       // A triple's vaults: the lines down from its frame, grey until they
-      // show the vault they lead to; each person's position, on their line;
-      // and the people, arriving as atoms do.
+      // show the vault they lead to, a side's running together as far as
+      // its vault; each person's position, on their line, and each vault's
+      // total, where its lines run together; and the people, arriving as
+      // atoms do.
       const onCanvas = (point: PlanePoint): ScreenPoint => ({
         x: origin.x + point.x * zoom,
         y: origin.y + point.y * zoom,
       });
       for (const line of blended.vaultLines) {
-        const from = onCanvas(line.from);
-        const to = onCanvas(line.to);
+        const points = line.points.map(onCanvas);
         drawLine(plane, {
           id: line.id,
-          points: [from, to],
-          units: Math.hypot(to.x - from.x, to.y - from.y),
+          points,
+          units: segmentLengths(points).reduce((sum, part) => sum + part, 0),
           progress: line.presence,
           alpha: 1,
           flow: state.props.scene.flow,
@@ -1043,6 +1045,15 @@ export function StoryScene(props: StorySceneProps): ReactNode {
             onCanvas(line.weight),
             zoom,
             line.weighed,
+          );
+        }
+        if (line.total !== undefined && line.sided > 0) {
+          drawWeight(
+            plane,
+            String(line.total.value),
+            onCanvas(line.total),
+            zoom,
+            line.sided,
           );
         }
       }
@@ -1065,7 +1076,8 @@ export function StoryScene(props: StorySceneProps): ReactNode {
       for (const { atom, out, placement } of placed) {
         const cloudRole =
           out === undefined ? undefined : cloudRoles.get(atom.id);
-        plane.globalAlpha = out?.amount ?? atom.presence;
+        plane.globalAlpha =
+          (out?.amount ?? atom.presence) * lerp(1, PLANE.faded, atom.faded);
         drawAtom(
           plane,
           ATOMS[atom.id].label,

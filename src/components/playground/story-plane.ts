@@ -92,8 +92,20 @@ export interface PlaneClaim {
   branches?: readonly PlaneBranch[];
   /** The whole claim in a frame too, tinted this role. */
   frame?: Role;
+  /**
+   * That frame gone, but not the room it took: the claim keeps its size,
+   * and nothing in it moves.
+   */
+  isFrameHidden?: boolean;
   /** The vaults of one of its triples, hanging below it. */
   vaults?: PlaneVaults;
+  /**
+   * Atoms set back, and the lines from them: there, but not what the claim
+   * is about now.
+   */
+  faded?: readonly AtomId[];
+  /**
+   */
   /**
    * Its atoms still shown as words: broken apart where the atoms will
    * stand, the claim's frames round them.
@@ -125,16 +137,18 @@ export const PLANE = {
   /** Between one atom and the next up a branch: room for its name and the line. */
   branchStep: 96,
   /**
-   * A triple's vaults: how far below its frame its line splits in two, how
+   * A triple's vaults: how far below the claim its line splits in two, how
    * far either side the two vaults' lines go, how far apart the people on
    * one side stand, and how far along a person's line their position shows.
    */
-  vaults: { split: 26, spread: 160, apart: 100, weightAt: 0.6 },
+  vaults: { split: 26, spread: 160, apart: 100, weightAt: 0.6, staggerMs: 150 },
   /**
    * A list: between its members, one under another; from them across to
    * the predicate; and how far along a member's line its weight shows.
    */
   list: { rowStep: 80, reach: 170, weightAt: 0.45 },
+  /** How much of an atom set back shows, and of the lines from it. */
+  faded: 0.3,
 } as const;
 
 /** Which of a triple's two vaults: the one against it, or the one for it. */
@@ -146,16 +160,28 @@ export interface PlanePoint {
   y: number;
 }
 
-/** A line of a triple's vaults, from `from` down to `to`. */
+/**
+ * A line of a triple's vaults, through `points`, from the top down: the
+ * trunk, from the frame to where it splits; or a person's, from there
+ * through their vault to them. A side's lines run together as far as its
+ * vault, so the stretch they share shows stronger, as a list's lines do.
+ */
 export interface VaultLine {
   id: string;
-  from: PlanePoint;
-  to: PlanePoint;
+  points: readonly PlanePoint[];
   side: VaultSide | null;
-  /** How far along the lines from the frame it starts: it grows once those before it have. */
-  start: number;
+  /**
+   * A person's line, its turn to grow, from 0: the people's lines grow one
+   * after another. The trunk has none: it grows once the first reaches it.
+   */
+  turn?: number;
   /** The position of the person it reaches, and where on the line that shows. */
   weight?: PlanePoint & { value: number };
+  /**
+   * On a side's first line, all the positions in its vault, where the
+   * side's lines run together.
+   */
+  total?: PlanePoint & { value: number };
 }
 
 /** A person with a position in a vault: the middle of their icon, an atom's size. */
@@ -628,9 +654,10 @@ export function layoutPlane(
 }
 
 /**
- * Hangs a triple's vaults below its frame. The lines reach as far below it
- * as a claim rising from its top reaches above it, a row for the vaults and
- * a row for the people, so the plane is as tall with either.
+ * Hangs a triple's vaults below its frame. The lines reach as far below the
+ * claim as a claim rising from its top reaches above it, a row for the
+ * vaults and a row for the people, so the plane is as tall with either; from
+ * a triple inside the claim, the line down to where it splits is longer.
  */
 function hangVaults(
   vaults: PlaneVaults,
@@ -640,48 +667,49 @@ function hangVaults(
   const { split, spread, apart, weightAt } = PLANE.vaults;
   const step = PLANE.branchStep;
   const root = { x: frame.x + frame.width / 2, y: frame.bottom };
-  const fork = { x: root.x, y: root.y + split };
-  const vaultsRow = root.y + step * 0.75;
+  const fork = { x: root.x, y: into.bottom + split };
+  const vaultsRow = into.bottom + step * 0.75;
   const peopleRow = vaultsRow + step;
+  // The people make the claim: every line runs from them up to it.
   into.vaultLines.push({
     id: `${vaults.frame}:vaults`,
-    from: root,
-    to: fork,
+    points: [fork, root],
     side: null,
-    start: 0,
   });
+  let turn = 0;
   for (const [side, positions, direction] of [
     ['against', vaults.against, -1],
     ['for', vaults.for, 1],
   ] as const) {
     const vault = { x: root.x + spread * direction, y: vaultsRow };
-    const toVault = distance(fork, vault);
-    into.vaultLines.push({
-      id: `${vaults.frame}:${side}`,
-      from: fork,
-      to: vault,
-      side,
-      start: split,
-    });
-    // The people on a side centred on its vault, left to right.
+    // The people on a side centred on its vault, left to right; each one's
+    // line from the top of their icon, through the vault, to the split.
     for (const [index, value] of positions.entries()) {
       const id = `${vaults.frame}:${side}:${index}`;
       const x = vault.x + (index - (positions.length - 1) / 2) * apart;
-      // To the top of the person's icon.
       const to = { x, y: peopleRow - PLANE.atomSize / 2 };
       into.vaultLines.push({
         id,
-        from: vault,
-        to,
+        points: [to, vault, fork],
         side,
-        start: split + toVault,
+        turn,
         weight: {
           x: vault.x + (to.x - vault.x) * weightAt,
           y: vault.y + (to.y - vault.y) * weightAt,
           value,
         },
+        ...(index === 0
+          ? {
+              total: {
+                x: fork.x + (vault.x - fork.x) * weightAt,
+                y: fork.y + (vault.y - fork.y) * weightAt,
+                value: positions.reduce((sum, position) => sum + position, 0),
+              },
+            }
+          : {}),
       });
       into.people.push({ id, side, x, y: peopleRow });
+      turn += 1;
     }
   }
   into.bottom = Math.max(into.bottom, peopleRow + PLANE.atomSize / 2);
@@ -726,6 +754,8 @@ export interface BlendedAtom extends PlaneAtom {
   named: number;
   /** How far its rank, in a ranked list, shows. */
   ranked: number;
+  /** How far it is set back: fully, only `PLANE.faded` of it shows. */
+  faded: number;
 }
 
 /** A frame partway from one beat's claim to the next. */
@@ -736,6 +766,8 @@ export interface BlendedFrame extends PlaneFrame {
 /** Part of a triple's line, drawn from its start as far as `presence`. */
 export interface BlendedLink extends PlaneLink {
   presence: number;
+  /** How far it is set back, with an atom it joins. */
+  faded: number;
 }
 
 /** A triple's weight partway from one beat's claim to the next. */
@@ -748,7 +780,7 @@ export interface BlendedWeight extends PlaneWeight {
 export interface BlendedVaultLine extends VaultLine {
   /** How far it is drawn, from its start. */
   presence: number;
-  /** How far it has taken its vault's colour, from grey. */
+  /** How far it has taken its vault's colour, from grey, and its total shows. */
   sided: number;
   /** How far the position on it shows. */
   weighed: number;
@@ -829,7 +861,7 @@ interface Stages {
   roles: Window;
   /** The people's positions show on their lines. */
   weights: Window;
-  /** The lines to each vault take its colour. */
+  /** The lines to each vault take its colour, and show all the positions in it. */
   sides: Window;
   /** A list's members show their ranks, once they stand in order. */
   ranks: Window;
@@ -1067,6 +1099,16 @@ function distance(from: PlanePoint, to: PlanePoint): number {
   return Math.hypot(to.x - from.x, to.y - from.y);
 }
 
+/** How long a line through `points` is. */
+function lengthOf(points: readonly PlanePoint[]): number {
+  return points
+    .slice(1)
+    .reduce(
+      (sum, point, index) => sum + distance(points[index] ?? point, point),
+      0,
+    );
+}
+
 function easeInOutCubic(t: number): number {
   return t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2;
 }
@@ -1078,6 +1120,55 @@ function through([start, end]: Window, t: number): number {
   }
 
   return easeInOutCubic(Math.min(Math.max((t - start) / (end - start), 0), 1));
+}
+
+/**
+ * How far each of a triple's vault lines has grown at `t`, in a stage that
+ * grows them over `window` of a change `durationMs` long, evenly: the
+ * people's lines one after another, `staggerMs` apart, at one speed; the
+ * trunk from when the first of them reaches it, at that speed, as that line
+ * going on up; and all of it done as the stage ends. Without a duration,
+ * the people's lines start together.
+ */
+function vaultGrowth(
+  lines: readonly VaultLine[],
+  [start, end]: Window,
+  durationMs: number,
+): (line: VaultLine, t: number) => number {
+  const span = end - start;
+  const climbing = lines.filter((line) => line.turn !== undefined);
+  const gaps = Math.max(climbing.length - 1, 0);
+  // Never more than half the stage from the first to start to the last.
+  const stagger =
+    durationMs > 0
+      ? Math.min(
+          PLANE.vaults.staggerMs / durationMs,
+          span / 2 / Math.max(gaps, 1),
+        )
+      : 0;
+  const longest = Math.max(0, ...climbing.map((line) => lengthOf(line.points)));
+  const trunk = Math.max(
+    0,
+    ...lines
+      .filter((line) => line.turn === undefined)
+      .map((line) => lengthOf(line.points)),
+  );
+  const speed = (longest + trunk) / (span - stagger * gaps);
+  const startOf = (line: VaultLine): number =>
+    start + (line.turn ?? 0) * stagger;
+  const firstMet = Math.min(
+    ...climbing.map((line) => startOf(line) + lengthOf(line.points) / speed),
+  );
+
+  return (line, t) => {
+    const length = lengthOf(line.points);
+    if (t >= end || span <= 0 || length <= 0) {
+      return t >= end ? 1 : 0;
+    }
+    const from = line.turn === undefined ? firstMet : startOf(line);
+
+    return Math.min(Math.max(((t - from) * speed) / length, 0), 1);
+  };
 }
 
 /** A layout moved along the line, and where its left edge is then. */
@@ -1153,9 +1244,9 @@ function shifted(layout: PlaneLayout, shift: number): Placed {
     frames: layout.frames.map(moved),
     vaultLines: layout.vaultLines.map((line) => ({
       ...line,
-      from: moved(line.from),
-      to: moved(line.to),
+      points: line.points.map(moved),
       ...(line.weight === undefined ? {} : { weight: moved(line.weight) }),
+      ...(line.total === undefined ? {} : { total: moved(line.total) }),
     })),
     people: layout.people.map(moved),
     left: shift,
@@ -1191,7 +1282,8 @@ interface Spot {
  * text's width at a name's size, in plane units. With `fit`, the claim the
  * beats build to, each claim stands where that one will: its first atom
  * where it stands there, so the claim only grows along the line and never
- * shifts; and the plane sizes itself by it, once.
+ * shifts; and the plane sizes itself by it, once. `durationMs`, how long
+ * the change takes, times what is staggered in it.
  */
 export function planeAt(
   from: PlaneClaim | null,
@@ -1200,6 +1292,7 @@ export function planeAt(
   measureText: (text: string) => number,
   labelOf: (atom: AtomId) => string,
   fit: PlaneClaim | null = null,
+  durationMs = 0,
 ): BlendedPlane {
   const measure = (atom: AtomId): number => measureText(labelOf(atom));
   const space = measureText(' ');
@@ -1270,6 +1363,18 @@ export function planeAt(
   /** How far a thing shown or not, as one claim says and the next, shows. */
   const shift = (was: boolean, is: boolean, progress: number): number =>
     was === is ? (is ? 1 : 0) : is ? progress : 1 - progress;
+  // An atom set back, and a line from one, fades as what leaves goes, but
+  // only so far; and comes back as the plane closes.
+  const isFaded = (claim: PlaneClaim | null, end: PlaneEnd): boolean =>
+    'atom' in end && (claim?.faded?.includes(end.atom) ?? false);
+  const fadedAtom = (id: AtomId): number =>
+    shift(isFaded(from, { atom: id }), isFaded(to, { atom: id }), leave);
+  const fadedLink = (link: PlaneLink): number =>
+    shift(
+      isFaded(from, link.from) || isFaded(from, link.to),
+      isFaded(to, link.from) || isFaded(to, link.to),
+      leave,
+    );
 
   // The words: in one line in their frame, then broken into their parts,
   // which then move down to where their atoms' names go.
@@ -1312,6 +1417,7 @@ export function planeAt(
           // An atom made from a word takes the word, in place, as its name.
           named: oldSpots.has(atom.id) ? 0 : 1,
           ranked: atom.rank === undefined ? 0 : ranked,
+          faded: fadedAtom(atom.id),
         }
       : {
           ...atom,
@@ -1323,6 +1429,7 @@ export function planeAt(
           roleProgress: roles,
           named: 1,
           ranked: atom.rank === undefined ? 0 : ranked,
+          faded: fadedAtom(atom.id),
         };
   });
   for (const atom of oldMade) {
@@ -1335,27 +1442,37 @@ export function planeAt(
         named: 1,
         // The first to go, as lines draw back.
         ranked: atom.rank === undefined ? 0 : 1 - retract,
+        faded: fadedAtom(atom.id),
       });
     }
   }
 
+  // The whole claim's frame, where the claim hides it, goes as what leaves
+  // goes; its room stays.
+  const isShown = (claim: PlaneClaim | null, frame: PlaneFrame): boolean =>
+    claim?.isFrameHidden !== true ||
+    !('triple' in claim.term) ||
+    claim.term.triple.id !== frame.id;
   const frames: BlendedFrame[] = (after?.frames ?? []).map((frame) => {
     const was = before?.frames.find((old) => old.id === frame.id);
 
     return was === undefined
-      ? { ...frame, presence: form }
+      ? { ...frame, presence: isShown(to, frame) ? form : 0 }
       : {
           ...frame,
           x: lerp(was.x, frame.x, move),
           width: lerp(was.width, frame.width, move),
           top: lerp(was.top, frame.top, move),
           bottom: lerp(was.bottom, frame.bottom, move),
-          presence: 1,
+          presence: shift(isShown(from, was), isShown(to, frame), leave),
         };
   });
   for (const frame of before?.frames ?? []) {
     if (!(after?.frames ?? []).some((next) => next.id === frame.id)) {
-      frames.push({ ...frame, presence: 1 - leave });
+      frames.push({
+        ...frame,
+        presence: isShown(from, frame) ? 1 - leave : 0,
+      });
     }
   }
   // Outermost first: of two nested frames, the wider holds the other.
@@ -1383,10 +1500,12 @@ export function planeAt(
       presence: newLinks.some((next) => isSameLink(next, link))
         ? 1
         : 1 - retract,
+      faded: fadedLink(link),
     })),
     ...growing.map((link, index) => ({
       ...link,
       presence: grown[index] ?? grow,
+      faded: fadedLink(link),
     })),
   ];
   // A list's weights, as the list says; the first to go as it closes, as
@@ -1419,24 +1538,16 @@ export function planeAt(
     newVaults?.isSided === true,
     side,
   );
-  const reach = Math.max(
-    0,
-    ...(after?.vaultLines ?? []).map(
-      (line) => line.start + distance(line.from, line.to),
-    ),
-  );
+  const growth = vaultGrowth(after?.vaultLines ?? [], stages.lines, durationMs);
   const vaultLines: BlendedVaultLine[] = (after?.vaultLines ?? []).map(
     (line) => {
       const isThere = (before?.vaultLines ?? []).some(
         (old) => old.id === line.id,
       );
-      const length = distance(line.from, line.to);
 
       return {
         ...line,
-        presence: isThere
-          ? 1
-          : Math.min(Math.max((grow * reach - line.start) / length, 0), 1),
+        presence: isThere ? 1 : growth(line, t),
         sided,
         weighed,
       };

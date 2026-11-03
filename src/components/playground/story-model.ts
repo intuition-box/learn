@@ -27,6 +27,7 @@ import {
   type PlaneClaim,
   type PlaneList,
   type PlaneTerm,
+  type PlaneTriple,
   type PlaneVaults,
   planeSentence,
 } from './story-plane';
@@ -433,14 +434,17 @@ const SOURCE: PlaneBranch = {
 };
 
 /**
- * The whole belief's two vaults, and six people with a position in them:
- * three against it, on the left, and three for it, on the right.
+ * The two vaults of what Elon Musk believes, and six people with a position
+ * in them: three against it, on the left, and three for it, on the right.
  */
 const POSITIONS: PlaneVaults = {
-  frame: 'belief',
+  frame: 'worth',
   against: [400, 200, 20],
   for: [200, 150, 80],
 };
+
+/** Who believes it, set back while the vaults of what he believes show. */
+const SET_BACK: readonly AtomId[] = ['elonMusk', 'believes'];
 
 /**
  * The best AI company, by everyone who says so: a list of three triples,
@@ -780,20 +784,24 @@ const BEAT_SPECS: readonly BeatSpec[] = [
     id: 'vaults',
     chapter: 'vaults',
     caption: ['Every triple has two vaults, one against it and one for it.'],
-    // At once, what rose from the whole triple draws back and goes, the
-    // current Earth economy, an object and nothing else again, is a square
-    // again, the cloud behind goes, and the triple rises to the top. Then
-    // six people arrive below it, and grey lines grow down from its frame,
-    // split in two, one side for each vault, and split again to reach them.
+    // At once, what rose from the whole triple draws back and goes, its
+    // frame goes but keeps its room, Elon Musk and believes are set back,
+    // the current Earth economy, an object and nothing else again, is a
+    // square again, the cloud behind goes, and the triple rises to the top.
+    // Then six people arrive below it, and grey lines grow down from the
+    // frame of what he believes, split in two, one side for each vault, and
+    // split again to reach them.
     motionMs: 4400,
     stage: {
       ...UP_CLOSE,
       cloud: { shown: 0, during: HANGING_RISE },
       plane: {
         term: BELIEF,
-        focus: 'belief',
+        focus: 'worth',
         frame: 'identity',
+        isFrameHidden: true,
         vaults: POSITIONS,
+        faded: SET_BACK,
       },
     },
   },
@@ -804,16 +812,19 @@ const BEAT_SPECS: readonly BeatSpec[] = [
       'Anyone can take a position by depositing into either, and the positions give the triple its weight.\nA triple is a claim, not a fact: its weight shows how many stand behind it, and how much.',
     ],
     // Each person's position shows on their line; then each side takes its
-    // vault's colour: red against, green for.
+    // vault's colour, red against, green for, and the line to each vault
+    // shows all the positions in it.
     motionMs: 3200,
     stage: {
       ...UP_CLOSE,
       cloud: { shown: 0 },
       plane: {
         term: BELIEF,
-        focus: 'belief',
+        focus: 'worth',
         frame: 'identity',
+        isFrameHidden: true,
         vaults: { ...POSITIONS, isWeighed: true, isSided: true },
+        faded: SET_BACK,
       },
     },
   },
@@ -1220,6 +1231,8 @@ export interface Scene {
     from: PlaneState | null;
     to: PlaneState | null;
     progress: number;
+    /** How long the change takes, in milliseconds: what times a stagger in it. */
+    durationMs: number;
     /**
      * The claim the chapter builds to, as its last beat leaves it: the
      * plane sizes itself by it, and stands each claim where it will stand,
@@ -1334,6 +1347,7 @@ export function sceneAt(time: number, isStill = false): Scene {
   const progress = isStill ? 1 : clamp01((time - beat.start) / beat.motionMs);
 
   const camera = along(progress, target.camera.during);
+  const planeDuring = target.plane?.during ?? previous.plane?.during ?? [0, 1];
   // The chapter that sizes the plane: this beat's, or, as the plane closes,
   // the one before's, so it keeps its size as it goes.
   const planeChapter =
@@ -1414,10 +1428,8 @@ export function sceneAt(time: number, isStill = false): Scene {
       from: previous.plane ?? null,
       to: target.plane ?? null,
       // Evenly: the plane eases each of its own stages.
-      progress: within(
-        progress,
-        target.plane?.during ?? previous.plane?.during,
-      ),
+      progress: within(progress, planeDuring),
+      durationMs: beat.motionMs * (planeDuring[1] - planeDuring[0]),
       fit:
         planeChapter === undefined
           ? null
@@ -1542,12 +1554,36 @@ function listed(values: readonly (number | string)[]): string {
     : `${values.slice(0, -1).join(', ')} and ${values.at(-1) ?? ''}`;
 }
 
-/** A triple's vaults, and the people with a position in them, in words. */
-function describeVaults(vaults: PlaneVaults): string {
-  const side = (positions: readonly number[], which: string): string =>
-    `${positions.length} ${which} it${vaults.isWeighed === true ? `, with ${listed(positions)}` : ''}`;
+/** The triple in `term` with this id, if there is one. */
+function tripleIn(term: PlaneTerm, id: string): PlaneTriple | undefined {
+  if (!('triple' in term)) {
+    return undefined;
+  }
+  const { triple } = term;
 
-  return ` ${vaults.against.length + vaults.for.length} people have a position in its two vaults: ${side(vaults.against, 'against')}, and ${side(vaults.for, 'for')}.`;
+  return triple.id === id
+    ? triple
+    : (tripleIn(triple.subject, id) ?? tripleIn(triple.object, id));
+}
+
+/**
+ * A triple's vaults, and the people with a position in them, in words: the
+ * claim's own, or those of a triple inside it.
+ */
+function describeVaults(
+  vaults: PlaneVaults,
+  term: PlaneTerm,
+  labelOf: (atom: AtomId) => string,
+): string {
+  const owner = tripleIn(term, vaults.frame);
+  const whose =
+    owner === undefined || ('triple' in term && term.triple === owner)
+      ? 'its two vaults'
+      : `the two vaults of ${planeSentence({ triple: owner }, labelOf)}`;
+  const side = (positions: readonly number[], which: string): string =>
+    `${positions.length} ${which} it${vaults.isWeighed === true ? `, with ${listed(positions)}` : ''}${vaults.isSided === true ? ` (${positions.reduce((sum, value) => sum + value, 0)} in all)` : ''}`;
+
+  return ` ${vaults.against.length + vaults.for.length} people have a position in ${whose}: ${side(vaults.against, 'against')}, and ${side(vaults.for, 'for')}.`;
 }
 
 /** What the scene shows, in words: the canvas's label. */
@@ -1580,7 +1616,9 @@ export function describeScene(scene: Scene): string {
       )
       .join('');
     const vaults =
-      shown.vaults === undefined ? '' : describeVaults(shown.vaults);
+      shown.vaults === undefined
+        ? ''
+        : describeVaults(shown.vaults, shown.term, labelOf);
 
     return (shown.spelled?.length ?? 0) > 0
       ? `A triple, still in words: ${planeSentence(shown.term, labelOf)}.`
