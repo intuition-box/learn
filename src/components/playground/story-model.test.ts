@@ -478,10 +478,10 @@ describe('lists', () => {
 
   it('takes the list onto the plane with each weight, then ranks it', () => {
     expect(describeScene(settled('list'))).toBe(
-      'A list of triples, each best AI company: xAI, with 780, Anthropic, with 910 and OpenAI, with 640.',
+      'A list of triples, each best AI company: xAI, with 910, Anthropic, with 780 and OpenAI, with 640.',
     );
     expect(describeScene(settled('ranked'))).toBe(
-      'A list of triples, each best AI company: Anthropic, with 910, xAI, with 780 and OpenAI, with 640, ranked by weight.',
+      'A list of triples, each best AI company: xAI, with 910, Anthropic, with 780 and OpenAI, with 640, ranked by weight.',
     );
   });
 
@@ -500,6 +500,36 @@ describe('lists', () => {
 });
 
 describe('perspectives', () => {
+  it('starts from the ranked list, and shows above it whose perspective it is: Elon Musk’s', () => {
+    const start = sceneAt(beat('perspective').start);
+
+    expect(start.plane.from).toEqual(settled('ranked').plane.to);
+    expect(describeScene(settled('perspective'))).toBe(
+      'A list of triples, each best AI company, through Elon Musk’s perspective: xAI, with 910, Anthropic, with 780 and OpenAI, with 640, ranked by weight.',
+    );
+  });
+
+  it('through Sam Altman’s, puts OpenAI first; through my developer friends’, Anthropic', () => {
+    expect(describeScene(settled('sam-altman'))).toBe(
+      'A list of triples, each best AI company, through Sam Altman’s perspective: OpenAI, with 960, xAI, with 910 and Anthropic, with 780, ranked by weight.',
+    );
+    expect(describeScene(settled('developer-friends'))).toBe(
+      'A list of triples, each best AI company, through My developer friends’ perspective: Anthropic, with 990, OpenAI, with 960 and xAI, with 910, ranked by weight.',
+    );
+  });
+
+  it('stays up close on the list to the end: the camera, the cloud and its depth hold', () => {
+    const ranked = settled('ranked');
+    for (const id of ['perspective', 'sam-altman', 'developer-friends']) {
+      const { start, motionMs } = beat(id);
+      for (const share of [0, 0.5, 1]) {
+        const scene = sceneAt(start + motionMs * share);
+        expect(scene.camera).toEqual(ranked.camera);
+        expect(scene.depth).toBe(ranked.depth);
+        expect(scene.cloud).toBe(ranked.cloud);
+      }
+    }
+  });
   it("closes the list, pulls back to the whole cloud, then brings the plane's atoms onto it and joins them", () => {
     const { start, motionMs } = beat('one-graph');
     const at = (share: number) => sceneAt(start + motionMs * share);
@@ -593,11 +623,11 @@ describe('stepping by chapter', () => {
       beat('list-back').start,
     );
     expect(stepFrom(beat('list-back').start + 100, 1, 'start', 'chapter')).toBe(
-      beat('one-graph').start,
+      beat('perspective').start,
     );
-    expect(stepFrom(beat('one-graph').start + 100, 1, 'start', 'chapter')).toBe(
-      DURATION,
-    );
+    expect(
+      stepFrom(beat('perspective').start + 100, 1, 'start', 'chapter'),
+    ).toBe(DURATION);
     expect(stepFrom(triple.start + 4000, -1, 'start', 'chapter')).toBe(
       triple.start,
     );

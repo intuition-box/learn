@@ -453,13 +453,38 @@ const SET_BACK: readonly AtomId[] = ['elonMusk', 'believes'];
 const BEST_AI_COMPANY: PlaneList = {
   id: 'bestAiCompany',
   members: [
-    { atom: 'xai', weight: 780 },
-    { atom: 'anthropic', weight: 910 },
+    { atom: 'xai', weight: 910 },
+    { atom: 'anthropic', weight: 780 },
     { atom: 'openai', weight: 640 },
   ],
   predicate: 'best',
   object: 'aiCompany',
   isWeighed: true,
+};
+
+/**
+ * Whose perspective the list is seen through: the weights of the triples in
+ * it as the people each trusts have made them.
+ */
+const PERSPECTIVES = ['Elon Musk', 'Sam Altman', 'My developer friends'];
+
+/** The list ranked, as Elon Musk sees it: xAI first. */
+const RANKED: PlaneList = { ...BEST_AI_COMPANY, isRanked: true };
+
+/** As Sam Altman sees it: OpenAI weighs more, and comes first. */
+const AS_SAM_ALTMAN_SEES_IT: PlaneList = {
+  ...RANKED,
+  members: RANKED.members.map((member) =>
+    member.atom === 'openai' ? { ...member, weight: 960 } : member,
+  ),
+};
+
+/** As my developer friends see it: Anthropic weighs more still, and comes first. */
+const AS_MY_FRIENDS_SEE_IT: PlaneList = {
+  ...AS_SAM_ALTMAN_SEES_IT,
+  members: AS_SAM_ALTMAN_SEES_IT.members.map((member) =>
+    member.atom === 'anthropic' ? { ...member, weight: 990 } : member,
+  ),
 };
 
 /**
@@ -916,13 +941,64 @@ const BEAT_SPECS: readonly BeatSpec[] = [
     caption: [
       'The positions in each triple’s vaults rank the list: the more weight, the higher it stands.',
     ],
-    // The members move into order, the heaviest on top.
+    // They stand in order already, the heaviest on top: each takes its
+    // medal.
     motionMs: 2800,
     stage: {
       ...LISTED_CLOSE,
       plane: {
-        term: { list: { ...BEST_AI_COMPANY, isRanked: true } },
+        term: { list: RANKED },
         focus: ['xai', 'best'],
+      },
+    },
+  },
+  {
+    id: 'perspective',
+    chapter: 'perspectives',
+    caption: [
+      'What you see depends on whose triples you trust: that is your perspective.\nThrough Elon Musk’s, xAI is the best AI company.',
+    ],
+    // The list moves down, and above it a menu shows whose perspective it
+    // is seen through: Elon Musk's.
+    motionMs: 2400,
+    stage: {
+      ...LISTED_CLOSE,
+      plane: {
+        term: { list: RANKED },
+        focus: ['xai', 'best'],
+        perspective: { options: PERSPECTIVES, chosen: 0 },
+      },
+    },
+  },
+  {
+    id: 'sam-altman',
+    chapter: 'perspectives',
+    caption: ['Through Sam Altman’s, the same list puts OpenAI first.'],
+    // The menu opens, moves to Sam Altman, and closes on him. OpenAI's
+    // weight grows, it moves to the top, and the medals change hands.
+    motionMs: 5200,
+    stage: {
+      ...LISTED_CLOSE,
+      plane: {
+        term: { list: AS_SAM_ALTMAN_SEES_IT },
+        focus: ['xai', 'best'],
+        perspective: { options: PERSPECTIVES, chosen: 1 },
+      },
+    },
+  },
+  {
+    id: 'developer-friends',
+    chapter: 'perspectives',
+    caption: ['Through my developer friends’, Anthropic.'],
+    // The menu opens again, on my developer friends. Anthropic's weight
+    // grows past OpenAI's, it moves to the top, and the medals change hands.
+    motionMs: 5200,
+    stage: {
+      ...LISTED_CLOSE,
+      plane: {
+        term: { list: AS_MY_FRIENDS_SEE_IT },
+        focus: ['xai', 'best'],
+        perspective: { options: PERSPECTIVES, chosen: 2 },
       },
     },
   },
@@ -1605,8 +1681,13 @@ export function describeScene(scene: Scene): string {
       const order = isRanked
         ? members.toSorted((a, b) => b.weight - a.weight)
         : members;
+      const whose = shown.perspective?.options[shown.perspective.chosen];
+      const through =
+        whose === undefined
+          ? ''
+          : `, through ${whose.endsWith('s') ? `${whose}’` : `${whose}’s`} perspective`;
 
-      return `A list of triples, each ${labelOf(predicate)} ${labelOf(object)}: ${listed(order.map((member) => `${labelOf(member.atom)}, with ${member.weight}`))}${isRanked === true ? ', ranked by weight' : ''}.`;
+      return `A list of triples, each ${labelOf(predicate)} ${labelOf(object)}${through}: ${listed(order.map((member) => `${labelOf(member.atom)}, with ${member.weight}`))}${isRanked === true ? ', ranked by weight' : ''}.`;
     }
 
     const branches = (shown.branches ?? [])

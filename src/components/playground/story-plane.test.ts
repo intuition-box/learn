@@ -756,6 +756,124 @@ describe('a list', () => {
   });
 });
 
+describe('a list seen through a perspective', () => {
+  const measureText = (text: string): number => text.length * 7;
+  const OPTIONS = ['Elon Musk', 'Sam Altman', 'My developer friends'];
+  const LIST: PlaneList = {
+    id: 'best',
+    members: [
+      { atom: 'xai', weight: 910 },
+      { atom: 'anthropic', weight: 780 },
+      { atom: 'openai', weight: 640 },
+    ],
+    predicate: 'best',
+    object: 'aiCompany',
+    isWeighed: true,
+    isRanked: true,
+  };
+  const RANKED: PlaneClaim = { term: { list: LIST } };
+  const SEEN: PlaneClaim = {
+    ...RANKED,
+    perspective: { options: OPTIONS, chosen: 0 },
+  };
+  const SWITCHED: PlaneClaim = {
+    term: {
+      list: {
+        ...LIST,
+        members: LIST.members.map((member) =>
+          member.atom === 'openai' ? { ...member, weight: 960 } : member,
+        ),
+      },
+    },
+    perspective: { options: OPTIONS, chosen: 1 },
+  };
+  const presenting = (t: number) =>
+    planeAt(RANKED, SEEN, t, measureText, labelOf, SEEN);
+  const switching = (t: number) =>
+    planeAt(SEEN, SWITCHED, t, measureText, labelOf, SWITCHED);
+  const atom = (plane: ReturnType<typeof switching>, id: AtomId) =>
+    plane.atoms.find((candidate) => candidate.id === id);
+  const weight = (plane: ReturnType<typeof switching>, id: AtomId) =>
+    plane.weights.find((candidate) => candidate.from === id)?.value;
+
+  it('shows a menu above the list, centred on it, as the list moves down to make room', () => {
+    const layout = layoutPlane(SEEN.term, measure, { pickerWidth: 180 });
+    const bare = layoutPlane(RANKED.term, measure);
+
+    expect(layout.picker).toMatchObject({
+      x: (layout.width - 180) / 2,
+      y: bare.top - PLANE.picker.gap - PLANE.picker.drop - PLANE.picker.height,
+      width: 180,
+      height: PLANE.picker.height,
+    });
+    expect(layout.top).toBe(layout.picker?.y);
+    // A frame round the list, as far from it all round, the menu just
+    // above the middle of its top.
+    const { gap } = PLANE.picker;
+    const frame = layout.picker?.frame;
+    expect(frame).toEqual({
+      x: -gap,
+      y: bare.top - gap,
+      width: bare.width + gap * 2,
+      height: bare.bottom - bare.top + gap * 2,
+    });
+    expect(
+      (layout.picker?.y ?? 0) + PLANE.picker.height + PLANE.picker.drop,
+    ).toBe(frame?.y);
+    expect((layout.picker?.x ?? 0) + 90).toBe(
+      (frame?.x ?? 0) + (frame?.width ?? 0) / 2,
+    );
+    expect(layout.bottom).toBe((frame?.y ?? 0) + (frame?.height ?? 0));
+    expect(presenting(0).picker?.presence).toBe(0);
+    expect(presenting(1).picker).toMatchObject({
+      presence: 1,
+      open: 0,
+      chosen: 0,
+    });
+    expect(presenting(1).top).toBeLessThan(presenting(0).top);
+    // Placed on the plane, the frame moves with the list it holds.
+    const placed = presenting(1);
+    const xs = placed.atoms.map((atom) => atom.x);
+    expect(placed.picker?.frame.x).toBeLessThan(Math.min(...xs));
+    expect(
+      (placed.picker?.frame.x ?? 0) + (placed.picker?.frame.width ?? 0),
+    ).toBeGreaterThan(Math.max(...xs));
+  });
+
+  it('opens, moves to the one chosen, and closes on it; then the weights change, the members move, and their ranks follow', () => {
+    // The menu, first.
+    expect(switching(0.05).picker?.open).toBeGreaterThan(0);
+    // Open by the time the highlight starts to move, three tenths in.
+    expect(switching(0.36 * 0.3).picker?.open).toBeCloseTo(1, 6);
+    expect(switching(0.36 * 0.3).picker?.highlight).toBeCloseTo(0, 6);
+    expect(switching(0.24).picker?.highlight).toBe(1);
+    expect(switching(0.24).picker?.chosen).toBe(0);
+    expect(switching(0.36).picker).toMatchObject({ open: 0, chosen: 1 });
+    expect(atom(switching(0.36), 'openai')?.y).toBe(
+      atom(switching(0), 'openai')?.y,
+    );
+    expect(weight(switching(0.36), 'openai')).toBe(640);
+    // Then OpenAI's weight counts up to the new one.
+    expect(weight(switching(0.45), 'openai')).toBeGreaterThan(640);
+    expect(weight(switching(0.45), 'openai')).toBeLessThan(960);
+    expect(weight(switching(0.52), 'openai')).toBe(960);
+    // Then it moves to the top, and the others down.
+    expect(atom(switching(0.82), 'openai')?.y).toBeLessThan(
+      atom(switching(0.82), 'xai')?.y ?? 0,
+    );
+    // Then its medal changes: the old one goes, then the new one comes.
+    expect(atom(switching(0.84), 'openai')).toMatchObject({
+      rank: 2,
+      ranked: 1,
+    });
+    expect(atom(switching(0.97), 'openai')).toMatchObject({
+      rank: 0,
+      ranked: 1,
+    });
+    expect(atom(switching(0.97), 'xai')).toMatchObject({ rank: 1, ranked: 1 });
+  });
+});
+
 describe('planeSentence', () => {
   it('says a claim in words, each inner triple in brackets', () => {
     expect(planeSentence(DEEPEST, labelOf)).toBe(

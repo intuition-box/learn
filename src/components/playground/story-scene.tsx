@@ -29,6 +29,7 @@ import {
   WHOLE_SHARE,
 } from './story-model';
 import {
+  type BlendedPicker,
   type BlendedPlane,
   PLANE,
   type PlaneEnd,
@@ -969,6 +970,24 @@ export function StoryScene(props: StorySceneProps): ReactNode {
         plane.fill();
         plane.stroke();
       }
+      // Seen through a perspective, a frame round the claim, as faint as a
+      // line between atoms, which shows as the menu does.
+      const { picker } = blended;
+      if (picker !== null && picker.presence > 0) {
+        const { frame } = picker;
+        plane.globalAlpha = picker.presence;
+        plane.strokeStyle = rgba(ink, LINE.alpha);
+        plane.lineWidth = PLANE.picker.border / zoom;
+        plane.beginPath();
+        plane.roundRect(
+          frame.x,
+          frame.y,
+          frame.width,
+          frame.height,
+          PLANE.frameRadius,
+        );
+        plane.stroke();
+      }
       plane.globalAlpha = 1;
       plane.setTransform(ratio, 0, 0, ratio, 0, 0);
 
@@ -1178,6 +1197,105 @@ export function StoryScene(props: StorySceneProps): ReactNode {
       plane.globalAlpha = 1;
       plane.setTransform(ratio, 0, 0, ratio, 0, 0);
       fadeEdges(plane, width, height);
+      // The menu of perspectives over the fade: it is the page's, not the
+      // picture's, and stays whole near an edge.
+      if (blended.picker !== null) {
+        plane.setTransform(
+          ratio * zoom,
+          0,
+          0,
+          ratio * zoom,
+          ratio * origin.x,
+          ratio * origin.y,
+        );
+        drawPicker(blended.picker);
+        plane.setTransform(ratio, 0, 0, ratio, 0, 0);
+      }
+    }
+
+    /**
+     * The menu of perspectives above the claim, in the plane's units:
+     * closed, the one chosen and its chevrons, on ink, as a name is; open,
+     * the people to choose from in a list below it, the one highlighted
+     * lighter.
+     */
+    function drawPicker(picker: BlendedPicker): void {
+      if (plane === null || plane === undefined || picker.presence <= 0) {
+        return;
+      }
+      const { height, padding, chevrons, row, inset, radius } = PLANE.picker;
+      const { x, y, width, options } = picker;
+      plane.save();
+      plane.font = `500 ${PLANE.badge.fontSize}px ${fontFamily}`;
+      plane.textAlign = 'left';
+      plane.textBaseline = 'middle';
+      plane.globalAlpha = picker.presence;
+      plane.fillStyle = rgba(ink);
+      plane.beginPath();
+      plane.roundRect(x, y, width, height, radius);
+      plane.fill();
+      plane.fillStyle = rgba(page);
+      plane.fillText(
+        options[picker.chosen] ?? '',
+        x + padding,
+        y + height / 2 + 0.5,
+      );
+      // Two chevrons, one up and one down: it opens.
+      const middle = {
+        x: x + width - padding - chevrons / 2,
+        y: y + height / 2,
+      };
+      plane.strokeStyle = rgba(page, 0.7);
+      plane.lineWidth = 1.5;
+      plane.lineCap = 'round';
+      plane.lineJoin = 'round';
+      plane.beginPath();
+      for (const direction of [-1, 1]) {
+        plane.moveTo(middle.x - 3.5, middle.y + 2 * direction);
+        plane.lineTo(middle.x, middle.y + 5.5 * direction);
+        plane.lineTo(middle.x + 3.5, middle.y + 2 * direction);
+      }
+      plane.stroke();
+
+      if (picker.open > 0) {
+        // Open, the list drops a little as it shows.
+        const { drop } = PLANE.picker;
+        const top = y + height + drop - (1 - picker.open) * drop;
+        plane.globalAlpha = picker.presence * picker.open;
+        plane.shadowColor = 'rgba(0, 0, 0, 0.18)';
+        plane.shadowBlur = 16;
+        plane.shadowOffsetY = 6;
+        plane.fillStyle = rgba(ink);
+        plane.beginPath();
+        plane.roundRect(
+          x,
+          top,
+          width,
+          options.length * row + inset * 2,
+          radius,
+        );
+        plane.fill();
+        plane.shadowColor = 'transparent';
+        plane.fillStyle = rgba(page, 0.14);
+        plane.beginPath();
+        plane.roundRect(
+          x + inset,
+          top + inset + picker.highlight * row,
+          width - inset * 2,
+          row,
+          radius - inset / 2,
+        );
+        plane.fill();
+        plane.fillStyle = rgba(page);
+        for (const [index, option] of options.entries()) {
+          plane.fillText(
+            option,
+            x + padding,
+            top + inset + (index + 0.5) * row + 0.5,
+          );
+        }
+      }
+      plane.restore();
     }
 
     /** A faint dashed outline, round the path `trace` gives: a perspective's shape. */

@@ -85,6 +85,12 @@ export interface PlaneVaults {
   isSided?: boolean;
 }
 
+/** Whose perspective a claim is seen through: the people to choose from, and the one chosen. */
+export interface PlanePerspective {
+  options: readonly string[];
+  chosen: number;
+}
+
 /** A claim on the plane, as a beat leaves it. */
 export interface PlaneClaim {
   term: PlaneTerm;
@@ -105,7 +111,10 @@ export interface PlaneClaim {
    */
   faded?: readonly AtomId[];
   /**
+   * Whose perspective it is seen through: a menu above it, which shows the
+   * one chosen, and opens to choose another.
    */
+  perspective?: PlanePerspective;
   /**
    * Its atoms still shown as words: broken apart where the atoms will
    * stand, the claim's frames round them.
@@ -149,6 +158,25 @@ export const PLANE = {
   list: { rowStep: 80, reach: 170, weightAt: 0.45 },
   /** A ranked member's medal, before its name and as tall: the room between them. */
   medal: { gap: 4 },
+  /**
+   * The menu of perspectives above a claim, on the frame round it: its
+   * height, the room either side of its words and for its chevrons, and the
+   * room inside the frame, round the claim; its open list's rows, the room
+   * round them, and its corners; the frame's border, in CSS pixels; and
+   * how far below the menu its open list drops, and the frame's top with
+   * it, so the list sits on the frame.
+   */
+  picker: {
+    height: 30,
+    padding: 12,
+    chevrons: 16,
+    gap: 28,
+    row: 28,
+    inset: 4,
+    radius: 8,
+    border: 1,
+    drop: 6,
+  },
   /** How much of an atom set back shows, and of the lines from it. */
   faded: 0.3,
 } as const;
@@ -258,6 +286,17 @@ export interface PlaneWeight {
   value: number;
 }
 
+/** A box on the plane: its top left, and its size. */
+export interface PlaneBox extends PlanePoint {
+  width: number;
+  height: number;
+}
+
+/** The menu of perspectives, closed: its box, on the top of the frame round the claim. */
+export interface PlanePicker extends PlaneBox {
+  frame: PlaneBox;
+}
+
 export interface PlaneLayout {
   atoms: PlaneAtom[];
   /** Outermost first, so inner ones are drawn over them. */
@@ -272,6 +311,8 @@ export interface PlaneLayout {
   bottom: number;
   /** Where its branches' first atoms stand, up from its line, if it has any. */
   branchRow?: number;
+  /** The menu of perspectives above it, if it is seen through one. */
+  picker?: PlanePicker;
 }
 
 /** From the shapes' line, the top of a shape and the bottom of a name under it. */
@@ -299,6 +340,8 @@ interface LayoutOptions {
   branchRow?: number | undefined;
   /** A space's width, between words not yet broken apart. */
   space?: number;
+  /** How wide a menu of perspectives above the claim is, if it has one. */
+  pickerWidth?: number | undefined;
 }
 
 /** A term's atoms, as the claim reads, each with the role it plays. */
@@ -655,6 +698,26 @@ export function layoutPlane(
   if (options.vaults !== undefined && hung !== undefined) {
     hangVaults(options.vaults, hung, layout);
   }
+  if (options.pickerWidth !== undefined) {
+    // A frame round the claim, as far from it all round, and the menu just
+    // above its top, in the middle.
+    const { height, gap, drop } = PLANE.picker;
+    const frame = {
+      x: -gap,
+      y: layout.top - gap,
+      width: layout.width + gap * 2,
+      height: layout.bottom - layout.top + gap * 2,
+    };
+    layout.picker = {
+      x: (layout.width - options.pickerWidth) / 2,
+      y: frame.y - drop - height,
+      width: options.pickerWidth,
+      height,
+      frame,
+    };
+    layout.top = layout.picker.y;
+    layout.bottom = frame.y + frame.height;
+  }
 
   return layout;
 }
@@ -808,6 +871,19 @@ export interface BlendedWords {
   pill: number;
 }
 
+/** The menu of perspectives partway from one beat's claim to the next. */
+export interface BlendedPicker extends PlanePicker {
+  options: readonly string[];
+  /** The one it shows, closed. */
+  chosen: number;
+  /** How far it shows, 0 to 1. */
+  presence: number;
+  /** How far its list is open, 0 to 1. */
+  open: number;
+  /** Which option the open list highlights: between two, as it moves. */
+  highlight: number;
+}
+
 /** The claim a run of beats builds to, laid out as it ends: what the plane sizes itself by. */
 export interface PlaneFit {
   width: number;
@@ -827,6 +903,7 @@ export interface BlendedPlane {
   vaultLines: BlendedVaultLine[];
   people: BlendedPerson[];
   words: BlendedWords[];
+  picker: BlendedPicker | null;
   /** Its extent along the line, and above and below it. */
   left: number;
   right: number;
@@ -871,6 +948,13 @@ interface Stages {
   sides: Window;
   /** A list's members show their ranks, once they stand in order. */
   ranks: Window;
+  /**
+   * The menu of perspectives shows; or, choosing another, opens, moves to
+   * it, and closes on it.
+   */
+  pick: Window;
+  /** A list's weights change to the new perspective's. */
+  reweigh: Window;
 }
 
 const NONE: Window = [0, 0];
@@ -894,8 +978,12 @@ export const HANGING_RISE: Window = [0, 0.35];
  * arrives and the lines grow up to it. Hanging a triple's vaults below it,
  * at once what rose from it draws back and goes, an atom left with one role
  * takes it, and the claim moves up; then the people arrive below it, and
- * the lines grow down to them. Weighing them, each position shows on its line,
- * then each side takes its vault's colour. Otherwise, what is there moves
+ * their lines grow up to it, one after another. Weighing them, each position shows on its line,
+ * then each side takes its vault's colour. Seen through a perspective, the
+ * claim moves down to make room for the menu above it, which shows. Choosing
+ * another, the menu opens, moves to it, and closes on it; the weights change
+ * to the new perspective's; the members move into their new order; and
+ * their ranks change. Otherwise, what is there moves
  * aside before anything new arrives, and lines grow only between atoms
  * already in place.
  */
@@ -914,6 +1002,8 @@ const STAGES = {
     weights: NONE,
     sides: NONE,
     ranks: NONE,
+    pick: NONE,
+    reweigh: NONE,
   },
   dividing: {
     lead: [0.45, 0.85],
@@ -929,6 +1019,8 @@ const STAGES = {
     weights: NONE,
     sides: NONE,
     ranks: NONE,
+    pick: NONE,
+    reweigh: NONE,
   },
   making: {
     lead: [0.2, 0.5],
@@ -944,6 +1036,8 @@ const STAGES = {
     weights: NONE,
     sides: NONE,
     ranks: NONE,
+    pick: NONE,
+    reweigh: NONE,
   },
   framing: {
     lead: [0.5, 0.7],
@@ -959,6 +1053,8 @@ const STAGES = {
     weights: NONE,
     sides: NONE,
     ranks: NONE,
+    pick: NONE,
+    reweigh: NONE,
   },
   growing: {
     lead: [0.3, 0.6],
@@ -974,6 +1070,8 @@ const STAGES = {
     weights: NONE,
     sides: NONE,
     ranks: NONE,
+    pick: NONE,
+    reweigh: NONE,
   },
   hanging: {
     lead: NONE,
@@ -989,6 +1087,8 @@ const STAGES = {
     weights: NONE,
     sides: NONE,
     ranks: NONE,
+    pick: NONE,
+    reweigh: NONE,
   },
   closing: {
     lead: NONE,
@@ -1004,6 +1104,8 @@ const STAGES = {
     weights: NONE,
     sides: NONE,
     ranks: NONE,
+    pick: NONE,
+    reweigh: NONE,
   },
   listing: {
     lead: [0, 0.55],
@@ -1019,6 +1121,8 @@ const STAGES = {
     weights: [0.65, 0.9],
     sides: NONE,
     ranks: NONE,
+    pick: NONE,
+    reweigh: NONE,
   },
   ranking: {
     lead: NONE,
@@ -1034,6 +1138,8 @@ const STAGES = {
     weights: NONE,
     sides: NONE,
     ranks: [0.75, 0.95],
+    pick: NONE,
+    reweigh: NONE,
   },
   weighing: {
     lead: NONE,
@@ -1049,8 +1155,54 @@ const STAGES = {
     weights: [0, 0.4],
     sides: [0.55, 1],
     ranks: NONE,
+    pick: NONE,
+    reweigh: NONE,
+  },
+  presenting: {
+    lead: NONE,
+    write: NONE,
+    leave: NONE,
+    move: [0, 0.45],
+    frames: NONE,
+    down: NONE,
+    atoms: NONE,
+    pills: NONE,
+    lines: NONE,
+    roles: NONE,
+    weights: NONE,
+    sides: NONE,
+    ranks: NONE,
+    pick: [0.25, 0.65],
+    reweigh: NONE,
+  },
+  switching: {
+    lead: NONE,
+    write: NONE,
+    leave: NONE,
+    move: [0.52, 0.82],
+    frames: NONE,
+    down: NONE,
+    atoms: NONE,
+    pills: NONE,
+    lines: NONE,
+    roles: NONE,
+    weights: NONE,
+    sides: NONE,
+    ranks: [0.84, 0.97],
+    pick: [0, 0.36],
+    reweigh: [0.38, 0.52],
   },
 } as const satisfies Record<string, Stages>;
+
+/**
+ * Choosing another perspective, within the stage that picks it: the menu
+ * opens, the highlight moves to the one chosen, and the menu closes on it.
+ */
+const PICKING = {
+  open: [0, 0.3],
+  highlight: [0.3, 0.65],
+  close: [0.72, 1],
+} as const;
 
 /** The list a claim is, if it is one. */
 function listOf(claim: PlaneClaim | null): PlaneList | undefined {
@@ -1074,6 +1226,14 @@ function stagesOf(
   }
   if (to === null) {
     return STAGES.closing;
+  }
+  if (to.perspective !== undefined) {
+    if (from.perspective === undefined) {
+      return STAGES.presenting;
+    }
+    if (from.perspective.chosen !== to.perspective.chosen) {
+      return STAGES.switching;
+    }
   }
   if (listOf(to)?.isRanked === true && listOf(from)?.isRanked !== true) {
     return STAGES.ranking;
@@ -1255,6 +1415,14 @@ function shifted(layout: PlaneLayout, shift: number): Placed {
       ...(line.total === undefined ? {} : { total: moved(line.total) }),
     })),
     people: layout.people.map(moved),
+    ...(layout.picker === undefined
+      ? {}
+      : {
+          picker: {
+            ...moved(layout.picker),
+            frame: moved(layout.picker.frame),
+          },
+        }),
     left: shift,
   };
 }
@@ -1302,6 +1470,13 @@ export function planeAt(
 ): BlendedPlane {
   const measure = (atom: AtomId): number => measureText(labelOf(atom));
   const space = measureText(' ');
+  const { padding, chevrons } = PLANE.picker;
+  const pickerWidth = (claim: PlaneClaim | null): number | undefined =>
+    claim?.perspective === undefined
+      ? undefined
+      : Math.max(...claim.perspective.options.map(measureText)) +
+        padding * 3 +
+        chevrons;
   const fitLayout =
     fit === null
       ? null
@@ -1310,6 +1485,7 @@ export function planeAt(
             branches: fit.branches,
             frame: fit.frame,
             vaults: fit.vaults,
+            pickerWidth: pickerWidth(fit),
             space,
           }),
         );
@@ -1334,6 +1510,7 @@ export function planeAt(
       frame: claim.frame,
       vaults: claim.vaults,
       branchRow,
+      pickerWidth: pickerWidth(claim),
       space,
     });
     const first = layout.atoms[0];
@@ -1364,6 +1541,7 @@ export function planeAt(
   const weigh = through(stages.weights, t);
   const rank = through(stages.ranks, t);
   const side = through(stages.sides, t);
+  const reweigh = through(stages.reweigh, t);
   const [leaveStart, leaveEnd] = stages.leave;
   const retract = through([leaveStart, (leaveStart + leaveEnd) / 2], t);
   /** How far a thing shown or not, as one claim says and the next, shows. */
@@ -1411,6 +1589,19 @@ export function planeAt(
     listOf(to)?.isRanked === true,
     rank,
   );
+  // A member that changes place in a ranked list changes its rank: the old
+  // one goes, then the new one comes.
+  const rankedAs = (
+    was: number | undefined,
+    is: number | undefined,
+  ): { rank?: number; ranked: number } =>
+    is === undefined
+      ? { ranked: 0 }
+      : was === undefined || was === is
+        ? { rank: is, ranked }
+        : rank < 0.5
+          ? { rank: was, ranked: 1 - rank * 2 }
+          : { rank: is, ranked: rank * 2 - 1 };
   const atoms: BlendedAtom[] = newMade.map((atom) => {
     const was = oldMade.find((old) => old.id === atom.id);
 
@@ -1434,7 +1625,7 @@ export function planeAt(
           fromRole: was.role,
           roleProgress: roles,
           named: 1,
-          ranked: atom.rank === undefined ? 0 : ranked,
+          ...rankedAs(was.rank, atom.rank),
           faded: fadedAtom(atom.id),
         };
   });
@@ -1527,11 +1718,21 @@ export function planeAt(
           ...weight,
           weighed: listOf(from)?.isWeighed === true ? 1 - retract : 0,
         }))
-      : after.weights.map((weight) => ({ ...weight, weighed: listWeighed }));
+      : after.weights.map((weight) => {
+          const was = before?.weights.find((old) => old.id === weight.id);
 
-  // A triple's vaults: the people arrive, then the lines grow down to them
-  // from the frame, each once the one it leaves from is drawn, at one speed.
-  // A position shows, or a side takes its colour, as the claim says.
+          return {
+            ...weight,
+            value: Math.round(
+              lerp(was?.value ?? weight.value, weight.value, reweigh),
+            ),
+            weighed: listWeighed,
+          };
+        });
+
+  // A triple's vaults: the people arrive, then their lines grow from them up
+  // to the claim, one after another (see `vaultGrowth`). A position shows,
+  // or a side takes its colour, as the claim says.
   const oldVaults = from?.vaults;
   const newVaults = to?.vaults;
   const weighed = shift(
@@ -1580,6 +1781,66 @@ export function planeAt(
       people.push({ ...person, presence: 1 - leave });
     }
   }
+
+  // The menu of perspectives: it shows; or, choosing another, it opens,
+  // moves to it, and closes on it, which shows from then on.
+  const pickerAt = (): BlendedPicker | null => {
+    const was = from?.perspective;
+    const is = to?.perspective;
+    const box = after?.picker;
+    if (is === undefined || box === undefined) {
+      const left = before?.picker;
+
+      return was === undefined || left === undefined
+        ? null
+        : {
+            ...left,
+            options: was.options,
+            chosen: was.chosen,
+            presence: 1 - leave,
+            open: 0,
+            highlight: was.chosen,
+          };
+    }
+    const old = before?.picker;
+    const placed =
+      old === undefined
+        ? box
+        : {
+            ...box,
+            x: lerp(old.x, box.x, move),
+            y: lerp(old.y, box.y, move),
+            frame: {
+              x: lerp(old.frame.x, box.frame.x, move),
+              y: lerp(old.frame.y, box.frame.y, move),
+              width: lerp(old.frame.width, box.frame.width, move),
+              height: lerp(old.frame.height, box.frame.height, move),
+            },
+          };
+    if (was === undefined || was.chosen === is.chosen) {
+      return {
+        ...placed,
+        options: is.options,
+        chosen: is.chosen,
+        presence: was === undefined ? through(stages.pick, t) : 1,
+        open: 0,
+        highlight: is.chosen,
+      };
+    }
+    const [start, end] = stages.pick;
+    const along =
+      end > start ? Math.min(Math.max((t - start) / (end - start), 0), 1) : 1;
+    const closing = through(PICKING.close, along);
+
+    return {
+      ...placed,
+      options: is.options,
+      chosen: closing > 0 ? is.chosen : was.chosen,
+      presence: 1,
+      open: through(PICKING.open, along) * (1 - closing),
+      highlight: lerp(was.chosen, is.chosen, through(PICKING.highlight, along)),
+    };
+  };
 
   const words: BlendedWords[] = [];
   for (const [id, spot] of oldSpots) {
@@ -1630,6 +1891,7 @@ export function planeAt(
     vaultLines,
     people,
     words,
+    picker: pickerAt(),
     left: edge((layout) => layout.left),
     right: edge((layout) => layout.left + layout.width),
     top: edge((layout) =>
@@ -1640,6 +1902,7 @@ export function planeAt(
             ...layout.atoms
               .filter((atom) => atom.y < 0)
               .map((atom) => atom.y + ATOM_TOP),
+            layout.picker?.y ?? 0,
           ),
     ),
     // Down, as the claim will stand, or lower, for what hangs below it.
