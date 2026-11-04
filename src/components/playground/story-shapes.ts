@@ -14,6 +14,14 @@
 
 import type { Role } from './story-model';
 
+/** The roles, in the order the subject, the predicate, the object, then both. */
+export const ROLES = [
+  'identity',
+  'predicate',
+  'object',
+  'subjectAndObject',
+] as const satisfies readonly Role[];
+
 /**
  * How far a shape's rounding reaches out from its outline, as a share of
  * its size: it rounds the corners.
@@ -51,6 +59,27 @@ const HEXAGON: readonly Vertex[] = Array.from({ length: 6 }, (_, index) => {
   return [Math.cos(angle) * HEXAGON_RADIUS, Math.sin(angle) * HEXAGON_RADIUS];
 });
 const CIRCLE_RADIUS = 0.4;
+
+/**
+ * How wide and how tall a role's shape is, its rounding included, in units
+ * of its size. Each is centred on its box.
+ */
+export function shapeSize(role: Role): { width: number; height: number } {
+  const corners = {
+    predicate: TRIANGLE,
+    object: SQUARE,
+    subjectAndObject: HEXAGON,
+  } as const;
+  const reach = (axis: 0 | 1) =>
+    role === 'identity'
+      ? CIRCLE_RADIUS
+      : Math.max(...corners[role].map((vertex) => Math.abs(vertex[axis])));
+
+  return {
+    width: 2 * (reach(0) + ROUNDING),
+    height: 2 * (reach(1) + ROUNDING),
+  };
+}
 
 /** The angle of each sample, from the top, clockwise on screen. */
 const ANGLES = Array.from(
