@@ -31,13 +31,17 @@
 
   /*
    * The film's motion. Every one is applied behind `motion-safe:`, so none
-   * runs for a reader who asked for reduced motion. None has a last
-   * keyframe, so each ends on the element's own style.
+   * runs for a reader who asked for reduced motion. None but the pulse has
+   * a last keyframe, so each ends on the element's own style.
    */
   /* A caption of the playground's story, as its beat starts. */
   --animate-caption-arrive: caption-arrive 500ms ease-out both;
-  /* The playground's way on, in the middle of its card, as the film ends. */
-  --animate-way-on-arrive: way-on-arrive 600ms ease-out both;
+  /*
+   * The playground's way on, the film's last predicate, once its triple
+   * has formed: a ring in the predicate's green, `--way-pulse`, that grows
+   * out of it and fades, again and again: go.
+   */
+  --animate-way-pulse: way-pulse 1.6s ease-out infinite;
 
   @keyframes caption-arrive {
     from {
@@ -45,9 +49,12 @@
     }
   }
 
-  @keyframes way-on-arrive {
+  @keyframes way-pulse {
     from {
-      opacity: 0;
+      box-shadow: 0 0 0 0 color-mix(in srgb, var(--way-pulse) 70%, transparent);
+    }
+    to {
+      box-shadow: 0 0 0 14px transparent;
     }
   }
 }

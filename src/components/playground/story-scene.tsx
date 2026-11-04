@@ -34,10 +34,14 @@ import {
 import {
   ATOMS,
   type AtomId,
+  CROWD,
+  type CrowdAtom,
   type PlaneState,
   type Role,
   type Scene,
+  THE_WAY_ON,
   TRIPLES,
+  WAY_APART,
   turnToFace,
   viewOf,
   WHOLE_SHARE,
@@ -198,6 +202,20 @@ const GLOBE_MENU = { gap: 24, under: 32 } as const;
  */
 const SET_BACK = { shape: PLANE.faded, name: 0.1 } as const;
 
+/**
+ * An atom shown quieter than the rest, so the one the beat is about stands
+ * out: how much of it shows, its shape and its name.
+ */
+const QUIET = 0.3;
+
+/**
+ * How much the way on's name grows as its neighbours quieten, from any
+ * name's size to a button's, down from its top: its shape, and the gap
+ * between them, stay as they are. The page's link takes its size from the
+ * scene.
+ */
+const WAY_SCALE = 32 / 22;
+
 /** The room above a globe for its menu. */
 const GLOBE_MENU_ROOM = PLANE.picker.height + GLOBE_MENU.gap;
 
@@ -214,6 +232,16 @@ export interface StorySceneProps {
   onPress: () => void;
   /** The reader has started turning the cloud: the film holds meanwhile. */
   onLookAround: () => void;
+  /**
+   * The way on, a link: the scene shows it as the name of its last
+   * triple's predicate (`THE_WAY_ON`), where it would draw the name, and
+   * pulses it once the atoms round it have quietened. It reads its size,
+   * full grown, from `--way-height`, `--way-padding` and `--way-font` on its
+   * box, how far it has grown from `--way-scale`, to scale by from its
+   * top's middle, its pulse's colour from `--way-pulse`, and whether to
+   * pulse from `data-pulsing`.
+   */
+  way?: ReactNode;
 }
 
 interface ScreenPoint {
@@ -281,6 +309,51 @@ interface Lifted extends Placement {
   /** The medal before its name, ranked in a list. */
   medal?: Medal;
 }
+
+/**
+ * The film's ending, on the cloud: the wider graph's atoms, the atoms shown
+ * quieter, and the predicate that is the way on, whose name the page shows
+ * as a link, where the cloud would draw it.
+ */
+interface Ending {
+  crowd: readonly CrowdAtom[];
+  /** How far the wider graph's atoms have come, 0 to 1. */
+  crowdShown: number;
+  quiet: ReadonlyMap<AtomId, number>;
+  /**
+   * Atoms whose names sit above them throughout, not under: where the way
+   * on's name, grown, would not fit between its neighbours' under the
+   * line, theirs.
+   */
+  risen: ReadonlySet<AtomId>;
+  button: AtomId;
+  /** How large the way on's name is: 1 as any name, growing to `WAY_SCALE`. */
+  grow: number;
+  /**
+   * Where the way on is, for the scene to draw its shape over the haze and
+   * the page its name: the cloud draws neither.
+   */
+  placeButton: (way: WayPlace) => void;
+}
+
+/** Where the way on is: its shape, and its name, if it shows one. */
+interface WayPlace extends ScreenPoint {
+  size: number;
+  role: ShapeRole;
+  alpha: number;
+  name: { x: number; top: number; alpha: number } | null;
+}
+
+/** The way on's neighbours in its triple: its subject and its object. */
+const WAY_NEIGHBOURS: ReadonlySet<AtomId> = new Set(
+  Object.values(TRIPLES)
+    .filter((triple) => triple.predicate === THE_WAY_ON)
+    .flatMap((triple): AtomId[] => [triple.subject, triple.object]),
+);
+const NONE_RISEN: ReadonlySet<AtomId> = new Set();
+
+/** Between an atom on the cloud's rim and the scene's edge, as the film ends. */
+const RIM_ROOM_PX = 2;
 
 /** Where the plane is: the claim on it, and how it is placed on the canvas. */
 interface PlaneView {
@@ -422,6 +495,8 @@ function pointAlong(
 export function StoryScene(props: StorySceneProps): ReactNode {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const planeRef = useRef<HTMLCanvasElement>(null);
+  const wayRef = useRef<HTMLDivElement>(null);
+  const hazeRef = useRef<HTMLDivElement>(null);
   // What the drawing and the listeners read, in a ref, so they see the
   // latest props without being set up again.
   const latest = useRef({
@@ -1359,22 +1434,17 @@ export function StoryScene(props: StorySceneProps): ReactNode {
       if (enrichment === null) {
         return;
       }
-      const { card: coming, graph, page: paging, data, close } = enrichment;
+      const { graph, page: paging, data, close } = enrichment;
       const { isStacked, card, cardWidth, row } = layout;
       const { at } = musk;
-      // As the film ends, the page and the card fade where they stand,
-      // each once its lines have gone (see `CLOSING`).
+      // As the film ends, the page fades where it stands, once its lines
+      // have gone (see `CLOSING`). It rises a little into place as it comes.
       const shown =
         paging * (1 - easeInOutCubic(closingAt(close, CLOSING.page)));
-      const present =
-        coming * (1 - easeInOutCubic(closingAt(close, CLOSING.card)));
-      // The page and the card each rise a little into place as they come.
       const rise = (1 - paging) * 12;
-      const top = card.y + (1 - coming) * 8;
       // How far each piece of data has flowed: his name, from him; the
       // data of his triples, from the graph; then the page's. As the film
-      // ends, each goes back as it came, the last that came first. And how
-      // far each row has opened for it, as it nears, and closes as it goes.
+      // ends, each goes back as it came, the last that came first.
       const fromTheGraph = GRAPH_FIELDS.length + 1;
       const lineCount = fromTheGraph + PAGE_FIELDS.length;
       const unwound = closingAt(close, CLOSING.lines);
@@ -1393,11 +1463,17 @@ export function StoryScene(props: StorySceneProps): ReactNode {
           ),
         ),
       ];
+      // A row opens as its data nears it, and its value shows as the data
+      // arrives; as it goes, the other way round. The card itself comes as
+      // his name nears it, as a row does, rising a little into place, and
+      // goes as his name leaves it.
+      const openedFor = (amount: number): number =>
+        easeOutCubic(Math.min(Math.max((amount - 0.55) / 0.35, 0), 1));
       const arrivedOf = (amount: number): number =>
         Math.min(Math.max((amount - 0.8) / 0.2, 0), 1);
-      const opened = flows.map((amount) =>
-        easeOutCubic(Math.min(Math.max((amount - 0.55) / 0.35, 0), 1)),
-      );
+      const present = openedFor(named);
+      const top = card.y + (1 - present) * 8;
+      const opened = flows.map(openedFor);
       const rows = opened.reduce((sum, open) => sum + open, 0);
       const left = card.x - cardWidth / 2;
       const facing = left + cardWidth;
@@ -2007,23 +2083,33 @@ export function StoryScene(props: StorySceneProps): ReactNode {
       });
       const badge = width < NARROW_PX ? BADGE_NARROW : BADGE;
       // Then it moves aside as Elon Musk comes out of it, and shrinks to a
-      // sketch above the page, where it stays as the film ends, and fades.
+      // sketch above the page; and as the film ends it comes home, to the
+      // middle, as large as the scene: from its very top, where the menus
+      // and Elon Musk stood, to its foot, where the caption starts, but for
+      // room for an atom on its rim to show whole. Furthest out, an atom
+      // stands where the eye's line grazes the sphere, nearer than its
+      // middle, and so larger.
+      const rimScale = EYE_DISTANCE / (EYE_DISTANCE - 1 / EYE_DISTANCE);
+      const homeReach =
+        (Math.min(width, height) / 2 - RIM_ROOM_PX) /
+        (1 + (ATOM_SHARE * rimScale) / 2 / reachShare);
       const enriched =
         enrichment === null ? null : enrichmentLayout(width, height, badge);
       const parted = centreOf(cells.first);
-      const globe =
+      const home = { ...parted, reach: partedRadius * reachShare };
+      const away =
         enriched === null || enrichment === null
           ? null
-          : globeAt(
-              enriched,
-              { ...parted, reach: partedRadius * reachShare },
-              enrichment,
-            );
+          : globeAt(enriched, home, enrichment);
+      const globe =
+        away === null || enrichment === null
+          ? null
+          : {
+              x: lerp(away.x, width / 2, enrichment.home),
+              y: lerp(away.y, height / 2, enrichment.home),
+              reach: lerp(away.reach, homeReach, enrichment.home),
+            };
       const radius = globe === null ? partedRadius : globe.reach / reachShare;
-      const sketchShown =
-        enrichment === null
-          ? 1
-          : 1 - easeInOutCubic(closingAt(enrichment.close, CLOSING.sketch));
       // The film's turn brings what the camera faces to the front; the
       // reader's comes after it.
       const orientation = multiply(state.turn, turnToFace(view.facing));
@@ -2064,21 +2150,13 @@ export function StoryScene(props: StorySceneProps): ReactNode {
         globe === null ? liftOf(radius) : 0,
       );
       const projectOther = projectFrom(centreOf(cells.second), orientation);
-      // Where the camera has the cloud, with no chapter moving it: where the
-      // last chapter ends, as the film began.
-      const projectCamera = projectFrom(
-        { x: width / 2, y: height / 2 },
-        orientation,
-        view.radius,
-      );
       // All of it in view, its outline, round: the copy's too.
       if (whole > 0) {
-        for (const [index, projecting] of (other === null
+        for (const projecting of other === null
           ? [project]
-          : [project, projectOther]
-        ).entries()) {
+          : [project, projectOther]) {
           const middle = projecting([0, 0, 0]);
-          context.globalAlpha = whole * (index === 0 ? sketchShown : 1);
+          context.globalAlpha = whole;
           drawOutline(context, (target) => {
             target.arc(middle.x, middle.y, radius * reachShare, 0, 2 * Math.PI);
           });
@@ -2129,15 +2207,41 @@ export function StoryScene(props: StorySceneProps): ReactNode {
       }
       // In the last chapter, Elon Musk comes out of the cloud the same way,
       // taking his end of his triples' lines with him, to where he stands
-      // above the graph; he is drawn there over it. As the film ends he
-      // goes where the camera has him, up close, as it began.
+      // above the graph; he is drawn there over it. As the film ends, he
+      // goes back into it with it, and the cloud draws him again.
+      // Where the way on is, if the cloud shows it. It grows as its
+      // neighbours quieten.
+      const way: { at: WayPlace | null } = { at: null };
+      const wayGrow = lerp(
+        1,
+        WAY_SCALE,
+        Math.max(0, ...state.props.scene.quiet.values()),
+      );
+      // Whether its neighbours' names fit under the line beside its own,
+      // grown, where the cloud comes home: if not, theirs sit above them,
+      // throughout, so no name ever changes sides.
+      const homeRadius = homeReach / reachShare;
+      const apartPx =
+        Math.sin(WAY_APART) *
+        homeRadius *
+        (EYE_DISTANCE / (EYE_DISTANCE - Math.cos(WAY_APART)));
+      const halfOf = (label: string, scale: number): number => {
+        context.font = `500 ${badge.fontSize * scale}px ${fontFamily}`;
+
+        return context.measureText(label).width / 2 + badge.padding * scale;
+      };
+      const isRisen =
+        halfOf(ATOMS[THE_WAY_ON].label, WAY_SCALE) +
+          Math.max(
+            ...[...WAY_NEIGHBOURS].map((id) => halfOf(ATOMS[id].label, 1)),
+          ) +
+          BADGE_SPACING_PX >
+        apartPx;
       const musk = atoms.find((atom) => atom.id === 'elonMusk');
-      const out = enrichment?.out ?? 0;
-      const back = enrichment?.back ?? 0;
+      const out = (enrichment?.out ?? 0) * (1 - (enrichment?.home ?? 0));
       let muskOut: Lifted | null = null;
       if (enriched !== null && musk !== undefined && out > 0) {
         const from = project(musk.at);
-        const end = projectCamera(musk.at);
         const inCloud = {
           x: from.x,
           y: from.y,
@@ -2147,16 +2251,12 @@ export function StoryScene(props: StorySceneProps): ReactNode {
         muskOut = {
           origin: inCloud,
           named: 1,
-          x: lerp(lerp(from.x, enriched.atom.x, out), end.x, back),
-          y: lerp(lerp(from.y, enriched.atom.y, out), end.y, back),
-          size: lerp(
-            lerp(inCloud.size, enriched.atomSize, out),
-            ATOM_SHARE * view.radius * end.scale,
-            back,
-          ),
+          x: lerp(from.x, enriched.atom.x, out),
+          y: lerp(from.y, enriched.atom.y, out),
+          size: lerp(inCloud.size, enriched.atomSize, out),
           badgeScale: 1,
           amount: out,
-          z: lerp(from.z, end.z, back),
+          z: from.z,
         };
         lifted.set('elonMusk', muskOut);
       }
@@ -2181,11 +2281,14 @@ export function StoryScene(props: StorySceneProps): ReactNode {
         opacity: number,
         setBack: ReadonlyMap<AtomId, number>,
         sketch?: { first: AtomId; detail: number },
+        ending?: Ending,
       ): Line[] => {
         const detail = sketch?.detail ?? 1;
-        // An atom in none of its triples, its shape and its name, set back.
+        // An atom in none of its triples, its shape and its name, set back;
+        // one shown quieter, quieter.
         const showing = (id: AtomId, part: keyof typeof SET_BACK): number =>
-          lerp(1, SET_BACK[part], setBack.get(id) ?? 0);
+          lerp(1, SET_BACK[part], setBack.get(id) ?? 0) *
+          lerp(1, QUIET, ending?.quiet.get(id) ?? 0);
         const isSetBack = (id: AtomId): boolean =>
           (setBack.get(id) ?? 0) >= 0.5;
         // Each triple's line, under the atoms, drawn as far as it has got. An
@@ -2335,26 +2438,55 @@ export function StoryScene(props: StorySceneProps): ReactNode {
           }
         }
 
+        // The wider graph's atoms, set back, behind the rest, growing in as
+        // they come.
+        const crowdShown = ending?.crowdShown ?? 0;
+        const crowd =
+          crowdShown > 0
+            ? (ending?.crowd ?? []).map((atom) => ({
+                atom,
+                at: project(atom.at),
+              }))
+            : [];
+        for (const { atom, at } of crowd) {
+          context.globalAlpha =
+            opacity *
+            SET_BACK.shape *
+            crowdShown *
+            (0.2 + 0.8 * frontness(at.z));
+          drawShape(
+            context,
+            at.x,
+            at.y,
+            ATOM_SHARE * radius * at.scale * (0.55 + 0.45 * crowdShown),
+            { from: atom.role, to: atom.role, progress: 1 },
+          );
+        }
+
         // The atoms, back to front, so nearer ones cover farther ones. Each
         // grows in as it arrives.
         const shown = atoms
           .filter((atom) => atom.presence > 0 && !lifted.has(atom.id))
           .map((atom) => ({ atom, at: project(atom.at) }))
           .sort((a, b) => a.at.z - b.at.z);
+        // The way on's shape the scene draws over the haze.
+        let wayShape: Omit<WayPlace, 'name'> | null = null;
+        let wayName: WayPlace['name'] = null;
         for (const { atom, at } of shown) {
-          context.globalAlpha =
+          const alpha =
             opacity *
             showing(atom.id, 'shape') *
             lerp(1, detail, setBack.get(atom.id) ?? 0) *
             atom.presence *
             (0.2 + 0.8 * frontness(at.z));
-          drawShape(
-            context,
-            at.x,
-            at.y,
-            ATOM_SHARE * radius * at.scale * (0.55 + 0.45 * atom.presence),
-            atom.role,
-          );
+          const size =
+            ATOM_SHARE * radius * at.scale * (0.55 + 0.45 * atom.presence);
+          if (ending !== undefined && atom.id === ending.button) {
+            wayShape = { x: at.x, y: at.y, size, role: atom.role, alpha };
+            continue;
+          }
+          context.globalAlpha = alpha;
+          drawShape(context, at.x, at.y, size, atom.role);
         }
 
         // Their names, in ink badges under them, after the shape arrives, and
@@ -2389,43 +2521,73 @@ export function StoryScene(props: StorySceneProps): ReactNode {
               Number(isSetBack(a.atom.id)) - Number(isSetBack(b.atom.id)) ||
               b.at.z - a.at.z,
           );
-        const namedHere = new Set<AtomId>();
-        for (const { atom, at, isLeaving } of naming) {
-          if (at.z < 0.1) {
-            continue;
-          }
-          const textWidth = context.measureText(atom.label).width;
-          const half = textWidth / 2 + badge.padding;
+        // Where a name `half` wide either side of its middle goes, under an
+        // atom at `at` in the cloud's row `row`: its middle and its top, or
+        // `null` where it would cover a name already there.
+        // `tall` high, and one that sits above its atom, as `isRisen` says.
+        const placeName = (
+          at: Projected,
+          half: number,
+          row: number,
+          tall: number = badge.height,
+          isRisen = false,
+        ): { x: number; top: number } | null => {
           const shape = ATOM_SHARE * radius * at.scale * 0.5;
+          const { gap } = badge;
           // Inside the film, however the reader turns it: a name that would
           // run off its foot sits above its atom, and one at a side moves in.
           const x = Math.min(
             Math.max(at.x, half + BADGE_SPACING_PX),
             width - half - BADGE_SPACING_PX,
           );
-          const under = at.y + shape + badge.gap;
+          const under = at.y + shape + gap;
           const top =
-            under + badge.height > height - BADGE_SPACING_PX
-              ? at.y - shape - badge.gap - badge.height
+            isRisen || under + tall > height - BADGE_SPACING_PX
+              ? at.y - shape - gap - tall
               : under;
           const left = x - half;
           const right = x + half;
-          const bottom = top + badge.height;
+          const bottom = top + tall;
           // Names in a row of the cloud sit along one line, so only their
-          // sides can meet; in another row, a name can sit under them.
-          const row = atom.at[1];
+          // sides can meet; in another row, a name can sit under them. One
+          // risen above its atom is off its row's line.
           const isCovering = placed.some(
             (other) =>
               left < other.right + BADGE_SPACING_PX &&
               right > other.left - BADGE_SPACING_PX &&
-              (Math.abs(row - other.row) < ROW_APART ||
+              ((!isRisen && Math.abs(row - other.row) < ROW_APART) ||
                 (top < other.bottom + BADGE_SPACING_PX &&
                   bottom > other.top - BADGE_SPACING_PX)),
           );
           if (isCovering) {
-            continue;
+            return null;
           }
           placed.push({ left, right, top, bottom, row });
+
+          return { x, top };
+        };
+        const namedHere = new Set<AtomId>();
+        for (const { atom, at, isLeaving } of naming) {
+          if (at.z < 0.1) {
+            continue;
+          }
+          // The way on's name, a button, as large as it has grown; and its
+          // neighbours', above them where the ending says.
+          const isButton = atom.id === ending?.button;
+          const grow = isButton ? ending.grow : 1;
+          context.font = `500 ${badge.fontSize * grow}px ${fontFamily}`;
+          const textWidth = context.measureText(atom.label).width;
+          context.font = `500 ${badge.fontSize}px ${fontFamily}`;
+          const name = placeName(
+            at,
+            textWidth / 2 + badge.padding * grow,
+            atom.at[1],
+            badge.height * grow,
+            ending?.risen.has(atom.id) ?? false,
+          );
+          if (name === null) {
+            continue;
+          }
           if (isLeaving) {
             namedHere.add(atom.id);
             continue;
@@ -2433,13 +2595,45 @@ export function StoryScene(props: StorySceneProps): ReactNode {
           if (detail <= 0) {
             continue;
           }
-          context.globalAlpha =
+          const alpha =
             opacity *
             detail *
             showing(atom.id, 'name') *
             atom.presence ** 2 *
             (0.35 + 0.65 * frontness(at.z));
-          drawBadge(context, atom.label, x, top, badge);
+          // The way on's name is the page's link, placed here.
+          if (isButton) {
+            wayName = { x: name.x, top: name.top, alpha };
+            continue;
+          }
+          context.globalAlpha = alpha;
+          drawBadge(context, atom.label, name.x, name.top, badge);
+        }
+        // The wider graph's names, last, where no other name is: blank, set
+        // back, as a name no triple joins is.
+        for (const { atom, at } of crowd.toSorted((a, b) => b.at.z - a.at.z)) {
+          if (at.z < 0.1) {
+            continue;
+          }
+          const name = placeName(at, atom.name / 2, atom.at[1]);
+          if (name === null) {
+            continue;
+          }
+          context.globalAlpha =
+            opacity *
+            SET_BACK.name *
+            crowdShown ** 2 *
+            (0.35 + 0.65 * frontness(at.z));
+          context.fillStyle = rgba(ink);
+          context.beginPath();
+          context.roundRect(
+            name.x - atom.name / 2,
+            name.top,
+            atom.name,
+            badge.height,
+            badge.height / 2,
+          );
+          context.fill();
         }
 
         // An atom on its way out, still in the cloud's focus as it leaves it:
@@ -2467,6 +2661,9 @@ export function StoryScene(props: StorySceneProps): ReactNode {
           }
         }
         context.globalAlpha = 1;
+        if (wayShape !== null) {
+          ending?.placeButton({ ...wayShape, name: wayName });
+        }
 
         return reaching;
       };
@@ -2480,12 +2677,32 @@ export function StoryScene(props: StorySceneProps): ReactNode {
         },
         project,
         lifted,
-        sketchShown,
+        1,
         state.props.scene.setBack,
+        // A sketch, without its detail, while it is small; whole again
+        // once it is home.
         enrichment === null
           ? undefined
-          : { first: 'elonMusk', detail: 1 - enrichment.small },
+          : {
+              first: 'elonMusk',
+              detail: 1 - enrichment.small * (1 - enrichment.home),
+            },
+        enrichment === null
+          ? undefined
+          : {
+              crowd: CROWD,
+              crowdShown: state.props.scene.crowd,
+              quiet: state.props.scene.quiet,
+              risen: isRisen ? WAY_NEIGHBOURS : NONE_RISEN,
+              button: THE_WAY_ON,
+              grow: wayGrow,
+              placeButton: (place) => {
+                way.at = place;
+              },
+            },
       );
+      placeWay(way.at?.name ?? null, wayGrow, badge);
+      placeHaze(way.at, homeReach, (wayGrow - 1) / (WAY_SCALE - 1));
       // The copy over the cloud as it splits off, the two one at first.
       if (other !== null) {
         drawSphere(
@@ -2526,6 +2743,12 @@ export function StoryScene(props: StorySceneProps): ReactNode {
         }
       }
       drawPlane(planeView, reaching, lifted);
+      // The way on's shape, over the haze.
+      if (way.at !== null && plane !== null && plane !== undefined) {
+        plane.globalAlpha = way.at.alpha;
+        drawShape(plane, way.at.x, way.at.y, way.at.size, way.at.role);
+        plane.globalAlpha = 1;
+      }
       if (
         enriched !== null &&
         musk !== undefined &&
@@ -2540,22 +2763,88 @@ export function StoryScene(props: StorySceneProps): ReactNode {
 
           return source === undefined ? at : project(source.at);
         });
-        // As strong as he was in the cloud as he leaves it, whole once out,
-        // and as strong as the cloud has him as he goes back.
+        // As strong as the cloud has him while he is in it, set back as the
+        // film ends, and whole once out.
         const front = frontness(at.z);
+        const setBackHim = state.props.scene.setBack.get('elonMusk') ?? 0;
         drawEnrichment(
           plane,
           enriched,
           {
             at,
             role: musk.role,
-            shape: lerp(0.2 + 0.8 * front, 1, out * (1 - back)),
-            name: lerp(0.35 + 0.65 * front, 1, out * (1 - back)),
+            shape: lerp(
+              (0.2 + 0.8 * front) * lerp(1, SET_BACK.shape, setBackHim),
+              1,
+              out,
+            ),
+            name: lerp(
+              (0.35 + 0.65 * front) * lerp(1, SET_BACK.name, setBackHim),
+              1,
+              out,
+            ),
           },
           badge,
           graphSources,
         );
       }
+    }
+
+    /**
+     * Shows the page's link for the way on over `at`, where the cloud would
+     * draw its name, its middle and its top, as strong, a name's `badge`
+     * grown `grow` times; or hides it, where the cloud shows no name for
+     * it. Once the atoms round it have quietened, it pulses, in the
+     * predicate's green. It is laid out once, full grown, and scaled from
+     * its top's middle as it grows: text laid out again at each size
+     * shimmers as it snaps to the pixels, where scaled it grows smoothly,
+     * and rests crisp.
+     */
+    function placeWay(at: WayPlace['name'], grow: number, badge: Badge): void {
+      const way = wayRef.current;
+      if (way === null) {
+        return;
+      }
+      const quiet = [...state.props.scene.quiet.values()];
+      way.dataset.shown = String(at !== null && at.alpha > 0.01);
+      way.dataset.pulsing = String(
+        quiet.length > 0 && quiet.every((amount) => amount >= 1),
+      );
+      way.style.setProperty('--way-height', `${badge.height * WAY_SCALE}px`);
+      way.style.setProperty('--way-padding', `${badge.padding * WAY_SCALE}px`);
+      way.style.setProperty('--way-font', `${badge.fontSize * WAY_SCALE}px`);
+      way.style.setProperty('--way-scale', String(grow / WAY_SCALE));
+      way.style.setProperty('--way-pulse', rgba(ROLE_COLOURS.predicate));
+      if (at !== null) {
+        way.style.left = `${at.x}px`;
+        way.style.top = `${at.top}px`;
+        way.style.opacity = String(at.alpha);
+      }
+    }
+
+    /**
+     * The haze over the cloud behind the way on at `at`, as it grows: clear
+     * round it, rising to the page's white at 40% and a 2px blur at `reach`
+     * from it and beyond, so the way on stands forward and the cloud stays
+     * there; as strong as `amount`.
+     */
+    function placeHaze(
+      at: ScreenPoint | null,
+      reach: number,
+      amount: number,
+    ): void {
+      const haze = hazeRef.current;
+      if (haze === null) {
+        return;
+      }
+      if (at === null || amount <= 0) {
+        haze.style.opacity = '0';
+        return;
+      }
+      const mask = `radial-gradient(circle at ${at.x}px ${at.y}px, transparent 0, black ${reach}px)`;
+      haze.style.opacity = String(amount);
+      haze.style.maskImage = mask;
+      haze.style.setProperty('-webkit-mask-image', mask);
     }
 
     function isGliding(): boolean {
@@ -2842,12 +3131,32 @@ export function StoryScene(props: StorySceneProps): ReactNode {
         aria-label={props.label}
         className="absolute inset-0 size-full cursor-grab touch-none rounded-lg"
       />
+      {/*
+       * The haze over the cloud behind the way on, as the film ends: the
+       * page's white and a blur, clear round the way on, placed as the
+       * scene draws.
+       */}
+      <div
+        ref={hazeRef}
+        aria-hidden
+        className="pointer-events-none absolute inset-0 rounded-lg bg-bg/40 opacity-0 backdrop-blur-[2px]"
+      />
       {/* The plane, sharp in front of the cloud: drawn, never touched. */}
       <canvas
         ref={planeRef}
         aria-hidden
         className="pointer-events-none absolute inset-0 size-full"
       />
+      {/* The way on, over its predicate's name, placed as the scene draws. */}
+      {props.way !== undefined && (
+        <div
+          ref={wayRef}
+          data-shown="false"
+          className="invisible absolute top-0 left-0 -translate-x-1/2 data-[shown=true]:visible"
+        >
+          {props.way}
+        </div>
+      )}
     </div>
   );
 }

@@ -257,19 +257,14 @@ describe('closing', () => {
     }
   });
 
-  it('fades the page once its lines have gone, the sketch once the graph’s have, and the card once his name’s has', () => {
+  it('fades the page once its lines have gone', () => {
     const pageLines = PAGE_FIELDS.map(
       (_, index) => 1 + GRAPH_FIELDS.length + index,
     );
-    const graphLines = GRAPH_FIELDS.map((_, index) => 1 + index);
 
     expect(
       Math.min(...pageLines.map((index) => gone(CLOSING.page[0], index))),
     ).toBeGreaterThan(0.999);
-    expect(
-      Math.min(...graphLines.map((index) => gone(CLOSING.sketch[0], index))),
-    ).toBeGreaterThan(0.999);
-    expect(gone(CLOSING.card[0], 0)).toBeGreaterThan(0.999);
   });
 });
 

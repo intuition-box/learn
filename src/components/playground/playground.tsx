@@ -16,6 +16,7 @@ import { usePrefersReducedMotion } from '@/hooks/use-prefers-reduced-motion';
 import { ROUTES } from '@/lib/site';
 
 import {
+  ATOMS,
   BEATS,
   type CaptionPart,
   CHAPTER_SPANS,
@@ -26,6 +27,7 @@ import {
   sceneAt,
   type StepUnit,
   stepFrom,
+  THE_WAY_ON,
 } from './story-model';
 import { StoryScene } from './story-scene';
 import { outlinePath, ROLE_COLOURS } from './story-shapes';
@@ -330,6 +332,21 @@ export function Playground(): ReactNode {
             hasStarted.current = true;
             setIsPlaying(false);
           }}
+          way={
+            // The film's last predicate, start building, is the way on: a
+            // link in the shape of its name's badge, laid out full grown and
+            // scaled as the scene grows it, pulsing once the triple round it
+            // has quietened.
+            <Link
+              href={ROUTES.docs}
+              className="flex h-(--way-height) origin-top scale-(--way-scale) items-center rounded-full bg-fg px-(--way-padding) text-(length:--way-font) leading-none font-medium whitespace-nowrap text-bg outline-offset-2 outline-accent transition-colors duration-200 ease-out hover:bg-fg/85 focus-visible:outline-2 motion-safe:in-data-[pulsing=true]:animate-way-pulse"
+              onClick={() => {
+                rememberLanding('docs');
+              }}
+            >
+              {ATOMS[THE_WAY_ON].label}
+            </Link>
+          }
         />
 
         {/*
@@ -390,26 +407,6 @@ export function Playground(): ReactNode {
           />
         </div>
       </div>
-      {/*
-       * The way on, while the film is at its end, played or scrubbed there:
-       * the docs' own primary button in the middle of the card, on a white
-       * glow over the film, as big as the card, that fades to 60% at its edges.
-       * The glow lets the pointer through, to the player.
-       */}
-      {isAtEnd && (
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-2xl bg-radial-[closest-side] from-bg from-30% to-bg/60 motion-safe:animate-way-on-arrive">
-          <Link
-            href={ROUTES.docs}
-            className="wave-docs-hero__action pointer-events-auto"
-            data-variant="primary"
-            onClick={() => {
-              rememberLanding('docs');
-            }}
-          >
-            Start building
-          </Link>
-        </div>
-      )}
     </div>
   );
 }

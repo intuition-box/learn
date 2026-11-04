@@ -7,6 +7,7 @@ import {
   captionText,
   CHAPTER_SPANS,
   chapterAt,
+  CROWD,
   describeScene,
   DURATION,
   MIN_RADIUS_PX,
@@ -14,6 +15,8 @@ import {
   type Scene,
   sceneAt,
   stepFrom,
+  THE_WAY_ON,
+  TRIPLES,
   turnToFace,
   viewOf,
 } from './story-model';
@@ -643,13 +646,12 @@ describe('enrichment', () => {
     scene.triples.every((triple) => triple.progress === 1);
   const none = {
     out: 0,
-    card: 0,
     graph: 0,
     small: 0,
     page: 0,
     data: 0,
     close: 0,
-    back: 0,
+    home: 0,
   };
 
   it('closes the other perspective back onto the cloud, and nothing more: the rest of the chapter is yet to come', () => {
@@ -674,13 +676,11 @@ describe('enrichment', () => {
     }
   });
 
-  it('brings Elon Musk out of the graph, and as he goes, brings the card in and flows his name and the data of his triples into it', () => {
+  it('brings Elon Musk out of the graph, and as he goes, flows his name and the data of his triples to the card', () => {
     expect(at('from-the-graph', 0).enrichment).toEqual(none);
-    expect(at('from-the-graph', 0.15).enrichment?.card).toBe(0);
-    expect(at('from-the-graph', 0.25).enrichment?.graph).toBe(0);
-    // The card is in, and its data flowing, while he is still on his way.
+    expect(at('from-the-graph', 0.15).enrichment?.graph).toBe(0);
+    // The data flowing while he is still on his way.
     const moving = at('from-the-graph', 0.35).enrichment;
-    expect(moving?.card).toBe(1);
     expect(moving?.graph).toBeGreaterThan(0);
     expect(moving?.out).toBeGreaterThan(0);
     expect(moving?.out).toBeLessThan(1);
@@ -688,7 +688,6 @@ describe('enrichment', () => {
     expect(settled('from-the-graph').enrichment).toEqual({
       ...none,
       out: 1,
-      card: 1,
       graph: 1,
     });
   });
@@ -703,7 +702,6 @@ describe('enrichment', () => {
     expect(settled('enrichment').enrichment).toEqual({
       ...none,
       out: 1,
-      card: 1,
       graph: 1,
       small: 1,
       page: 1,
@@ -715,48 +713,126 @@ describe('enrichment', () => {
     );
   });
 
-  it('lets everything go where it stands, then ends on Elon Musk alone, exactly as the film began', () => {
-    const present = (scene: Scene) =>
-      scene.atoms.filter((drawn) => drawn.presence > 0).map(({ id }) => id);
-
-    expect(at('atom-again', 0.55).enrichment?.close).toBe(1);
-    expect(at('atom-again', 0.55).enrichment?.back).toBe(0);
-    // The graph goes as its sketch fades, before the camera moves.
-    expect(present(at('atom-again', 0.39))).toHaveLength(26);
-    expect(present(at('atom-again', 0.5))).toEqual(['elonMusk']);
+  it('lets the card and the page go, brings the graph home, sets the story back among the wider graph, and brings You to its front', () => {
+    expect(at('atom-again', 0.45).enrichment?.close).toBe(1);
+    expect(at('atom-again', 0.4).enrichment?.home).toBe(0);
+    expect(at('atom-again', 0.8).enrichment?.home).toBe(1);
+    // The story's triples draw back as the graph comes home; its atoms stay,
+    // set back, every one.
     expect(
-      at('atom-again', 0.5).triples.every((triple) => triple.progress === 0),
+      at('atom-again', 0.7).triples.every((triple) => triple.progress === 0),
     ).toBe(true);
-    expect(at('atom-again', 0.55).camera.whole).toBe(1);
-
     const end = settled('atom-again');
-    const opening = settled('atom');
-    expect(end.enrichment?.back).toBe(1);
-    // The same, but for the rounding of the turn back to the front.
-    const close = (a: readonly number[], b: readonly number[]) =>
-      a.map((value, index) => Math.abs(value - (b[index] ?? NaN)) < 1e-9);
-    expect(close(end.camera.facing, opening.camera.facing)).toEqual([
-      true,
-      true,
-      true,
-    ]);
-    expect({ ...end.camera, facing: null, focus: null }).toEqual({
-      ...opening.camera,
-      facing: null,
-      focus: null,
-    });
     expect(
-      close(atom(end, 'elonMusk').at, atom(opening, 'elonMusk').at),
-    ).toEqual([true, true, true]);
-    expect(atom(end, 'elonMusk').role).toEqual(atom(opening, 'elonMusk').role);
-    expect(beat('atom-again').index).toBe(BEATS.length - 1);
+      end.atoms
+        .filter(({ id }) => id !== 'you')
+        .every(
+          (drawn) => drawn.presence === 1 && end.setBack.get(drawn.id) === 1,
+        ),
+    ).toBe(true);
+    // The wider graph comes, and You arrives last, at the front.
+    expect(at('atom-again', 0.55).crowd).toBe(0);
+    expect(end.crowd).toBe(1);
+    expect(at('atom-again', 0.75).atoms.some(({ id }) => id === 'you')).toBe(
+      true,
+    );
+    expect(atom(at('atom-again', 0.75), 'you').presence).toBe(0);
+    expect(atom(end, 'you').presence).toBe(1);
+    expect(end.setBack.get('you')).toBeUndefined();
+    const [x, y, z] = atom(end, 'you').at;
+    const [fx, fy, fz] = end.camera.facing;
+    expect(x * fx + y * fy + z * fz).toBeCloseTo(1);
     expect(captionText(beat('atom-again').caption)).toMatch(
       /^Everything starts with an atom, and here we are, at the atom again\./,
     );
   });
 
+  it('turns the graph to its other side round the vertical, smoothly, never over its top', () => {
+    const longitude = ([x, , z]: readonly number[]) =>
+      Math.atan2(x ?? 0, z ?? 0);
+    const turned = (share: number) => at('atom-again', share).camera.facing;
+    let previous = longitude(turned(0.4));
+    let travelled = 0;
+    for (let share = 0.41; share <= 0.85; share += 0.01) {
+      const facing = turned(share);
+      // Up or down no further than where it starts and ends.
+      expect(facing[1]).toBeLessThanOrEqual(Math.sin(0.3) + 1e-9);
+      expect(facing[1]).toBeGreaterThanOrEqual(-1e-9);
+      const step = Math.atan2(
+        Math.sin(longitude(facing) - previous),
+        Math.cos(longitude(facing) - previous),
+      );
+      // Each step a small part of the turn, never a flip, all of them one
+      // way: at its fastest, eased, it turns a fifth of a radian a step.
+      expect(Math.abs(step)).toBeLessThan(0.3);
+      travelled += step;
+      previous = longitude(facing);
+    }
+    expect(Math.abs(travelled)).toBeCloseTo(Math.PI, 1);
+  });
+
+  it('ends on the way on, without a caption: You, start building, your graph, the predicate standing out', () => {
+    const turn = beat('your-turn');
+    const end = settled('your-turn');
+
+    expect(turn.index).toBe(BEATS.length - 1);
+    expect(turn.caption).toEqual([]);
+    expect(TRIPLES.youStartBuilding.predicate).toBe(THE_WAY_ON);
+    expect(
+      end.triples.find(({ id }) => id === 'youStartBuilding')?.progress,
+    ).toBe(1);
+    expect(
+      at('your-turn', 0.45).triples.find(({ id }) => id === 'youStartBuilding')
+        ?.progress,
+    ).toBe(0);
+    // You and your graph quieten once the triple has formed; the way on does
+    // not.
+    expect(at('your-turn', 0.78).quiet.get('you')).toBe(0);
+    expect(
+      at('your-turn', 0.78).triples.find(({ id }) => id === 'youStartBuilding')
+        ?.progress,
+    ).toBe(1);
+    expect(end.quiet.get('you')).toBe(1);
+    expect(end.quiet.get('yourGraph')).toBe(1);
+    expect(end.quiet.has(THE_WAY_ON)).toBe(false);
+    expect(end.crowd).toBe(1);
+    expect(describeScene(end)).toContain('start building');
+  });
+
   it('has no part of it before the chapter', () => {
     expect(settled('another-perspective').enrichment).toBeNull();
+  });
+});
+
+describe('the wider graph', () => {
+  const apart = (a: readonly number[], b: readonly number[]): number =>
+    Math.acos(
+      Math.min(
+        Math.max(
+          a.reduce((sum, value, index) => sum + value * (b[index] ?? 0), 0),
+          -1,
+        ),
+        1,
+      ),
+    );
+
+  it('has its atoms on the cloud, apart from each other', () => {
+    expect(CROWD.length).toBeGreaterThan(20);
+    for (const [index, { at }] of CROWD.entries()) {
+      expect(Math.hypot(...at)).toBeCloseTo(1);
+      for (const other of CROWD.slice(index + 1)) {
+        expect(apart(at, other.at)).toBeGreaterThanOrEqual(0.3);
+      }
+    }
+  });
+
+  it('keeps them clear of the story’s atoms and of the way on', () => {
+    const end = settled('your-turn');
+    for (const { at } of CROWD) {
+      for (const drawn of end.atoms) {
+        expect(apart(at, drawn.at)).toBeGreaterThanOrEqual(0.3);
+      }
+    }
   });
 });
 

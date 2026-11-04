@@ -21,7 +21,6 @@ import {
   type Vec3,
 } from '@/lib/sphere';
 
-import { CLOSING } from './story-enrichment';
 import {
   HANGING_RISE,
   type PlaneBranch,
@@ -90,6 +89,10 @@ export const ATOMS = {
   jobs: { label: 'jobs' },
   threatens: { label: 'threatens' },
   peace: { label: 'peace' },
+  // The way on: the viewer, and the triple they make.
+  you: { label: 'You' },
+  startBuilding: { label: 'start building' },
+  yourGraph: { label: 'your graph' },
 } as const satisfies Record<string, { label: string }>;
 
 export type AtomId = keyof typeof ATOMS;
@@ -183,6 +186,12 @@ export const TRIPLES = {
     predicate: 'threatens',
     object: 'peace',
   },
+  // The way on, the film's last triple.
+  youStartBuilding: {
+    subject: 'you',
+    predicate: 'startBuilding',
+    object: 'yourGraph',
+  },
 } as const satisfies Record<string, TripleAtoms>;
 
 export type TripleId = keyof typeof TRIPLES;
@@ -244,7 +253,13 @@ export interface PlaneState extends PlaneClaim {
 }
 
 interface StageState {
-  camera: Camera & { during?: During };
+  /**
+   * The camera, when it moves, and whether it pans to get there: round the
+   * vertical, as a camera on a tripod does, rather than the shortest way.
+   * For a half turn, which the shortest way would take over the top of the
+   * cloud, flipping the picture as it passes.
+   */
+  camera: Camera & { during?: During; isPanning?: boolean };
   atoms: Partial<Record<AtomId, AtomState>>;
   triples: Partial<Record<TripleId, { during?: During }>>;
   /** The plane opened in front of the cloud, or none. */
@@ -263,6 +278,16 @@ interface StageState {
   cloud?: { shown: number; during?: During };
   /** Atoms the cloud shows set back: there, but in none of its triples. */
   setBack?: readonly AtomId[];
+  /**
+   * The wider graph round the story's: more atoms, set back, in none of
+   * its triples, and when they come (see `CROWD`).
+   */
+  crowd?: During;
+  /**
+   * Atoms shown quieter than the rest, so the one the beat is about stands
+   * out, and when they quieten.
+   */
+  quiet?: { atoms: readonly AtomId[]; during?: During };
   /** Another perspective of the cloud: a copy of it beside it, its triples its own. */
   other?: OtherState;
   /** When the atoms and triples it leaves out go, when not as they came. */
@@ -276,22 +301,21 @@ interface StageState {
 
 /**
  * The last chapter's parts, in the order they come: Elon Musk comes out of
- * the graph to stand above it as it moves aside; a card comes in on the
- * other side; his name, then the data of his triples, flow into it; the
- * graph shrinks to a sketch of itself; a page about him comes in under it;
- * and the page's data flows into the card too. Then the page goes and the
- * card closes and goes; and the camera closes in on him, back where the
- * film began.
+ * the graph to stand above it as it moves aside; his name, then the data of
+ * his triples, flow to the other side, into a card that comes in as his
+ * name nears it; the graph shrinks to a sketch of itself; a page about him
+ * comes in under it; and the page's data flows into the card too. Then
+ * everything goes as it came, reversed; and the camera closes in on him,
+ * back where the film began.
  */
 export const ENRICHMENT_PARTS = [
   'out',
-  'card',
   'graph',
   'small',
   'page',
   'data',
   'close',
-  'back',
+  'home',
 ] as const;
 
 export type EnrichmentPart = (typeof ENRICHMENT_PARTS)[number];
@@ -492,15 +516,15 @@ const ONE_GRAPH: StageState = {
 const ONE_ATOM = {} as const;
 
 /**
- * Then Elon Musk comes out of it, to stand above it as it moves aside; a
- * card comes in on the other side; and as he goes, his name flows into it
- * from him, then the data of his triples from the graph, one after another.
+ * Then Elon Musk comes out of it, to stand above it as it moves aside; and
+ * as he goes, his name flows from him to the other side, the card coming in
+ * as it nears, as each row of it does, then the data of his triples from
+ * the graph, one after another.
  */
 const FROM_THE_GRAPH = {
   ...ONE_ATOM,
   out: [0, 0.45],
-  card: [0.15, 0.35],
-  graph: [0.25, 0.95],
+  graph: [0.15, 0.95],
 } as const;
 
 /**
@@ -516,29 +540,135 @@ const FROM_A_PAGE = {
 
 /**
  * Last, everything goes as it came, reversed and where it stands: the lines
- * one by one, the page, the graph's sketch and the card (see `CLOSING`).
- * Then the camera closes in on him, until he stands alone where the film
- * began.
+ * one by one, the page and the card (see `CLOSING`). Then the graph comes
+ * home, to the middle, the size it was, and Elon Musk into it.
  */
-const BACK_TO_THE_ATOM = {
+const BACK_HOME = {
   ...FROM_A_PAGE,
-  close: [0, 0.55],
-  back: [0.55, 1],
+  close: [0, 0.45],
+  home: [0.4, 0.8],
 } as const;
 
-/** When, in the last beat, the graph's atoms and triples go: as its sketch fades. */
-const SKETCH_GOES: During = [
-  BACK_TO_THE_ATOM.close[0] +
-    CLOSING.sketch[0] * (BACK_TO_THE_ATOM.close[1] - BACK_TO_THE_ATOM.close[0]),
-  BACK_TO_THE_ATOM.close[0] +
-    CLOSING.sketch[1] * (BACK_TO_THE_ATOM.close[1] - BACK_TO_THE_ATOM.close[0]),
-];
+/**
+ * How far round the cloud from the front, in spacings, its other side is:
+ * the side facing away from the story, where none of its atoms stand.
+ */
+const OTHER_SIDE = 1.55 + Math.PI / SPACING;
 
-/** How the film opens: Elon Musk alone, up close, facing the camera. */
-const OPENING = {
-  camera: { facing: FRONT, zoom: 1.5 },
-  atom: { at: FRONT, role: 'identity' },
-} as const satisfies { camera: Camera; atom: AtomState };
+/** The whole cloud in view from its other side, head on. */
+const OTHER_SIDE_VIEW: Camera = {
+  facing: onEquator(OTHER_SIDE),
+  zoom: WHOLE_VIEW.zoom,
+  whole: 1,
+};
+
+/**
+ * The film's way on: the predicate of its last triple, You, start building,
+ * your graph. The page shows its name as a link, where the cloud would draw
+ * it.
+ */
+export const THE_WAY_ON: AtomId = 'startBuilding';
+
+/** When the wider graph's atoms come, as the film ends: see `CROWD`. */
+const WIDER_GRAPH: During = [0.55, 0.9];
+
+/** Every atom of the story, all set back as the film ends. */
+const STORY_ATOM_IDS = Object.keys(ONE_GRAPH.atoms) as AtomId[];
+
+/**
+ * The way on, the film's last triple, in the middle of the cloud's other
+ * side: You, start building, your graph. Its atoms stand a little further
+ * apart than a triple's on the cloud, in spacings, for the names to read
+ * beside the way on's, a button, larger than a name.
+ */
+const YOUR_SPACING = 1.15;
+
+/** How far the way on stands from each of its neighbours, round the cloud, in radians. */
+export const WAY_APART = YOUR_SPACING * SPACING;
+const YOUR_TRIPLE = {
+  you: onEquator(OTHER_SIDE - YOUR_SPACING),
+  startBuilding: onEquator(OTHER_SIDE),
+  yourGraph: onEquator(OTHER_SIDE + YOUR_SPACING),
+} as const satisfies Partial<Record<AtomId, Vec3>>;
+
+/**
+ * The wider graph round the story's, as the film ends: atoms no triple
+ * joins, set back, each a shape and a blank name, spread over the cloud
+ * clear of the story's atoms and the way on. A fixed draw, so the film's
+ * last frame is the same every time.
+ */
+export interface CrowdAtom {
+  at: Vec3;
+  role: Role;
+  /** How wide its blank name is, in CSS pixels. */
+  name: number;
+}
+
+/** How many atoms the wider graph shows. */
+const CROWD_COUNT = 22;
+
+/** How near, in radians round the cloud, another atom may stand to one. */
+const CROWD_APART = 0.3;
+
+/** A repeatable stream of numbers from 0 to 1: mulberry32. */
+function randomFrom(seed: number): () => number {
+  let state = seed >>> 0;
+
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function crowdOf(count: number, seed: number): CrowdAtom[] {
+  const random = randomFrom(seed);
+  // Clear of the story's atoms, and of the way on's whole line.
+  const taken: Vec3[] = [
+    ...Object.values(ONE_GRAPH.atoms).map((atom) => atom.at),
+    ...Array.from({ length: 21 }, (_, index) =>
+      onEquator(OTHER_SIDE - YOUR_SPACING + (2 * YOUR_SPACING * index) / 20),
+    ),
+  ];
+  const roles: readonly Role[] = [
+    'identity',
+    'identity',
+    'predicate',
+    'object',
+    'subjectAndObject',
+  ];
+  const crowd: CrowdAtom[] = [];
+  for (let tries = 0; crowd.length < count && tries < count * 200; tries++) {
+    // Evenly over the sphere, but away from its poles, where names crowd.
+    const longitude = random() * 2 * Math.PI;
+    const latitude = Math.asin(random() * 2 - 1) * 0.8;
+    const at: Vec3 = [
+      Math.sin(longitude) * Math.cos(latitude),
+      Math.sin(latitude),
+      Math.cos(longitude) * Math.cos(latitude),
+    ];
+    const isClear = [...taken, ...crowd.map((atom) => atom.at)].every(
+      ([x, y, z]) =>
+        Math.acos(
+          Math.min(Math.max(x * at[0] + y * at[1] + z * at[2], -1), 1),
+        ) >= CROWD_APART,
+    );
+    if (isClear) {
+      crowd.push({
+        at,
+        role: roles[Math.floor(random() * roles.length)] ?? 'identity',
+        name: 32 + Math.round(random() * 60),
+      });
+    }
+  }
+
+  return crowd;
+}
+
+export const CROWD: readonly CrowdAtom[] = crowdOf(CROWD_COUNT, 2026);
 
 /**
  * The cloud behind the plane: the whole graph, unchanged, pushed back and
@@ -680,8 +810,8 @@ const BEAT_SPECS: readonly BeatSpec[] = [
     ],
     motionMs: 1400,
     stage: {
-      camera: OPENING.camera,
-      atoms: { elonMusk: { ...OPENING.atom, during: [0.2, 1] } },
+      camera: { facing: FRONT, zoom: 1.5 },
+      atoms: { elonMusk: { at: FRONT, role: 'identity', during: [0.2, 1] } },
       triples: {},
     },
   },
@@ -1237,10 +1367,10 @@ const BEAT_SPECS: readonly BeatSpec[] = [
     caption: [
       'Every triple Elon Musk is in is data about him, and it all gathers in that one atom.',
     ],
-    alt: 'Elon Musk comes out of the graph to stand above it as it moves to one side, his triples still reaching him, and a card comes in on the other side. His name flows into it from him, then what the graph says about him: he is the founder of SpaceX, and believes SpaceX will be worth more than the current Earth economy.',
+    alt: 'Elon Musk comes out of the graph to stand above it as it moves to one side, his triples still reaching him. His name flows from him to the other side, into a card that comes in as it arrives, then what the graph says about him: he is the founder of SpaceX, and believes SpaceX will be worth more than the current Earth economy.',
     // He comes out of the graph to stand above it as it moves aside,
-    // taking his end of his triples with him; a card comes in on the other
-    // side; and his name flows into it from him, then the data of his
+    // taking his end of his triples with him; his name flows from him to
+    // the other side, the card coming in as it nears; then the data of his
     // triples from the graph, one row after another.
     motionMs: 6400,
     stage: { ...ONE_GRAPH, enrichment: FROM_THE_GRAPH },
@@ -1264,20 +1394,66 @@ const BEAT_SPECS: readonly BeatSpec[] = [
     caption: [
       'Everything starts with an atom, and here we are, at the atom again.\nAtoms are the primitives of our universe, shaped by the reality each of us lives in: together, we choose how to compose them.',
     ],
-    alt: 'The lines that brought the data go back one by one, the card closing row by row, and the page and the graph fade where they stand. Then the camera closes in on Elon Musk, until he stands alone, up close, where the film began: the same atom, a cycle of creation.',
+    alt: 'The lines that brought the data go back one by one, the card closing row by row, and the page fades. The graph comes back to the middle, Elon Musk into it, and turns to its other side as every atom of the story steps back and more atoms join them, in none of their triples: the wider graph. At its front, a new atom: You.',
     // The lines go back one by one, the last that came first, each row of
-    // the card closing as its line leaves it; the page, the graph's sketch
-    // and the card fade where they stand. Then the camera closes in on him,
-    // back to the film's first frame.
-    motionMs: 7000,
+    // the card closing as its line leaves it; the page and the card fade
+    // where they stand. Then the graph comes home to the middle, Elon Musk
+    // into it, its triples drawing back, and turns to its other side as
+    // the story's atoms step back and the wider graph's join them. Last,
+    // You arrives at its front.
+    motionMs: 8000,
     stage: {
-      camera: { ...OPENING.camera, during: BACK_TO_THE_ATOM.back },
+      ...ONE_GRAPH,
       atoms: {
-        elonMusk: { ...OPENING.atom, during: BACK_TO_THE_ATOM.back },
+        ...ONE_GRAPH.atoms,
+        you: {
+          at: YOUR_TRIPLE.startBuilding,
+          role: 'identity',
+          during: [0.75, 1],
+        },
       },
       triples: {},
-      leave: SKETCH_GOES,
-      enrichment: BACK_TO_THE_ATOM,
+      setBack: STORY_ATOM_IDS,
+      camera: { ...OTHER_SIDE_VIEW, during: [0.4, 0.85], isPanning: true },
+      leave: [0.4, 0.7],
+      crowd: WIDER_GRAPH,
+      enrichment: BACK_HOME,
+    },
+  },
+  {
+    id: 'your-turn',
+    chapter: 'enrichment',
+    // No caption: the picture asks the question.
+    caption: [],
+    alt: 'The film’s last triple, at the front of the graph, among atoms no triple joins yet: You, start building, your graph. You and your graph quieten, and start building, the predicate, is the way on: a link to start building.',
+    // You makes room as start building and your graph arrive, and the line
+    // between them grows, as the film's first triple did. Then You and your
+    // graph quieten, for the predicate, the way on, to stand out.
+    motionMs: 6000,
+    stage: {
+      ...ONE_GRAPH,
+      atoms: {
+        ...ONE_GRAPH.atoms,
+        // You makes room first, so the names never meet on the way.
+        you: { at: YOUR_TRIPLE.you, role: 'identity', during: [0, 0.3] },
+        startBuilding: {
+          at: YOUR_TRIPLE.startBuilding,
+          role: 'predicate',
+          during: [0.3, 0.48],
+        },
+        yourGraph: {
+          at: YOUR_TRIPLE.yourGraph,
+          role: 'object',
+          during: [0.39, 0.56],
+        },
+      },
+      triples: { youStartBuilding: { during: [0.48, 0.78] } },
+      setBack: STORY_ATOM_IDS,
+      // Slowly, once the line is drawn: the way on grows as they quieten.
+      quiet: { atoms: ['you', 'yourGraph'], during: [0.78, 1] },
+      camera: OTHER_SIDE_VIEW,
+      crowd: WIDER_GRAPH,
+      enrichment: BACK_HOME,
     },
   },
 ];
@@ -1542,6 +1718,10 @@ export interface Scene {
    * `ENRICHMENT_PARTS`. `null` before the last chapter.
    */
   enrichment: Record<EnrichmentPart, number> | null;
+  /** How far the wider graph's atoms have come, 0 to 1: see `CROWD`. */
+  crowd: number;
+  /** Atoms shown quieter than the rest, and how far, 0 to 1. */
+  quiet: ReadonlyMap<AtomId, number>;
 }
 
 function clamp01(value: number): number {
@@ -1609,6 +1789,7 @@ export function sceneAt(time: number, isStill = false): Scene {
   const progress = isStill ? 1 : clamp01((time - beat.start) / beat.motionMs);
 
   const camera = along(progress, target.camera.during);
+  const turnTo = target.camera.isPanning === true ? panPoint : arcPoint;
   const planeDuring = target.plane?.during ?? previous.plane?.during ?? [0, 1];
   // The chapter that sizes the plane: this beat's, or, as the plane closes,
   // the one before's, so it keeps its size as it goes.
@@ -1694,8 +1875,8 @@ export function sceneAt(time: number, isStill = false): Scene {
   return {
     beat,
     camera: {
-      facing: arcPoint(previous.camera.facing, target.camera.facing, camera),
-      focus: arcPoint(
+      facing: turnTo(previous.camera.facing, target.camera.facing, camera),
+      focus: turnTo(
         previous.camera.focus ?? previous.camera.facing,
         target.camera.focus ?? target.camera.facing,
         camera,
@@ -1735,7 +1916,56 @@ export function sceneAt(time: number, isStill = false): Scene {
     setBack,
     other: otherAt(previous, target, progress, atoms, triples, setBack),
     enrichment: enrichmentAt(previous, target, progress),
+    crowd:
+      target.crowd === undefined
+        ? 0
+        : previous.crowd === undefined
+          ? along(progress, target.crowd)
+          : 1,
+    quiet: quietAt(previous, target, progress),
   };
+}
+
+/** The atoms shown quieter, and how far, `progress` of the way into the beat. */
+function quietAt(
+  previous: StageState,
+  target: StageState,
+  progress: number,
+): Map<AtomId, number> {
+  const was = new Set(previous.quiet?.atoms);
+  const is = new Set(target.quiet?.atoms);
+  const t = along(progress, target.quiet?.during);
+
+  return new Map(
+    [...new Set([...was, ...is])].map((id): [AtomId, number] => [
+      id,
+      was.has(id) ? (is.has(id) ? 1 : 1 - t) : t,
+    ]),
+  );
+}
+
+/**
+ * The direction `t` of the way from `from` to `to`, panning: round the
+ * vertical the shorter way, and up or down evenly as it goes.
+ */
+function panPoint(from: Vec3, to: Vec3, t: number): Vec3 {
+  const longitudeOf = ([x, , z]: Vec3): number => Math.atan2(x, z);
+  const latitudeOf = ([, y]: Vec3): number =>
+    Math.asin(Math.min(Math.max(y, -1), 1));
+  const start = longitudeOf(from);
+  // The turn round the vertical, the shorter way: within half a turn.
+  const turn =
+    ((((longitudeOf(to) - start + Math.PI) % (2 * Math.PI)) + 2 * Math.PI) %
+      (2 * Math.PI)) -
+    Math.PI;
+  const longitude = start + turn * t;
+  const latitude = lerp(latitudeOf(from), latitudeOf(to), t);
+
+  return [
+    Math.sin(longitude) * Math.cos(latitude),
+    Math.sin(latitude),
+    Math.cos(longitude) * Math.cos(latitude),
+  ];
 }
 
 /**
@@ -1767,13 +1997,12 @@ function enrichmentAt(
 
   return {
     out: amount('out'),
-    card: amount('card'),
     graph: amount('graph'),
     small: amount('small'),
     page: amount('page'),
     data: amount('data'),
     close: amount('close'),
-    back: amount('back'),
+    home: amount('home'),
   };
 }
 

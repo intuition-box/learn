@@ -470,15 +470,13 @@ export function globeAt(
 /**
  * As the film ends, each a share of the chapter's closing, 0 to 1: the
  * lines go back one by one, the last that came first, each row closing as
- * its line leaves it; the page fades once its lines have gone, the graph's
- * sketch once its own have; and the card last, once the line that brought
- * his name has gone. Everything stays where it is.
+ * its line leaves it, and the card last, as the line that brought his name
+ * leaves it; and the page fades once its lines have gone. Everything stays
+ * where it is.
  */
 export const CLOSING = {
   lines: [0, 0.8],
   page: [0.57, 0.75],
-  sketch: [0.73, 0.9],
-  card: [0.8, 1],
 } as const satisfies Record<string, readonly [number, number]>;
 
 /** How far `amount` of the closing is into its `window`, 0 to 1. */
