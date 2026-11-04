@@ -172,9 +172,6 @@ export function Playground(): ReactNode {
   const isShown = useIsFilmShown();
   const [time, setTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
-  // Whether the film has reached its end, played or scrubbed there: from
-  // then on, the way on to the docs shows under the card.
-  const [hasEnded, setHasEnded] = useState(false);
   // The film's time for the clock and the handlers, between renders.
   const timeRef = useRef(0);
   // Whether the film has been started, by itself or by the reader: after
@@ -186,9 +183,6 @@ export function Playground(): ReactNode {
     const clamped = Math.min(Math.max(next, 0), DURATION);
     timeRef.current = clamped;
     setTime(clamped);
-    if (clamped >= DURATION) {
-      setHasEnded(true);
-    }
   }, []);
 
   // Starts the film once it is on screen.
@@ -227,7 +221,6 @@ export function Playground(): ReactNode {
       setTime(next);
       if (next >= DURATION) {
         setIsPlaying(false);
-        setHasEnded(true);
         rememberLanding('docs');
 
         return;
@@ -324,9 +317,8 @@ export function Playground(): ReactNode {
     <div className="relative">
       {/*
        * From tablet width up, the card takes the first view: as tall as the
-       * screen allows under the top bar, leaving room for the way on below
-       * it, within bounds. Narrower, the scene keeps its own shape and the
-       * card grows to fit.
+       * screen allows under the top bar, within bounds. Narrower, the scene
+       * keeps its own shape and the card grows to fit.
        */}
       <div className="panel flex flex-col gap-4 p-6 md:h-[calc(100dvh-13rem)] md:max-h-[60rem] md:min-h-[32rem] md:p-12">
         <StoryScene
@@ -399,15 +391,16 @@ export function Playground(): ReactNode {
         </div>
       </div>
       {/*
-       * The way on, once the film has ended: the docs' own primary button,
-       * under the card. Outside the layout, so the card does not move as it
-       * comes.
+       * The way on, while the film is at its end, played or scrubbed there:
+       * the docs' own primary button in the middle of the card, on a white
+       * glow over the film, as big as the card, that fades to 60% at its edges.
+       * The glow lets the pointer through, to the player.
        */}
-      {hasEnded && (
-        <div className="absolute inset-x-0 top-full mt-10 flex justify-center motion-safe:animate-way-on-arrive">
+      {isAtEnd && (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-2xl bg-radial-[closest-side] from-bg from-30% to-bg/60 motion-safe:animate-way-on-arrive">
           <Link
             href={ROUTES.docs}
-            className="wave-docs-hero__action"
+            className="wave-docs-hero__action pointer-events-auto"
             data-variant="primary"
             onClick={() => {
               rememberLanding('docs');
