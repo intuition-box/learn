@@ -21,6 +21,7 @@ import {
   type Vec3,
 } from '@/lib/sphere';
 
+import { CLOSING } from './story-enrichment';
 import {
   HANGING_RISE,
   type PlaneBranch,
@@ -193,6 +194,7 @@ export const CHAPTERS = [
   { id: 'vaults', title: 'Vaults' },
   { id: 'lists', title: 'Lists' },
   { id: 'perspectives', title: 'Perspectives' },
+  { id: 'enrichment', title: 'Enrichment' },
 ] as const;
 
 export type ChapterId = (typeof CHAPTERS)[number]['id'];
@@ -263,7 +265,36 @@ interface StageState {
   setBack?: readonly AtomId[];
   /** Another perspective of the cloud: a copy of it beside it, its triples its own. */
   other?: OtherState;
+  /** When the atoms and triples it leaves out go, when not as they came. */
+  leave?: During;
+  /**
+   * The parts of the last chapter on stage as the beat leaves it, and when
+   * each comes in the beat that brings it: see `ENRICHMENT_PARTS`.
+   */
+  enrichment?: Partial<Record<EnrichmentPart, During>>;
 }
+
+/**
+ * The last chapter's parts, in the order they come: Elon Musk comes out of
+ * the graph to stand above it as it moves aside; a card comes in on the
+ * other side; his name, then the data of his triples, flow into it; the
+ * graph shrinks to a sketch of itself; a page about him comes in under it;
+ * and the page's data flows into the card too. Then the page goes and the
+ * card closes and goes; and the camera closes in on him, back where the
+ * film began.
+ */
+export const ENRICHMENT_PARTS = [
+  'out',
+  'card',
+  'graph',
+  'small',
+  'page',
+  'data',
+  'close',
+  'back',
+] as const;
+
+export type EnrichmentPart = (typeof ENRICHMENT_PARTS)[number];
 
 /** Another perspective, as a beat leaves it. */
 interface OtherState {
@@ -443,6 +474,73 @@ const ANOTHER_PERSPECTIVE: OtherState = {
 };
 
 /**
+ * The one graph, all of it in view: every atom and triple of the story, and
+ * the atoms only the non-believers' triples use, set back.
+ */
+const ONE_GRAPH: StageState = {
+  ...STORY_GRAPH,
+  atoms: { ...STORY_GRAPH.atoms, ...NON_BELIEVERS_ATOMS },
+  setBack: NON_BELIEVERS_IDS,
+  camera: WHOLE_VIEW,
+};
+
+/**
+ * The last chapter's parts as each of its beats leaves them, and when each
+ * comes. First the two perspectives become one again, the graph keeping the
+ * size it had beside the other: none of the parts yet.
+ */
+const ONE_ATOM = {} as const;
+
+/**
+ * Then Elon Musk comes out of it, to stand above it as it moves aside; a
+ * card comes in on the other side; and as he goes, his name flows into it
+ * from him, then the data of his triples from the graph, one after another.
+ */
+const FROM_THE_GRAPH = {
+  ...ONE_ATOM,
+  out: [0, 0.45],
+  card: [0.15, 0.35],
+  graph: [0.25, 0.95],
+} as const;
+
+/**
+ * Then the graph shrinks to a sketch above where the page comes in, and the
+ * page's data flows into the card, which grows a row for each.
+ */
+const FROM_A_PAGE = {
+  ...FROM_THE_GRAPH,
+  small: [0, 0.3],
+  page: [0.2, 0.4],
+  data: [0.38, 0.97],
+} as const;
+
+/**
+ * Last, everything goes as it came, reversed and where it stands: the lines
+ * one by one, the page, the graph's sketch and the card (see `CLOSING`).
+ * Then the camera closes in on him, until he stands alone where the film
+ * began.
+ */
+const BACK_TO_THE_ATOM = {
+  ...FROM_A_PAGE,
+  close: [0, 0.55],
+  back: [0.55, 1],
+} as const;
+
+/** When, in the last beat, the graph's atoms and triples go: as its sketch fades. */
+const SKETCH_GOES: During = [
+  BACK_TO_THE_ATOM.close[0] +
+    CLOSING.sketch[0] * (BACK_TO_THE_ATOM.close[1] - BACK_TO_THE_ATOM.close[0]),
+  BACK_TO_THE_ATOM.close[0] +
+    CLOSING.sketch[1] * (BACK_TO_THE_ATOM.close[1] - BACK_TO_THE_ATOM.close[0]),
+];
+
+/** How the film opens: Elon Musk alone, up close, facing the camera. */
+const OPENING = {
+  camera: { facing: FRONT, zoom: 1.5 },
+  atom: { at: FRONT, role: 'identity' },
+} as const satisfies { camera: Camera; atom: AtomState };
+
+/**
  * The cloud behind the plane: the whole graph, unchanged, pushed back and
  * out of focus. The camera faces founder of, so it stands behind the plane
  * between Elon Musk and SpaceX, and looks down on the cloud, so the chain
@@ -582,8 +680,8 @@ const BEAT_SPECS: readonly BeatSpec[] = [
     ],
     motionMs: 1400,
     stage: {
-      camera: { facing: FRONT, zoom: 1.5 },
-      atoms: { elonMusk: { at: FRONT, role: 'identity', during: [0.2, 1] } },
+      camera: OPENING.camera,
+      atoms: { elonMusk: { ...OPENING.atom, during: [0.2, 1] } },
       triples: {},
     },
   },
@@ -1118,12 +1216,68 @@ const BEAT_SPECS: readonly BeatSpec[] = [
     // they joined set back with them. Then its own triples grow, between
     // the same atoms, where they stand on both, which come forward with them.
     motionMs: 7000,
+    stage: { ...ONE_GRAPH, other: ANOTHER_PERSPECTIVE },
+  },
+  {
+    id: 'one-atom',
+    chapter: 'enrichment',
+    caption: [
+      'Optimists or pessimists, Elon Musk is one atom: atoms are unique by design, so all data about him reaches the same point.',
+    ],
+    alt: 'The two perspectives come back together, each atom onto the same atom, Elon Musk with them: one atom, on one graph, the size it was.',
+    // The copy's own triples draw back, and it slides back onto the cloud,
+    // each of its atoms onto the same atom, as the cloud moves to the
+    // middle, the size it was beside the copy.
+    motionMs: 3600,
+    stage: { ...ONE_GRAPH, enrichment: ONE_ATOM },
+  },
+  {
+    id: 'from-the-graph',
+    chapter: 'enrichment',
+    caption: [
+      'Every triple Elon Musk is in is data about him, and it all gathers in that one atom.',
+    ],
+    alt: 'Elon Musk comes out of the graph to stand above it as it moves to one side, his triples still reaching him, and a card comes in on the other side. His name flows into it from him, then what the graph says about him: he is the founder of SpaceX, and believes SpaceX will be worth more than the current Earth economy.',
+    // He comes out of the graph to stand above it as it moves aside,
+    // taking his end of his triples with him; a card comes in on the other
+    // side; and his name flows into it from him, then the data of his
+    // triples from the graph, one row after another.
+    motionMs: 6400,
+    stage: { ...ONE_GRAPH, enrichment: FROM_THE_GRAPH },
+  },
+  {
+    id: 'enrichment',
+    chapter: 'enrichment',
+    caption: [
+      'From a page like this or anywhere else, data about him enriches that one atom, and each builder chooses which of it to use.',
+    ],
+    alt: 'The graph shrinks to a sketch of itself under Elon Musk, and a page about him comes in under it. Its data flows into his card too, a row for each: what he does, when he was born, what he is known for, where he was born, his citizenships, where he studied, and the companies he started out with.',
+    // The graph shrinks to a sketch, without its names, as it moves up;
+    // the page comes in under it; and its data flows from its sections into
+    // the card, which grows a row for each.
+    motionMs: 9000,
+    stage: { ...ONE_GRAPH, enrichment: FROM_A_PAGE },
+  },
+  {
+    id: 'atom-again',
+    chapter: 'enrichment',
+    caption: [
+      'Everything starts with an atom, and here we are, at the atom again.\nAtoms are the primitives of our universe, shaped by the reality each of us lives in: together, we choose how to compose them.',
+    ],
+    alt: 'The lines that brought the data go back one by one, the card closing row by row, and the page and the graph fade where they stand. Then the camera closes in on Elon Musk, until he stands alone, up close, where the film began: the same atom, a cycle of creation.',
+    // The lines go back one by one, the last that came first, each row of
+    // the card closing as its line leaves it; the page, the graph's sketch
+    // and the card fade where they stand. Then the camera closes in on him,
+    // back to the film's first frame.
+    motionMs: 7000,
     stage: {
-      ...STORY_GRAPH,
-      atoms: { ...STORY_GRAPH.atoms, ...NON_BELIEVERS_ATOMS },
-      setBack: NON_BELIEVERS_IDS,
-      camera: WHOLE_VIEW,
-      other: ANOTHER_PERSPECTIVE,
+      camera: { ...OPENING.camera, during: BACK_TO_THE_ATOM.back },
+      atoms: {
+        elonMusk: { ...OPENING.atom, during: BACK_TO_THE_ATOM.back },
+      },
+      triples: {},
+      leave: SKETCH_GOES,
+      enrichment: BACK_TO_THE_ATOM,
     },
   },
 ];
@@ -1383,6 +1537,11 @@ export interface Scene {
    * focus: behind a plane, its lines are a reminder, and stay still.
    */
   cloudFlow: number;
+  /**
+   * How far each of the last chapter's parts has come, 0 to 1: see
+   * `ENRICHMENT_PARTS`. `null` before the last chapter.
+   */
+  enrichment: Record<EnrichmentPart, number> | null;
 }
 
 function clamp01(value: number): number {
@@ -1419,6 +1578,15 @@ const OTHER_OPENING = {
   aside: [0, 0.3],
   distrust: [0.36, 0.56],
   triples: [0.62, 0.9],
+} as const satisfies Record<string, During>;
+
+/**
+ * When, as it closes, the copy's own triples draw back, and it slides back
+ * onto the cloud, its atoms onto the same atoms, fading as it goes.
+ */
+const OTHER_CLOSING = {
+  triples: [0, 0.3],
+  aside: [0.2, 0.8],
 } as const satisfies Record<string, During>;
 
 /** The atom ids, in the order they are listed. */
@@ -1458,7 +1626,12 @@ export function sceneAt(time: number, isStill = false): Scene {
     if (state === undefined) {
       continue;
     }
-    const t = along(progress, to?.during ?? from?.during);
+    // One the beat leaves out goes when the beat says, or as it came.
+    const t = along(
+      progress,
+      to?.during ??
+        (to === undefined ? (target.leave ?? from?.during) : from?.during),
+    );
     // An atom that arrives to take its role later arrives plain.
     const fromRole =
       from?.role ?? (to?.roleDuring === undefined ? state.role : 'identity');
@@ -1507,7 +1680,10 @@ export function sceneAt(time: number, isStill = false): Scene {
     const { subject, predicate, object } = TRIPLES[id];
     const point = (atom: AtomId): Vec3 =>
       atoms.find((drawn) => drawn.id === atom)?.at ?? FRONT;
-    const t = along(progress, after?.during);
+    const t = along(
+      progress,
+      after?.during ?? (after === undefined ? target.leave : undefined),
+    );
     triples.push({
       id,
       points: [point(subject), point(predicate), point(object)],
@@ -1558,6 +1734,46 @@ export function sceneAt(time: number, isStill = false): Scene {
     cloudFlow: isStill ? 0 : cloudFlowAt(time),
     setBack,
     other: otherAt(previous, target, progress, atoms, triples, setBack),
+    enrichment: enrichmentAt(previous, target, progress),
+  };
+}
+
+/**
+ * The last chapter's parts, `progress` of the way into the beat: those the
+ * beat before left on stage, all there; those the beat brings, coming.
+ */
+function enrichmentAt(
+  previous: StageState,
+  target: StageState,
+  progress: number,
+): Scene['enrichment'] {
+  const coming = target.enrichment;
+  if (coming === undefined) {
+    return null;
+  }
+  const amount = (part: EnrichmentPart): number => {
+    const during = coming[part];
+    if (during === undefined) {
+      return 0;
+    }
+    if (previous.enrichment?.[part] !== undefined) {
+      return 1;
+    }
+    // The data, and its going, evenly: each line eases its own part of it.
+    return part === 'graph' || part === 'data' || part === 'close'
+      ? within(progress, during)
+      : along(progress, during);
+  };
+
+  return {
+    out: amount('out'),
+    card: amount('card'),
+    graph: amount('graph'),
+    small: amount('small'),
+    page: amount('page'),
+    data: amount('data'),
+    close: amount('close'),
+    back: amount('back'),
   };
 }
 
@@ -1575,8 +1791,11 @@ function otherAt(
     return null;
   }
   const isOpening = previous.other === undefined;
+  const isClosing = target.other === undefined;
   const at = (window: During): number =>
     isOpening ? along(progress, window) : 1;
+  const closing = (window: During): number =>
+    isClosing ? 1 - along(progress, window) : 1;
   const point = (id: AtomId): Vec3 =>
     atoms.find((atom) => atom.id === id)?.at ?? FRONT;
   const atomsOf = (ids: readonly TripleId[]): Set<AtomId> =>
@@ -1640,7 +1859,7 @@ function otherAt(
   });
 
   return {
-    aside: at(OTHER_OPENING.aside),
+    aside: at(OTHER_OPENING.aside) * closing(OTHER_CLOSING.aside),
     viewers: other.viewers,
     atoms: own,
     setBack,
@@ -1657,7 +1876,7 @@ function otherAt(
         return {
           id,
           points: [point(subject), point(predicate), point(object)],
-          progress: at(OTHER_OPENING.triples),
+          progress: at(OTHER_OPENING.triples) * closing(OTHER_CLOSING.triples),
         };
       }),
     ],

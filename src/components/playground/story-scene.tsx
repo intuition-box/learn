@@ -15,6 +15,23 @@ import {
 
 import { dotsAlong, PIXELS_PER_DOT } from './story-dots';
 import {
+  bodyLineY,
+  CARD,
+  cardHeight,
+  CLOSING,
+  closingAt,
+  type EnrichmentLayout,
+  enrichmentLayout,
+  fieldFlow,
+  flowPath,
+  globeAt,
+  GRAPH_FIELDS,
+  infoboxRowY,
+  lineBack,
+  PAGE_FIELDS,
+  WIKI,
+} from './story-enrichment';
+import {
   ATOMS,
   type AtomId,
   type PlaneState,
@@ -312,6 +329,10 @@ function lerp(a: number, b: number, t: number): number {
 
 function easeOutCubic(t: number): number {
   return 1 - (1 - t) ** 3;
+}
+
+function easeInOutCubic(t: number): number {
+  return t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2;
 }
 
 /** The angle between two directions, in radians. */
@@ -1314,6 +1335,547 @@ export function StoryScene(props: StorySceneProps): ReactNode {
       target.restore();
     }
 
+    /**
+     * The last chapter, over the cloud: Elon Musk out of the graph, above
+     * it; the page about him, coming in under the graph's sketch; the card
+     * the data builds, on its own; and the lines that carry the data into
+     * it: his name from him, the data of his triples from the graph, then
+     * the page's from its sections, each row opening as its data nears.
+     */
+    function drawEnrichment(
+      target: CanvasRenderingContext2D,
+      layout: EnrichmentLayout,
+      musk: {
+        at: Placement;
+        role: ShapeRole;
+        /** How strong his shape and his name are: as in the graph, at first. */
+        shape: number;
+        name: number;
+      },
+      badge: Badge,
+      graphSources: readonly ScreenPoint[],
+    ): void {
+      const { enrichment, flow } = state.props.scene;
+      if (enrichment === null) {
+        return;
+      }
+      const { card: coming, graph, page: paging, data, close } = enrichment;
+      const { isStacked, card, cardWidth, row } = layout;
+      const { at } = musk;
+      // As the film ends, the page and the card fade where they stand,
+      // each once its lines have gone (see `CLOSING`).
+      const shown =
+        paging * (1 - easeInOutCubic(closingAt(close, CLOSING.page)));
+      const present =
+        coming * (1 - easeInOutCubic(closingAt(close, CLOSING.card)));
+      // The page and the card each rise a little into place as they come.
+      const rise = (1 - paging) * 12;
+      const top = card.y + (1 - coming) * 8;
+      // How far each piece of data has flowed: his name, from him; the
+      // data of his triples, from the graph; then the page's. As the film
+      // ends, each goes back as it came, the last that came first. And how
+      // far each row has opened for it, as it nears, and closes as it goes.
+      const fromTheGraph = GRAPH_FIELDS.length + 1;
+      const lineCount = fromTheGraph + PAGE_FIELDS.length;
+      const unwound = closingAt(close, CLOSING.lines);
+      const kept = (amount: number, index: number): number =>
+        Math.min(amount, 1 - lineBack(unwound, index, lineCount));
+      const named = kept(fieldFlow(graph, 0, fromTheGraph), 0);
+      const fields = [...GRAPH_FIELDS, ...PAGE_FIELDS];
+      const flows = [
+        ...GRAPH_FIELDS.map((_, index) =>
+          kept(fieldFlow(graph, index + 1, fromTheGraph), index + 1),
+        ),
+        ...PAGE_FIELDS.map((_, index) =>
+          kept(
+            fieldFlow(data, index, PAGE_FIELDS.length),
+            fromTheGraph + index,
+          ),
+        ),
+      ];
+      const arrivedOf = (amount: number): number =>
+        Math.min(Math.max((amount - 0.8) / 0.2, 0), 1);
+      const opened = flows.map((amount) =>
+        easeOutCubic(Math.min(Math.max((amount - 0.55) / 0.35, 0), 1)),
+      );
+      const rows = opened.reduce((sum, open) => sum + open, 0);
+      const left = card.x - cardWidth / 2;
+      const facing = left + cardWidth;
+      const rowY = (index: number): number =>
+        top + badge.height + row * index + row / 2;
+
+      if (shown > 0) {
+        drawWikiPage(target, layout, rise, shown, data);
+      }
+
+      // The lines, each from where its data leaves to where it goes in
+      // the card, on the side that faces it, drawn out as the data flows,
+      // and drawn back as it goes.
+      const lines = [
+        {
+          id: 'name',
+          from: { x: at.x, y: at.y },
+          // Stacked, he stands above the card: straight down to it.
+          to: isStacked
+            ? { x: at.x, y: top }
+            : { x: facing, y: top + badge.height / 2 },
+          progress: named,
+          isStacked: false,
+          alpha: 1,
+        },
+        ...graphSources.map((from, index) => ({
+          id: GRAPH_FIELDS[index]?.id ?? '',
+          from,
+          to: { x: facing, y: rowY(index) },
+          progress: flows[index] ?? 0,
+          isStacked: false,
+          alpha: 1,
+        })),
+        ...layout.sources.map((source, index) => ({
+          id: source.id,
+          from: { x: source.x, y: source.y + rise },
+          to: {
+            x: isStacked ? left : facing,
+            y: rowY(GRAPH_FIELDS.length + index),
+          },
+          progress: flows[GRAPH_FIELDS.length + index] ?? 0,
+          isStacked,
+          alpha: paging,
+        })),
+      ];
+      target.save();
+      target.globalAlpha = 1;
+      for (const line of lines) {
+        if (line.progress <= 0) {
+          continue;
+        }
+        const points = flowPath(line.from, line.to, line.isStacked);
+        drawLine(target, {
+          id: `enrichment-${line.id}`,
+          points,
+          units: segmentLengths(points).reduce((sum, part) => sum + part, 0),
+          progress: line.progress,
+          alpha: line.alpha,
+          flow,
+        });
+      }
+
+      // He, with his name under him, as in the graph.
+      target.font = `500 ${badge.fontSize}px ${fontFamily}`;
+      target.textAlign = 'center';
+      target.textBaseline = 'middle';
+      target.globalAlpha = musk.shape;
+      drawShape(target, at.x, at.y, at.size, musk.role);
+      target.globalAlpha = musk.name;
+      drawBadge(
+        target,
+        ATOMS.elonMusk.label,
+        at.x,
+        at.y + at.size / 2 + badge.gap,
+        badge,
+      );
+
+      // The card: his name, once it has come from him, and under it each
+      // row as it opens, its value arriving with its data.
+      if (present > 0) {
+        target.globalAlpha = present;
+        target.fillStyle = rgba(ink);
+        target.beginPath();
+        target.roundRect(
+          left,
+          top,
+          cardWidth,
+          cardHeight(badge.height, rows, row),
+          CARD.radius,
+        );
+        target.fill();
+        target.save();
+        target.clip();
+        target.fillStyle = rgba(page, arrivedOf(named));
+        target.fillText(
+          ATOMS.elonMusk.label,
+          card.x,
+          top + badge.height / 2 + 0.5,
+        );
+        target.fillStyle = rgba(page, 0.14 * Math.min(rows, 1));
+        target.fillRect(
+          left + CARD.padding,
+          top + badge.height,
+          cardWidth - CARD.padding * 2,
+          1,
+        );
+        // A smaller size where the rows are shorter, to fit them all.
+        target.font = `400 ${row < 18 ? CARD.fontSize - 1 : CARD.fontSize}px ${fontFamily}`;
+        for (const [index, field] of fields.entries()) {
+          const open = opened[index] ?? 0;
+          if (open <= 0) {
+            continue;
+          }
+          const labelWidth = target.measureText(field.label).width;
+          target.textAlign = 'left';
+          target.fillStyle = rgba(page, 0.55 * open);
+          target.fillText(field.label, left + CARD.padding, rowY(index));
+          target.textAlign = 'right';
+          target.fillStyle = rgba(page, arrivedOf(flows[index] ?? 0));
+          target.fillText(
+            fitted(
+              target,
+              field.value,
+              cardWidth - CARD.padding * 3 - labelWidth,
+            ),
+            facing - CARD.padding,
+            rowY(index),
+          );
+        }
+        target.restore();
+      }
+      target.restore();
+    }
+
+    /** `text`, or as many of its words as fit in `room`, and an ellipsis. */
+    function fitted(
+      target: CanvasRenderingContext2D,
+      text: string,
+      room: number,
+    ): string {
+      const words = text.split(' ');
+      for (let count = words.length; count > 0; count -= 1) {
+        const shown =
+          count === words.length ? text : `${words.slice(0, count).join(' ')}…`;
+        if (target.measureText(shown).width <= room) {
+          return shown;
+        }
+      }
+
+      return '…';
+    }
+
+    /**
+     * The encyclopedia page, in its own units (`WIKI`), scaled onto its
+     * box: the header with the menu and the logo, search and the account
+     * link, the contents down the left, the article as skeleton lines under
+     * its title, and the infobox with his name, a portrait and the two
+     * facts. Each section the data leaves is tinted while it does.
+     */
+    function drawWikiPage(
+      target: CanvasRenderingContext2D,
+      layout: EnrichmentLayout,
+      rise: number,
+      shown: number,
+      data: number,
+    ): void {
+      const { page: box, scale } = layout;
+      // The encyclopedia's own colours: its text, its links, its rules and
+      // its pale panels.
+      const text: Rgb = [32, 33, 34];
+      const link: Rgb = [51, 102, 204];
+      const rule: Rgb = [162, 169, 177];
+      const pale: Rgb = [234, 236, 240];
+      const serif = 'Georgia, "Times New Roman", serif';
+      const hairline = 1 / scale;
+      const bar = (
+        x: number,
+        y: number,
+        width: number,
+        height: number,
+        colour: Rgb,
+        alpha = 1,
+      ): void => {
+        target.fillStyle = rgba(colour, alpha);
+        target.beginPath();
+        target.roundRect(x, y, width, height, height / 2);
+        target.fill();
+      };
+      const line = (x1: number, y1: number, x2: number, colour: Rgb): void => {
+        target.strokeStyle = rgba(colour);
+        target.lineWidth = hairline;
+        target.beginPath();
+        target.moveTo(x1, y1);
+        target.lineTo(x2, y1);
+        target.stroke();
+      };
+      // Tinted while its field's data flows, most at its middle.
+      const tint = (index: number): number => {
+        const f = fieldFlow(data, index, PAGE_FIELDS.length);
+
+        return 4 * f * (1 - f);
+      };
+
+      target.save();
+      target.globalAlpha = shown;
+      target.translate(box.x, box.y + rise);
+      target.fillStyle = rgba(page);
+      target.strokeStyle = rgba(ring);
+      target.lineWidth = 1;
+      target.beginPath();
+      target.roundRect(0, 0, box.width, box.height, 10);
+      target.fill();
+      target.stroke();
+      target.clip();
+      target.scale(scale, scale);
+      target.textBaseline = 'middle';
+
+      // The header: the menu, the logo, search, and the account link.
+      const { header } = WIKI;
+      for (const offset of [-6, 0, 6]) {
+        bar(
+          header.menu.x,
+          header.y + offset - 1.25,
+          header.menu.width,
+          2.5,
+          text,
+        );
+      }
+      const { globe } = header;
+      target.fillStyle = rgba([200, 204, 209]);
+      target.beginPath();
+      target.arc(globe.x, header.y, globe.radius, 0, 2 * Math.PI);
+      target.fill();
+      target.strokeStyle = rgba(rule);
+      target.lineWidth = 1.2;
+      for (const across of [0.35, 0.75]) {
+        target.beginPath();
+        target.ellipse(
+          globe.x,
+          header.y,
+          globe.radius * across,
+          globe.radius,
+          0,
+          0,
+          2 * Math.PI,
+        );
+        target.stroke();
+      }
+      for (const height of [-0.5, 0, 0.5]) {
+        const half = globe.radius * Math.sqrt(1 - height * height);
+        target.beginPath();
+        target.moveTo(globe.x - half, header.y + height * globe.radius);
+        target.lineTo(globe.x + half, header.y + height * globe.radius);
+        target.stroke();
+      }
+      target.fillStyle = rgba(text);
+      target.textAlign = 'left';
+      // The wordmark in its small capitals, set by hand: a browser that
+      // cannot make them would fall back to lower case.
+      target.textBaseline = 'alphabetic';
+      let wordmarkX = header.wordmark.x;
+      for (const [letters, share] of [
+        ['W', 1],
+        ['IKIPEDI', 0.8],
+        ['A', 1],
+      ] as const) {
+        target.font = `${header.wordmark.size * share}px ${serif}`;
+        target.fillText(
+          letters,
+          wordmarkX,
+          header.wordmark.y + header.wordmark.size * 0.36,
+        );
+        wordmarkX += target.measureText(letters).width + 0.6;
+      }
+      target.textBaseline = 'middle';
+      target.font = `${header.tagline.size}px ${serif}`;
+      target.fillText(
+        'The Free Encyclopedia',
+        header.tagline.x,
+        header.tagline.y,
+      );
+      const { search } = WIKI;
+      target.strokeStyle = rgba(rule);
+      target.lineWidth = 1.2;
+      target.beginPath();
+      target.roundRect(search.x, search.y, search.width, search.height, 2);
+      target.stroke();
+      target.beginPath();
+      target.arc(search.x + 18, header.y - 1, 6, 0, 2 * Math.PI);
+      target.moveTo(search.x + 22.5, header.y + 3.5);
+      target.lineTo(search.x + 27, header.y + 8);
+      target.strokeStyle = rgba(text, 0.7);
+      target.lineWidth = 2;
+      target.stroke();
+      bar(search.x + 36, header.y - 4, 112, 8, pale);
+      const { account, more } = WIKI;
+      bar(
+        account.right - account.width,
+        account.y - 4,
+        account.width,
+        8,
+        link,
+        0.45,
+      );
+      for (const offset of [-6, 0, 6]) {
+        target.fillStyle = rgba(text);
+        target.beginPath();
+        target.arc(more.x + offset, more.y, 2, 0, 2 * Math.PI);
+        target.fill();
+      }
+
+      // The contents, down the left.
+      const { contents } = WIKI;
+      for (const [index, width] of contents.widths.entries()) {
+        const y = contents.y + index * contents.gap;
+        bar(
+          contents.x,
+          y - 4,
+          width,
+          8,
+          index < 2 ? text : link,
+          index < 2 ? 0.28 : 0.4,
+        );
+      }
+
+      // The article: its title, its tabs, and its words as skeleton lines,
+      // here and there a link.
+      const { title, rule: titleRule, tabs, from, body } = WIKI;
+      target.fillStyle = rgba(text);
+      target.font = `${title.size}px ${serif}`;
+      target.fillText(ATOMS.elonMusk.label, title.x, title.y);
+      line(title.x, titleRule.y, titleRule.right, rule);
+      for (const [x, width, colour] of [
+        [title.x, 40, text],
+        [title.x + 50, 26, link],
+        [titleRule.right - 224, 30, text],
+        [titleRule.right - 182, 72, link],
+        [titleRule.right - 98, 72, link],
+      ] as const) {
+        bar(x, tabs.y - 4, width, 8, colour, colour === link ? 0.45 : 0.3);
+      }
+      line(title.x, tabs.y + 14, titleRule.right, pale);
+      bar(title.x, from.y - 4, from.width, 8, text, 0.18);
+
+      // Each line a field's data leaves, tinted as it does.
+      for (const [index, { from }] of PAGE_FIELDS.entries()) {
+        if ('row' in from) {
+          continue;
+        }
+        target.fillStyle = rgba(ink, 0.06 * tint(index));
+        target.beginPath();
+        target.roundRect(
+          body.x - 8,
+          bodyLineY(from.paragraph, from.line) - 6,
+          body.width + 16,
+          body.bar + 12,
+          6,
+        );
+        target.fill();
+      }
+      for (const [index, paragraph] of body.paragraphs.entries()) {
+        for (let row = 0; row < paragraph.lines; row += 1) {
+          const y = paragraph.y + row * body.line;
+          const isLast = row === paragraph.lines - 1;
+          const width =
+            body.width * (isLast ? 0.42 + ((index * 3) % 5) * 0.08 : 1);
+          bar(body.x, y, width, body.bar, ring);
+          // A link, somewhere on most lines.
+          const seed = (index * 7 + row * 13) % 11;
+          if (seed > 2 && !isLast) {
+            const span = 44 + seed * 6;
+            bar(
+              body.x + ((seed * 53 + row * 29) % (body.width - span)),
+              y,
+              span,
+              body.bar,
+              link,
+              0.32,
+            );
+          }
+        }
+      }
+
+      // The infobox: his name, a portrait, the two facts, and more rows.
+      const { infobox } = WIKI;
+      const rows = 2 + infobox.more;
+      const infoHeight =
+        infobox.titleHeight +
+        infobox.image.height +
+        48 +
+        rows * infobox.row +
+        10;
+      target.fillStyle = rgba([248, 249, 250]);
+      target.strokeStyle = rgba(rule);
+      target.lineWidth = hairline;
+      target.beginPath();
+      target.rect(infobox.x, infobox.y, infobox.width, infoHeight);
+      target.fill();
+      target.stroke();
+      target.fillStyle = rgba(pale);
+      target.fillRect(
+        infobox.x + 6,
+        infobox.y + 6,
+        infobox.width - 12,
+        infobox.titleHeight - 6,
+      );
+      target.fillStyle = rgba(text);
+      target.textAlign = 'center';
+      target.font = `700 ${infobox.size + 3}px ${fontFamily}`;
+      target.fillText(
+        ATOMS.elonMusk.label,
+        infobox.x + infobox.width / 2,
+        infobox.y + 3 + infobox.titleHeight / 2,
+      );
+      const imageTop = infobox.y + infobox.titleHeight + 6;
+      target.fillStyle = rgba([200, 204, 209]);
+      target.fillRect(
+        infobox.x + 6,
+        imageTop,
+        infobox.width - 12,
+        infobox.image.height - 12,
+      );
+      drawPerson(
+        target,
+        {
+          x: infobox.x + infobox.width / 2,
+          y: imageTop + (infobox.image.height - 12) / 2,
+        },
+        110,
+        0.4 * shown,
+      );
+      target.globalAlpha = shown;
+      bar(
+        infobox.x + infobox.width / 2 - 56,
+        imageTop + infobox.image.height + 2,
+        112,
+        8,
+        link,
+        0.4,
+      );
+      target.font = `400 ${infobox.size}px ${fontFamily}`;
+      for (let index = 0; index < rows; index += 1) {
+        const y = infoboxRowY(index);
+        const fieldIndex = PAGE_FIELDS.findIndex(
+          ({ from }) => 'row' in from && from.row === index,
+        );
+        const field = PAGE_FIELDS[fieldIndex];
+        if (field !== undefined) {
+          target.fillStyle = rgba(ink, 0.06 * tint(fieldIndex));
+          target.fillRect(
+            infobox.x + 4,
+            y - infobox.row / 2 + 2,
+            infobox.width - 8,
+            infobox.row - 4,
+          );
+          target.fillStyle = rgba(text);
+          target.textAlign = 'left';
+          target.font = `700 ${infobox.size}px ${fontFamily}`;
+          target.fillText(field.label, infobox.x + 10, y);
+          target.font = `400 ${infobox.size}px ${fontFamily}`;
+          target.textAlign = 'right';
+          target.fillText(field.value, infobox.x + infobox.width - 10, y);
+        } else {
+          bar(infobox.x + 10, y - 4, 44 + (index % 3) * 12, 8, text, 0.22);
+          bar(
+            infobox.x + infobox.width - 10 - (70 + (index % 2) * 30),
+            y - 4,
+            70 + (index % 2) * 30,
+            8,
+            link,
+            0.4,
+          );
+        }
+      }
+
+      target.restore();
+    }
+
     /** A faint dashed outline, round the path `trace` gives: a perspective's shape. */
     function drawOutline(
       target: CanvasRenderingContext2D,
@@ -1425,70 +1987,106 @@ export function StoryScene(props: StorySceneProps): ReactNode {
             (height - GLOBE_MENU_ROOM - GLOBE_MENU.under) / (2 * reachShare),
           )
         : (cells.side - GLOBE_MENU_ROOM) * WHOLE_SHARE;
-      const radius = lerp(view.radius, splitRadius, aside);
+      // In the last chapter, the two become one again the size each was
+      // beside the other, and the one graph keeps that size.
+      const { enrichment } = state.props.scene;
+      const oneRadius = enrichment === null ? view.radius : splitRadius;
+      const partedRadius = lerp(oneRadius, splitRadius, aside);
       // Side by side, each shrinks from its top, which moves from where the
       // one graph's was to just under its menu, at the film's top throughout.
       const top = lerp(
-        height / 2 - view.radius * reachShare,
+        height / 2 - oneRadius * reachShare,
         GLOBE_MENU_ROOM,
         aside,
       );
       const centreOf = (cell: ScreenPoint): ScreenPoint => ({
         x: lerp(width / 2, cell.x, aside),
         y: isSideBySide
-          ? top + radius * reachShare
+          ? top + partedRadius * reachShare
           : lerp(height / 2, cell.y + GLOBE_MENU_ROOM / 2, aside),
       });
+      const badge = width < NARROW_PX ? BADGE_NARROW : BADGE;
+      // Then it moves aside as Elon Musk comes out of it, and shrinks to a
+      // sketch above the page, where it stays as the film ends, and fades.
+      const enriched =
+        enrichment === null ? null : enrichmentLayout(width, height, badge);
+      const parted = centreOf(cells.first);
+      const globe =
+        enriched === null || enrichment === null
+          ? null
+          : globeAt(
+              enriched,
+              { ...parted, reach: partedRadius * reachShare },
+              enrichment,
+            );
+      const radius = globe === null ? partedRadius : globe.reach / reachShare;
+      const sketchShown =
+        enrichment === null
+          ? 1
+          : 1 - easeInOutCubic(closingAt(enrichment.close, CLOSING.sketch));
       // The film's turn brings what the camera faces to the front; the
       // reader's comes after it.
       const orientation = multiply(state.turn, turnToFace(view.facing));
       // Looking down on the cloud lowers what it faces, the equator's front:
       // the picture is lifted as much, so the arc stays in the middle. Behind
       // an open plane, it rises above it. All of it in view, it is centred.
-      const lift =
-        (LIFT_PX + radius * view.facing[1]) * (1 - (camera.whole ?? 0)) +
+      const whole = camera.whole ?? 0;
+      const liftOf = (sphereRadius: number): number =>
+        (LIFT_PX + sphereRadius * view.facing[1]) * (1 - whole) +
         depth * DEPTH_OF_FIELD.risePx +
-        (camera.raise ?? 0) * radius;
-      // A sphere round `centre`, the cloud or its copy, turned to `facing`;
-      // the reader's turn turns both.
+        (camera.raise ?? 0) * sphereRadius;
+      // A sphere round `centre`, `sphereRadius` across, the cloud or its
+      // copy, turned to `facing`; the reader's turn turns both.
       const projectFrom =
-        (centre: ScreenPoint, turned: Quat) =>
+        (
+          centre: ScreenPoint,
+          turned: Quat,
+          sphereRadius = radius,
+          lift = liftOf(sphereRadius),
+        ) =>
         (direction: Vec3): Projected => {
           const [x, y, z] = rotate(turned, direction);
           const scale = EYE_DISTANCE / (EYE_DISTANCE - z);
 
           return {
-            x: centre.x + slide + x * radius * scale,
-            y: centre.y - lift + rise - y * radius * scale,
+            x: centre.x + slide + x * sphereRadius * scale,
+            y: centre.y - lift + rise - y * sphereRadius * scale,
             z,
             scale,
           };
         };
-      const project = projectFrom(centreOf(cells.first), orientation);
+      // In the last chapter the graph is not lifted: it holds still as the
+      // camera turns back to the film's first frame.
+      const project = projectFrom(
+        globe ?? parted,
+        orientation,
+        radius,
+        globe === null ? liftOf(radius) : 0,
+      );
       const projectOther = projectFrom(centreOf(cells.second), orientation);
+      // Where the camera has the cloud, with no chapter moving it: where the
+      // last chapter ends, as the film began.
+      const projectCamera = projectFrom(
+        { x: width / 2, y: height / 2 },
+        orientation,
+        view.radius,
+      );
       // All of it in view, its outline, round: the copy's too.
-      const whole = camera.whole ?? 0;
       if (whole > 0) {
-        for (const projecting of other === null
+        for (const [index, projecting] of (other === null
           ? [project]
-          : [project, projectOther]) {
+          : [project, projectOther]
+        ).entries()) {
           const middle = projecting([0, 0, 0]);
-          context.globalAlpha = whole;
+          context.globalAlpha = whole * (index === 0 ? sketchShown : 1);
           drawOutline(context, (target) => {
-            target.arc(
-              middle.x,
-              middle.y,
-              (radius * EYE_DISTANCE) / Math.sqrt(EYE_DISTANCE ** 2 - 1),
-              0,
-              2 * Math.PI,
-            );
+            target.arc(middle.x, middle.y, radius * reachShare, 0, 2 * Math.PI);
           });
         }
         context.globalAlpha = 1;
       }
       /** 0 at the back of the cloud to 1 at the front. */
       const frontness = (z: number): number => (z + 1) / 2;
-      const badge = width < NARROW_PX ? BADGE_NARROW : BADGE;
 
       // An atom the plane shares with the cloud is the same atom: it comes
       // out of the cloud to its place on the plane, growing as it comes.
@@ -1529,13 +2127,49 @@ export function StoryScene(props: StorySceneProps): ReactNode {
           z: from.z,
         });
       }
+      // In the last chapter, Elon Musk comes out of the cloud the same way,
+      // taking his end of his triples' lines with him, to where he stands
+      // above the graph; he is drawn there over it. As the film ends he
+      // goes where the camera has him, up close, as it began.
+      const musk = atoms.find((atom) => atom.id === 'elonMusk');
+      const out = enrichment?.out ?? 0;
+      const back = enrichment?.back ?? 0;
+      let muskOut: Lifted | null = null;
+      if (enriched !== null && musk !== undefined && out > 0) {
+        const from = project(musk.at);
+        const end = projectCamera(musk.at);
+        const inCloud = {
+          x: from.x,
+          y: from.y,
+          size: ATOM_SHARE * radius * from.scale,
+          badgeScale: 1,
+        };
+        muskOut = {
+          origin: inCloud,
+          named: 1,
+          x: lerp(lerp(from.x, enriched.atom.x, out), end.x, back),
+          y: lerp(lerp(from.y, enriched.atom.y, out), end.y, back),
+          size: lerp(
+            lerp(inCloud.size, enriched.atomSize, out),
+            ATOM_SHARE * view.radius * end.scale,
+            back,
+          ),
+          badgeScale: 1,
+          amount: out,
+          z: lerp(from.z, end.z, back),
+        };
+        lifted.set('elonMusk', muskOut);
+      }
 
       /**
        * A sphere of atoms and the triples between them, as `project` turns
        * and places it, at `opacity`: the cloud, or its copy. `lifted` says
        * which atoms are on their way out to the plane, and `setBack` those in
-       * none of its triples, and how far. It returns the lines that reach out
-       * of it to the plane.
+       * none of its triples, and how far. In the last chapter, `sketch` says
+       * whose name comes first, and how much of the cloud's detail shows, 1
+       * to 0, as it becomes a sketch of itself: its names, and the atoms in
+       * none of its triples. It returns the lines that reach out of it to
+       * the plane.
        */
       const drawSphere = (
         sphere: {
@@ -1546,7 +2180,9 @@ export function StoryScene(props: StorySceneProps): ReactNode {
         lifted: ReadonlyMap<AtomId, Lifted>,
         opacity: number,
         setBack: ReadonlyMap<AtomId, number>,
+        sketch?: { first: AtomId; detail: number },
       ): Line[] => {
+        const detail = sketch?.detail ?? 1;
         // An atom in none of its triples, its shape and its name, set back.
         const showing = (id: AtomId, part: keyof typeof SET_BACK): number =>
           lerp(1, SET_BACK[part], setBack.get(id) ?? 0);
@@ -1709,6 +2345,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
           context.globalAlpha =
             opacity *
             showing(atom.id, 'shape') *
+            lerp(1, detail, setBack.get(atom.id) ?? 0) *
             atom.presence *
             (0.2 + 0.8 * frontness(at.z));
           drawShape(
@@ -1743,9 +2380,12 @@ export function StoryScene(props: StorySceneProps): ReactNode {
             .filter((atom) => atom.presence > 0 && lifted.has(atom.id))
             .map((atom) => ({ atom, at: project(atom.at), isLeaving: true })),
         ]
-          // Those its triples join first, then those set back.
+          // The sketch's first, then those its triples join, then those set
+          // back.
           .sort(
             (a, b) =>
+              Number(b.atom.id === sketch?.first) -
+                Number(a.atom.id === sketch?.first) ||
               Number(isSetBack(a.atom.id)) - Number(isSetBack(b.atom.id)) ||
               b.at.z - a.at.z,
           );
@@ -1790,8 +2430,12 @@ export function StoryScene(props: StorySceneProps): ReactNode {
             namedHere.add(atom.id);
             continue;
           }
+          if (detail <= 0) {
+            continue;
+          }
           context.globalAlpha =
             opacity *
+            detail *
             showing(atom.id, 'name') *
             atom.presence ** 2 *
             (0.35 + 0.65 * frontness(at.z));
@@ -1827,11 +2471,20 @@ export function StoryScene(props: StorySceneProps): ReactNode {
         return reaching;
       };
       const reaching = drawSphere(
-        { atoms, triples },
+        {
+          atoms:
+            muskOut === null
+              ? atoms
+              : atoms.filter((atom) => atom.id !== 'elonMusk'),
+          triples,
+        },
         project,
         lifted,
-        1,
+        sketchShown,
         state.props.scene.setBack,
+        enrichment === null
+          ? undefined
+          : { first: 'elonMusk', detail: 1 - enrichment.small },
       );
       // The copy over the cloud as it splits off, the two one at first.
       if (other !== null) {
@@ -1873,6 +2526,36 @@ export function StoryScene(props: StorySceneProps): ReactNode {
         }
       }
       drawPlane(planeView, reaching, lifted);
+      if (
+        enriched !== null &&
+        musk !== undefined &&
+        muskOut !== null &&
+        plane !== null &&
+        plane !== undefined
+      ) {
+        // Where the data of each of his triples leaves the graph.
+        const at = muskOut;
+        const graphSources = GRAPH_FIELDS.map(({ atom }) => {
+          const source = atoms.find((drawn) => drawn.id === atom);
+
+          return source === undefined ? at : project(source.at);
+        });
+        // As strong as he was in the cloud as he leaves it, whole once out,
+        // and as strong as the cloud has him as he goes back.
+        const front = frontness(at.z);
+        drawEnrichment(
+          plane,
+          enriched,
+          {
+            at,
+            role: musk.role,
+            shape: lerp(0.2 + 0.8 * front, 1, out * (1 - back)),
+            name: lerp(0.35 + 0.65 * front, 1, out * (1 - back)),
+          },
+          badge,
+          graphSources,
+        );
+      }
     }
 
     function isGliding(): boolean {

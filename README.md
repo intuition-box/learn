@@ -31,7 +31,7 @@ skips the entrance, as does a reader who asked for reduced motion.
 
 A short film, played on a 3D graph the reader can turn, pause, and scrub,
 that explains Intuition's data model before anyone opens a terminal. Its
-six chapters build on one another, following one story about Elon Musk,
+seven chapters build on one another, following one story about Elon Musk,
 SpaceX, and a claim he made:
 
 | Chapter        | What it shows                                                                 |
@@ -42,6 +42,7 @@ SpaceX, and a claim he made:
 | Vaults         | Every triple has a vault for it and one against it; positions give it weight. |
 | Lists          | Triples that share a predicate and an object form a list, ranked by weight.   |
 | Perspectives   | The same atoms, seen differently depending on whose triples you trust.        |
+| Enrichment     | One atom, however it's read: data from anywhere enriches it, builders choose. |
 
 Three ideas from the original brief are not covered yet, and are candidates
 for the next chapters:

@@ -632,6 +632,134 @@ describe('perspectives', () => {
   });
 });
 
+describe('enrichment', () => {
+  const at = (id: string, share: number): Scene => {
+    const { start, motionMs } = beat(id);
+
+    return sceneAt(start + motionMs * share);
+  };
+  const isWholeGraph = (scene: Scene): boolean =>
+    scene.atoms.every((drawn) => drawn.presence === 1) &&
+    scene.triples.every((triple) => triple.progress === 1);
+  const none = {
+    out: 0,
+    card: 0,
+    graph: 0,
+    small: 0,
+    page: 0,
+    data: 0,
+    close: 0,
+    back: 0,
+  };
+
+  it('closes the other perspective back onto the cloud, and nothing more: the rest of the chapter is yet to come', () => {
+    // The copy's own triples draw back, and it slides back onto the cloud.
+    expect(at('one-atom', 0).other?.aside).toBe(1);
+    expect(
+      at('one-atom', 0.3).other?.triples.find(
+        (triple) => triple.id === 'aiThreatensPeace',
+      )?.progress,
+    ).toBe(0);
+    expect(at('one-atom', 0.2).other?.aside).toBe(1);
+    expect(at('one-atom', 0.8).other?.aside).toBe(0);
+    // The copy, closed, is the cloud itself.
+    expect(settled('one-atom').other?.aside).toBe(0);
+    expect(settled('one-atom').enrichment).toEqual(none);
+  });
+
+  it('keeps the whole graph until the film closes in on Elon Musk', () => {
+    for (const id of ['one-atom', 'from-the-graph', 'enrichment']) {
+      expect(isWholeGraph(settled(id))).toBe(true);
+      expect(settled(id).setBack.get('jobs')).toBe(1);
+    }
+  });
+
+  it('brings Elon Musk out of the graph, and as he goes, brings the card in and flows his name and the data of his triples into it', () => {
+    expect(at('from-the-graph', 0).enrichment).toEqual(none);
+    expect(at('from-the-graph', 0.15).enrichment?.card).toBe(0);
+    expect(at('from-the-graph', 0.25).enrichment?.graph).toBe(0);
+    // The card is in, and its data flowing, while he is still on his way.
+    const moving = at('from-the-graph', 0.35).enrichment;
+    expect(moving?.card).toBe(1);
+    expect(moving?.graph).toBeGreaterThan(0);
+    expect(moving?.out).toBeGreaterThan(0);
+    expect(moving?.out).toBeLessThan(1);
+    expect(at('from-the-graph', 0.45).enrichment?.out).toBe(1);
+    expect(settled('from-the-graph').enrichment).toEqual({
+      ...none,
+      out: 1,
+      card: 1,
+      graph: 1,
+    });
+  });
+
+  it('shrinks the graph to a sketch, brings the page in under it, then flows the page’s data into the card', () => {
+    expect(at('enrichment', 0).enrichment).toEqual(
+      settled('from-the-graph').enrichment,
+    );
+    expect(at('enrichment', 0.3).enrichment?.small).toBe(1);
+    expect(at('enrichment', 0.38).enrichment?.data).toBe(0);
+    expect(at('enrichment', 0.4).enrichment?.page).toBe(1);
+    expect(settled('enrichment').enrichment).toEqual({
+      ...none,
+      out: 1,
+      card: 1,
+      graph: 1,
+      small: 1,
+      page: 1,
+      data: 1,
+    });
+    // Without motion, each beat shows as it is left.
+    expect(sceneAt(beat('enrichment').start, true).enrichment).toEqual(
+      settled('enrichment').enrichment,
+    );
+  });
+
+  it('lets everything go where it stands, then ends on Elon Musk alone, exactly as the film began', () => {
+    const present = (scene: Scene) =>
+      scene.atoms.filter((drawn) => drawn.presence > 0).map(({ id }) => id);
+
+    expect(at('atom-again', 0.55).enrichment?.close).toBe(1);
+    expect(at('atom-again', 0.55).enrichment?.back).toBe(0);
+    // The graph goes as its sketch fades, before the camera moves.
+    expect(present(at('atom-again', 0.39))).toHaveLength(26);
+    expect(present(at('atom-again', 0.5))).toEqual(['elonMusk']);
+    expect(
+      at('atom-again', 0.5).triples.every((triple) => triple.progress === 0),
+    ).toBe(true);
+    expect(at('atom-again', 0.55).camera.whole).toBe(1);
+
+    const end = settled('atom-again');
+    const opening = settled('atom');
+    expect(end.enrichment?.back).toBe(1);
+    // The same, but for the rounding of the turn back to the front.
+    const close = (a: readonly number[], b: readonly number[]) =>
+      a.map((value, index) => Math.abs(value - (b[index] ?? NaN)) < 1e-9);
+    expect(close(end.camera.facing, opening.camera.facing)).toEqual([
+      true,
+      true,
+      true,
+    ]);
+    expect({ ...end.camera, facing: null, focus: null }).toEqual({
+      ...opening.camera,
+      facing: null,
+      focus: null,
+    });
+    expect(
+      close(atom(end, 'elonMusk').at, atom(opening, 'elonMusk').at),
+    ).toEqual([true, true, true]);
+    expect(atom(end, 'elonMusk').role).toEqual(atom(opening, 'elonMusk').role);
+    expect(beat('atom-again').index).toBe(BEATS.length - 1);
+    expect(captionText(beat('atom-again').caption)).toMatch(
+      /^Everything starts with an atom, and here we are, at the atom again\./,
+    );
+  });
+
+  it('has no part of it before the chapter', () => {
+    expect(settled('another-perspective').enrichment).toBeNull();
+  });
+});
+
 describe('stepping by chapter', () => {
   it('jumps chapter to chapter, landing as a beat step does', () => {
     const triple = beat('triple');
@@ -654,7 +782,10 @@ describe('stepping by chapter', () => {
     );
     expect(
       stepFrom(beat('perspective').start + 100, 1, 'start', 'chapter'),
-    ).toBe(DURATION);
+    ).toBe(beat('one-atom').start);
+    expect(stepFrom(beat('one-atom').start + 100, 1, 'start', 'chapter')).toBe(
+      DURATION,
+    );
     expect(stepFrom(triple.start + 4000, -1, 'start', 'chapter')).toBe(
       triple.start,
     );
