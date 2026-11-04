@@ -419,10 +419,10 @@ const NON_BELIEVERS_ATOMS: Partial<Record<AtomId, AtomState>> = {
   is: { at: onSphere(1.58, -0.171), role: 'predicate' },
   dangerous: { at: onSphere(2.4, -0.35), role: 'object' },
   willDecrease: { at: onSphere(1.05, 0.72), role: 'predicate' },
-  willRemove: { at: onSphere(0.275, 0.31), role: 'predicate' },
-  jobs: { at: onSphere(-0.95, 0.42), role: 'object' },
-  threatens: { at: onSphere(0.05, -0.2), role: 'predicate' },
-  peace: { at: onSphere(-0.26, -0.47), role: 'object' },
+  willRemove: { at: onSphere(0.019, 0.253), role: 'predicate' },
+  jobs: { at: onSphere(-0.829, 0.37), role: 'object' },
+  threatens: { at: onSphere(0.65, -0.053), role: 'predicate' },
+  peace: { at: onSphere(0.261, -0.381), role: 'object' },
 };
 const NON_BELIEVERS_IDS = Object.keys(NON_BELIEVERS_ATOMS) as AtomId[];
 
