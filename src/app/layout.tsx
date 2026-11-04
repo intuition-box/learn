@@ -14,6 +14,8 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: { default: 'Intuition', template: '%s · Intuition' },
   description: 'Your data, made multiplayer.',
+  // The mark two by two, from `mark.svg/route.ts`.
+  icons: { icon: { url: '/mark.svg', type: 'image/svg+xml' } },
 };
 
 export default function RootLayout({
