@@ -9,29 +9,40 @@ import {
 
 interface Visit {
   pathname?: string;
+  search?: string;
   stored?: string | null;
   navigation?: 'navigate' | 'reload' | 'back_forward';
   referrer?: string;
   /** Storage that throws, as in a private window. */
   isStorageBlocked?: boolean;
+  prefersReducedMotion?: boolean;
+  hasWebGl2?: boolean;
 }
 
-/** Runs the gate as the browser would, and says where it sent the visitor. */
-function open({
+/**
+ * Runs the gate as the browser would, and says where it sent the visitor,
+ * and what it marked for the film's entrance.
+ */
+function visit({
   pathname = '/',
+  search = '',
   stored = null,
   navigation = 'navigate',
   referrer = '',
   isStorageBlocked = false,
-}: Visit): string | null {
+  prefersReducedMotion = false,
+  hasWebGl2 = true,
+}: Visit): { replacedWith: string | null; entrance: string | undefined } {
   let replacedWith: string | null = null;
   const location = {
     origin: 'https://learn.intuition.box',
     pathname,
+    search,
     replace: (url: string) => {
       replacedWith = url;
     },
   };
+  const documentElement = { dataset: {} as Record<string, string> };
   const performance = {
     getEntriesByType: () => [{ type: navigation }],
   };
@@ -51,12 +62,24 @@ function open({
     'performance',
     'document',
     'localStorage',
+    'matchMedia',
+    'WebGL2RenderingContext',
     landingGateScript(),
   );
-  run(location, performance, { referrer }, localStorage);
+  run(
+    location,
+    performance,
+    { referrer, documentElement },
+    localStorage,
+    () => ({ matches: prefersReducedMotion }),
+    hasWebGl2 ? class {} : undefined,
+  );
 
-  return replacedWith;
+  return { replacedWith, entrance: documentElement.dataset.entrance };
 }
+
+/** Where the gate sent the visitor, if anywhere. */
+const open = (at: Visit) => visit(at).replacedWith;
 
 describe('landingGateScript', () => {
   it('leaves a first visit on the film', () => {
@@ -104,6 +127,23 @@ describe('landingGateScript', () => {
 
   it('leaves the film when storage is blocked', () => {
     expect(open({ isStorageBlocked: true })).toBeNull();
+  });
+
+  it('marks the entrance to play on the film’s page', () => {
+    expect(visit({}).entrance).toBe('welcome');
+    expect(visit({ navigation: 'reload' }).entrance).toBe('welcome');
+    expect(visit({ isStorageBlocked: true }).entrance).toBe('welcome');
+  });
+
+  it('shows the film straight away for a beat, reduced motion or no WebGL 2', () => {
+    expect(visit({ search: '?step=vaults' }).entrance).toBeUndefined();
+    expect(visit({ prefersReducedMotion: true }).entrance).toBeUndefined();
+    expect(visit({ hasWebGl2: false }).entrance).toBeUndefined();
+  });
+
+  it('marks nothing when it sends the visitor on, or off the film’s page', () => {
+    expect(visit({ stored: 'docs' }).entrance).toBeUndefined();
+    expect(visit({ pathname: '/docs' }).entrance).toBeUndefined();
   });
 });
 

@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import {
   Fragment,
   type ReactNode,
@@ -9,14 +10,10 @@ import {
   useState,
 } from 'react';
 
-import { ROLE_COLOURS } from '@/components/onboarding/field-scene';
-import { JourneyContext } from '@/components/onboarding/journey-context';
-import { ARRIVE_MS } from '@/components/onboarding/journey-machine';
-import { rememberLanding } from '@/components/onboarding/landing';
-import { ROUTES } from '@/components/onboarding/stations';
-import { QUIET_FIELD } from '@/components/onboarding/time-field';
-import { TravelLink } from '@/components/onboarding/travel-link';
+import { useIsFilmShown } from '@/components/onboarding/entrance';
+import { BEAT_PARAM, rememberLanding } from '@/components/onboarding/landing';
 import { usePrefersReducedMotion } from '@/hooks/use-prefers-reduced-motion';
+import { ROUTES } from '@/lib/site';
 
 import {
   BEATS,
@@ -31,10 +28,10 @@ import {
   stepFrom,
 } from './story-model';
 import { StoryScene } from './story-scene';
-import { outlinePath } from './story-shapes';
+import { outlinePath, ROLE_COLOURS } from './story-shapes';
 import { StoryTimeline } from './story-timeline';
 
-/** After a trip in has landed, how long the film waits to start: a breath. */
+/** Once the film is on screen, how long it waits to start: a breath. */
 const SETTLE_MS = 300;
 
 /** "1:05" */
@@ -44,8 +41,6 @@ function clock(ms: number): string {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 }
 
-/** The address's parameter that names the beat to open on. */
-const BEAT_PARAM = 'step';
 /** When each beat starts: the timeline's dots. */
 const BEAT_STARTS = BEATS.map((beat) => beat.start);
 
@@ -167,19 +162,14 @@ function TransportIcon({
  * caption for each beat, and a player to play, pause, scrub and step
  * through it. Turning the cloud holds the film; playing on turns it back.
  *
- * It starts by itself once the page has arrived, unless the reader asked for
+ * It starts by itself once it is on screen, unless the reader asked for
  * reduced motion: then it waits for Play, and each beat shows as it is left,
  * with no motion. Played to its end, the story is done, and from then on the
  * site opens on the docs (see `landing.ts`).
  */
 export function Playground(): ReactNode {
   const isStill = usePrefersReducedMotion();
-  const isResting = JourneyContext.useSelector((state) =>
-    state.matches('resting'),
-  );
-  // A direct visit: the page was resting when it mounted, and its own
-  // arrival is still playing.
-  const [isDirectVisit] = useState(isResting);
+  const isShown = useIsFilmShown();
   const [time, setTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   // Whether the film has reached its end, played or scrubbed there: from
@@ -201,25 +191,22 @@ export function Playground(): ReactNode {
     }
   }, []);
 
-  // Starts the film once the page has arrived.
+  // Starts the film once it is on screen.
   useEffect(() => {
-    if (!isResting || isStill) {
+    if (!isShown || isStill) {
       return;
     }
-    const timer = window.setTimeout(
-      () => {
-        if (!hasStarted.current) {
-          hasStarted.current = true;
-          setIsPlaying(true);
-        }
-      },
-      isDirectVisit ? ARRIVE_MS : SETTLE_MS,
-    );
+    const timer = window.setTimeout(() => {
+      if (!hasStarted.current) {
+        hasStarted.current = true;
+        setIsPlaying(true);
+      }
+    }, SETTLE_MS);
 
     return () => {
       window.clearTimeout(timer);
     };
-  }, [isResting, isStill, isDirectVisit]);
+  }, [isShown, isStill]);
 
   // The clock: the film moves on with each frame, and stops itself at the
   // end.
@@ -339,13 +326,9 @@ export function Playground(): ReactNode {
        * From tablet width up, the card takes the first view: as tall as the
        * screen allows under the top bar, leaving room for the way on below
        * it, within bounds. Narrower, the scene keeps its own shape and the
-       * card grows to fit. The field behind stays put while the mouse is on
-       * the card.
+       * card grows to fit.
        */}
-      <div
-        {...QUIET_FIELD}
-        className="panel flex flex-col gap-4 p-6 md:h-[calc(100dvh-13rem)] md:max-h-[60rem] md:min-h-[32rem] md:p-12"
-      >
+      <div className="panel flex flex-col gap-4 p-6 md:h-[calc(100dvh-13rem)] md:max-h-[60rem] md:min-h-[32rem] md:p-12">
         <StoryScene
           scene={scene}
           label={describeScene(scene)}
@@ -422,14 +405,16 @@ export function Playground(): ReactNode {
        */}
       {hasEnded && (
         <div className="absolute inset-x-0 top-full mt-10 flex justify-center motion-safe:animate-way-on-arrive">
-          <TravelLink
+          <Link
             href={ROUTES.docs}
-            landing="docs"
             className="wave-docs-hero__action"
             data-variant="primary"
+            onClick={() => {
+              rememberLanding('docs');
+            }}
           >
             Start building
-          </TravelLink>
+          </Link>
         </div>
       )}
     </div>

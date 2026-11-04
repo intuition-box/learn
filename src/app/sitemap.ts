@@ -2,8 +2,7 @@ import type { MetadataRoute } from 'next';
 
 import { createDocsSitemap } from '@waveso/docs/next';
 
-import { ROUTES } from '@/components/onboarding/stations';
-import { SITE_URL } from '@/lib/site';
+import { ROUTES, SITE_URL } from '@/lib/site';
 
 export const dynamic = 'force-static';
 

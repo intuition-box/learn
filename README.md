@@ -24,6 +24,11 @@ to the documentation after the first visit.
 
 ### 1. The film
 
+The front page opens on an entrance: stars come in from the sky and form
+the Intuition mark round a "Play" button. Pressed, they part to the sides
+and the film comes in. A link to a chapter of the film (`/?step=vaults`)
+skips the entrance, as does a reader who asked for reduced motion.
+
 A short film, played on a 3D graph the reader can turn, pause, and scrub,
 that explains Intuition's data model before anyone opens a terminal. Its
 six chapters build on one another, following one story about Elon Musk,
@@ -69,17 +74,22 @@ next time:
 | "Start building", at the film's end  | The documentation       |
 
 A small script runs before the film's page paints, so a returning visitor
-never sees it flash by. With storage off, in a private window for example,
-the site opens on the film, as for a first visit.
+never sees it flash by; it also marks the entrance to play. With storage
+off, in a private window for example, the site opens on the film, as for a
+first visit.
 
 ## Visual direction
 
 Intuition is about clarity, trust, and openness, and the site reflects
 that: a light theme, white pages with a near-black graphite accent, rather
-than the dark interfaces common to crypto infrastructure. A field of atoms,
-drawn in their roles' shapes and colors, runs behind every page and carries
-across each change of route, and the documentation's header shows the same
-universe. The palette and tokens live in `src/app/globals.css`.
+than the dark interfaces common to crypto infrastructure. A universe of
+stars, drawn in the atoms' role shapes and colors, runs behind the front
+page, and the documentation's header shows a field of the same atoms. The
+palette and tokens live in `src/app/globals.css`.
+
+The universe is a copy of `wave-universe` at commit `04beb00`, cut down to
+this page: a white sky, the role shapes, the mark. A fix made there is
+carried over by hand.
 
 ## Development
 
@@ -107,7 +117,7 @@ pnpm dev
 ```text
 content/docs/                 The documentation, in Markdown; meta.json sets the order.
 src/app/                      Routes: the film at /, /docs, llms.txt, the sitemap; /play forwards to /.
-src/components/onboarding/    The field of atoms, the journey between pages, returning visitors.
+src/components/onboarding/    The entrance and its universe, the top bar, returning visitors.
 src/components/playground/    The film: its story, the 2D plane, the 3D scene, the timeline.
 src/lib/                      The site's URL, the documentation route, sphere math, icons.
 ```

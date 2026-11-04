@@ -5,11 +5,26 @@
  * line it sits, so the line reads as grain rather than a dash pattern.
  *
  * Pure: where each dot is depends only on the film's time. A paused film
- * holds the dots still, and scrubbing moves them with the film. The texture
- * itself is shared with the field behind the pages (`DOT_TEXTURE`).
+ * holds the dots still, and scrubbing moves them with the film.
  */
 
-import { DOT_TEXTURE } from '@/components/onboarding/dot-texture';
+/**
+ * The texture: a faint hairline carries fine dots of ink, each a little
+ * different in size, darkness and how far off the line it sits.
+ */
+const DOT_TEXTURE = {
+  /** CSS pixels of line for each dot: the texture's density. */
+  pixelsPerDot: 5,
+  /** A dot's radius in CSS pixels: the smallest, plus up to `range` more. */
+  radius: { min: 0.45, range: 0.6 },
+  /** How far a dot may sit off the line, either side, in CSS pixels. */
+  maxOffset: 0.8,
+  /**
+   * How dark a dot is, as a share of the ink: `min` plus up to `range`,
+   * along a curve that keeps most faint and makes a few dark.
+   */
+  alpha: { min: 0.2, range: 0.75, curve: 2.2 },
+} as const;
 
 /** One dot, at a moment. */
 export interface Dot {

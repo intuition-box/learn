@@ -1,7 +1,5 @@
 import { type ReactNode, useEffect, useRef } from 'react';
 
-import { readCssColour } from '@/components/onboarding/field-gl';
-import { ROLE_COLOURS } from '@/components/onboarding/field-scene';
 import { MEDAL_ICON, USER_ICON } from '@/lib/icons';
 import {
   arcPoint,
@@ -35,7 +33,7 @@ import {
   type PlanePoint,
   planeAt,
 } from './story-plane';
-import { traceShape } from './story-shapes';
+import { ROLE_COLOURS, traceShape } from './story-shapes';
 
 /** How far the eye is from the cloud's centre, in radii: the perspective. */
 const EYE_DISTANCE = 3.2;
@@ -288,11 +286,24 @@ function rgba([r, g, b]: Rgb, alpha = 1): string {
   return `rgba(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)}, ${alpha})`;
 }
 
-/** A CSS colour token, in 0 to 255 channels. */
+/**
+ * A CSS colour token, in 0 to 255 channels. The browser converts it, by
+ * painting it on a canvas, because a computed colour can come back in any
+ * colour space (`lab()`, `oklch()`).
+ */
 function readToken(name: string): Rgb {
-  const [r, g, b] = readCssColour(name);
+  const value = getComputedStyle(document.documentElement).getPropertyValue(
+    name,
+  );
+  const context = document.createElement('canvas').getContext('2d');
+  if (context === null || value === '') {
+    return [0, 0, 0];
+  }
+  context.fillStyle = value;
+  context.fillRect(0, 0, 1, 1);
+  const [red = 0, green = 0, blue = 0] = context.getImageData(0, 0, 1, 1).data;
 
-  return [r * 255, g * 255, b * 255];
+  return [red, green, blue];
 }
 
 function lerp(a: number, b: number, t: number): number {

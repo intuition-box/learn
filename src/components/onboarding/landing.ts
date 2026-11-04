@@ -8,12 +8,16 @@
  *
  * It is kept in this browser's localStorage, and read by a small script that
  * runs before the film's page paints (`landingGateScript`), so a returning
- * visitor never sees it flash by on the way.
+ * visitor never sees it flash by on the way. The same script marks the
+ * film's entrance to play, before the page paints too.
  */
 
-import { ROUTES } from './stations';
+import { ROUTES } from '@/lib/site';
 
 export const LANDING_KEY = 'intuition:landing';
+
+/** The address's parameter that names the film's beat to open on. */
+export const BEAT_PARAM = 'step';
 
 /** Where a returning visitor lands, by what is stored. */
 const LANDING_ROUTES = { docs: ROUTES.docs } as const;
@@ -32,24 +36,39 @@ export function rememberLanding(landing: Landing): void {
 }
 
 /**
- * The script that sends a returning visitor past the film. Served as
+ * The script that runs before the film's page paints. Served as
  * `/landing.js` and loaded, blocking, in the head of every page; it acts
- * only on the film's page, and never to send it to itself.
+ * only on the film's page.
  *
- * It acts only when the site is opened: a link, a bookmark, a typed address.
- * Not on a reload, back or forward, and not on a link from within the site,
- * so "Try the onboarding" in the docs, or the logo, still shows the film.
- * Anything that fails, storage among it, leaves the film.
+ * First it sends a returning visitor past the film, never to the film
+ * itself, and only when the site is opened: a link, a bookmark, a typed
+ * address. Not on a reload, back or forward, and not on a link from within
+ * the site, so "Try the onboarding" in the docs, or the logo, still shows
+ * the film. Anything that fails, storage among it, leaves the film.
+ *
+ * Staying, it marks <html> `data-entrance="welcome"` for the entrance to
+ * play (`entrance.tsx`), unless the address opens on a beat of the film,
+ * the reader asked for reduced motion, or the browser has no WebGL 2 to
+ * draw the stars with. Then the film shows straight away.
  */
 export function landingGateScript(): string {
   return `(function () {
+  if (location.pathname !== ${JSON.stringify(ROUTES.play)}) return;
   try {
-    if (location.pathname !== ${JSON.stringify(ROUTES.play)}) return;
     var entry = performance.getEntriesByType('navigation')[0];
-    if (entry !== undefined && entry.type !== 'navigate') return;
-    if (document.referrer !== '' && new URL(document.referrer).origin === location.origin) return;
-    var route = ${JSON.stringify(LANDING_ROUTES)}[localStorage.getItem(${JSON.stringify(LANDING_KEY)})];
-    if (typeof route === 'string' && route !== location.pathname) location.replace(route);
+    var isOpened = (entry === undefined || entry.type === 'navigate')
+      && (document.referrer === '' || new URL(document.referrer).origin !== location.origin);
+    var route = isOpened ? ${JSON.stringify(LANDING_ROUTES)}[localStorage.getItem(${JSON.stringify(LANDING_KEY)})] : undefined;
+    if (typeof route === 'string' && route !== location.pathname) {
+      location.replace(route);
+      return;
+    }
+  } catch (error) {}
+  try {
+    if (new URLSearchParams(location.search).has(${JSON.stringify(BEAT_PARAM)})) return;
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (typeof WebGL2RenderingContext === 'undefined') return;
+    document.documentElement.dataset.entrance = 'welcome';
   } catch (error) {}
 })();
 `;

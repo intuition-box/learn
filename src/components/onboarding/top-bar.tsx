@@ -8,13 +8,13 @@ import {
   ROLES,
   shapeSize,
 } from '@/components/playground/story-shapes';
+import { ROUTES } from '@/lib/site';
 
 import { rememberLanding } from './landing';
-import { ROUTES } from './stations';
 
 /*
  * Each link has a patch of the page's colour behind it, a little see-through
- * and blurred, because the field's atoms pass under the bar. The negative
+ * and blurred, because the stars pass under the bar. The negative
  * margin keeps the words on the bar's edge, where they were before the patch.
  */
 const LINK_CLASS =
@@ -77,13 +77,14 @@ function Logo(): ReactNode {
 }
 
 /**
- * The bar at the top of the film's page. It stays in place
- * during a trip, and its links are plain: skipping to the documentation is
- * not a trip. Skipping is remembered: the site opens on the docs next time.
+ * The bar at the top of the film's page. While the entrance's stars come
+ * in, it waits above; once they have formed the logo, it fades in and
+ * slides down. Skipping to the documentation is remembered: the site opens
+ * on the docs next time.
  */
 export function TopBar(): ReactNode {
   return (
-    <header className="flex items-center justify-between px-6 py-5">
+    <header className="flex items-center justify-between px-6 py-5 in-data-[entrance=welcome]:invisible in-data-[entrance=welcome]:-translate-y-4 in-data-[entrance=welcome]:opacity-0 motion-safe:transition-[opacity,translate,visibility] motion-safe:duration-700 motion-safe:ease-out">
       <Link
         href={ROUTES.play}
         className={`flex items-center gap-2 font-medium ${LINK_CLASS}`}

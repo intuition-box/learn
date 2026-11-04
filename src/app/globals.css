@@ -30,48 +30,14 @@
   --font-mono: var(--wave-docs-font-mono);
 
   /*
-   * The onboarding's motion. Every one is applied behind `motion-safe:`, so
-   * none runs for a reader who asked for reduced motion.
-   *
-   * A page arrives from a distance and leaves past the viewer, which is the
-   * same direction the field behind it flies: forward. The durations of the
-   * first two are relied on by journey-machine.ts.
-   *
-   * None of the arrivals has a last keyframe, so each ends on the element's
-   * own style and leaves nothing behind.
-   *
-   * Only opacity and scale are animated. They are composited without
-   * repainting. A blur here, repainted on every frame over a whole page, cut
-   * a trip to 25 frames a second on a machine that holds 120.
+   * The film's motion. Every one is applied behind `motion-safe:`, so none
+   * runs for a reader who asked for reduced motion. None has a last
+   * keyframe, so each ends on the element's own style.
    */
-  --animate-stage-arrive: stage-arrive 700ms cubic-bezier(0.16, 1, 0.3, 1) both;
-  --animate-stage-leave: stage-leave 500ms cubic-bezier(0.7, 0, 0.84, 0) both;
-  /* The documentation, at the end of the trip in. Opacity only. */
-  --animate-docs-arrive: docs-arrive 600ms ease-out both;
   /* A caption of the playground's story, as its beat starts. */
   --animate-caption-arrive: caption-arrive 500ms ease-out both;
   /* The playground's way on, under its card, as the film ends. */
   --animate-way-on-arrive: way-on-arrive 600ms ease-out both;
-
-  @keyframes stage-arrive {
-    from {
-      opacity: 0;
-      scale: 0.9;
-    }
-  }
-
-  @keyframes stage-leave {
-    to {
-      opacity: 0;
-      scale: 1.3;
-    }
-  }
-
-  @keyframes docs-arrive {
-    from {
-      opacity: 0;
-    }
-  }
 
   @keyframes caption-arrive {
     from {
@@ -125,10 +91,10 @@
 }
 
 /*
- * The docs home's header: the onboarding's universe as the trip into the
- * docs ends, every claim drawn (`/docs/hero-atoms.svg`, drawn from the
- * field itself), in place of the stylesheet's grid. Its ellipse behind the
- * words, its fade and its vignette stay as they are.
+ * The docs home's header: a field of atoms in their roles' shapes and
+ * colours, every claim drawn (`public/docs/hero-atoms.svg`), in place of the
+ * stylesheet's grid. Its ellipse behind the words, its fade and its
+ * vignette stay as they are.
  *
  * Unlayered, so it outranks the stylesheet's own rule.
  */

@@ -22,6 +22,15 @@ export const ROLES = [
   'subjectAndObject',
 ] as const satisfies readonly Role[];
 
+/** One colour per role, as sRGB channels from 0 to 255. */
+export const ROLE_COLOURS = {
+  identity: [122, 134, 255],
+  predicate: [47, 224, 139],
+  object: [255, 79, 94],
+  /** The palette's pink: the identity's blue and the object's red, blended. */
+  subjectAndObject: [255, 95, 210],
+} as const;
+
 /**
  * How far a shape's rounding reaches out from its outline, as a share of
  * its size: it rounds the corners.

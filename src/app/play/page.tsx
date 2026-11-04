@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 
 import { Moved } from '@/components/onboarding/moved';
-import { ROUTES } from '@/components/onboarding/stations';
+import { ROUTES } from '@/lib/site';
 
 export const metadata: Metadata = {
   title: 'Moved',

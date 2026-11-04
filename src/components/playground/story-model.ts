@@ -11,7 +11,7 @@
  * and the picture cannot drift away from the caption.
  */
 
-import type { ROLE_COLOURS } from '@/components/onboarding/field-scene';
+import type { ROLE_COLOURS } from './story-shapes';
 import {
   arcPoint,
   axisAngle,
