@@ -94,10 +94,10 @@ export const ATOMS = {
   jobs: { label: 'jobs' },
   threatens: { label: 'threatens' },
   peace: { label: 'peace' },
-  // The way on: the viewer, and the triple they make.
-  you: { label: 'You' },
+  // The way on: the film's last triple, a call to the viewer.
+  civilization: { label: 'civilization shall' },
   startBuilding: { label: 'start building' },
-  yourGraph: { label: 'your graph' },
+  futureOfInformation: { label: 'the future of information' },
 } as const satisfies Record<string, { label: string }>;
 
 export type AtomId = keyof typeof ATOMS;
@@ -192,10 +192,10 @@ export const TRIPLES = {
     object: 'peace',
   },
   // The way on, the film's last triple.
-  youStartBuilding: {
-    subject: 'you',
+  civilizationStartBuilding: {
+    subject: 'civilization',
     predicate: 'startBuilding',
-    object: 'yourGraph',
+    object: 'futureOfInformation',
   },
 } as const satisfies Record<string, TripleAtoms>;
 
@@ -577,9 +577,9 @@ const OTHER_SIDE_VIEW: Camera = {
 };
 
 /**
- * The film's way on: the predicate of its last triple, You, start building,
- * your graph. The page shows its name as a link, where the cloud would draw
- * it.
+ * The film's way on: the predicate of its last triple, civilization
+ * shall, start building, the future of information. The page shows its
+ * name as a link, where the cloud would draw it.
  */
 export const THE_WAY_ON: AtomId = 'startBuilding';
 
@@ -591,19 +591,41 @@ const STORY_ATOM_IDS = Object.keys(ONE_GRAPH.atoms) as AtomId[];
 
 /**
  * The way on, the film's last triple, in the middle of the cloud's other
- * side: You, start building, your graph. Its atoms stand a little further
- * apart than a triple's on the cloud, in spacings, for the names to read
- * beside the way on's, a button, larger than a name.
+ * side: civilization shall, start building, the future of information.
+ * Its atoms stand a little further apart than a triple's on the cloud, in
+ * spacings, for the names to read beside the way on's, a button, larger
+ * than a name.
  */
-const YOUR_SPACING = 1.15;
+const LAST_SPACING = 1.15;
 
 /** How far the way on stands from each of its neighbours, round the cloud, in radians. */
-export const WAY_APART = YOUR_SPACING * SPACING;
-const YOUR_TRIPLE = {
-  you: onEquator(OTHER_SIDE - YOUR_SPACING),
+export const WAY_APART = LAST_SPACING * SPACING;
+const LAST_TRIPLE = {
+  civilization: onEquator(OTHER_SIDE - LAST_SPACING),
   startBuilding: onEquator(OTHER_SIDE),
-  yourGraph: onEquator(OTHER_SIDE + YOUR_SPACING),
+  futureOfInformation: onEquator(OTHER_SIDE + LAST_SPACING),
 } as const satisfies Partial<Record<AtomId, Vec3>>;
+
+/**
+ * The last beat's moments, in milliseconds: each atom of its claim as it
+ * arrives, the line between them as it grows, and the fade, as its subject
+ * and object quieten and the way on grows. Whole from its object's arrival,
+ * the claim holds 5.28 seconds before the fade starts.
+ */
+const LAST_BEAT = {
+  subject: [0, 1800],
+  predicate: [1800, 2880],
+  object: [2340, 3360],
+  line: [2880, 4680],
+  fade: [8640, 9960],
+} as const satisfies Record<string, During>;
+/** The last beat's motion, in milliseconds: until the fade ends. */
+const LAST_BEAT_MS = LAST_BEAT.fade[1];
+/** One of the last beat's moments, as a share of its motion. */
+const ofLastBeat = ([start, end]: During): During => [
+  start / LAST_BEAT_MS,
+  end / LAST_BEAT_MS,
+];
 
 /**
  * The wider graph round the story's, as the film ends: atoms no triple
@@ -644,7 +666,7 @@ function crowdOf(count: number, seed: number): CrowdAtom[] {
   const taken: Vec3[] = [
     ...Object.values(ONE_GRAPH.atoms).map((atom) => atom.at),
     ...Array.from({ length: 21 }, (_, index) =>
-      onEquator(OTHER_SIDE - YOUR_SPACING + (2 * YOUR_SPACING * index) / 20),
+      onEquator(OTHER_SIDE - LAST_SPACING + (2 * LAST_SPACING * index) / 20),
     ),
   ];
   const roles: readonly Role[] = [
@@ -1420,20 +1442,20 @@ const BEAT_SPECS: readonly BeatSpec[] = [
     caption: [
       'Everything starts with an atom, and here we are, at the atom again.\nAtoms are the primitives of our universe, shaped by the reality each of us lives in: together, we choose how to compose them.',
     ],
-    alt: 'The lines that brought the data go back one by one, the card closing row by row, and the page fades. The graph comes back to the middle, Elon Musk into it, and turns to its other side as every atom of the story steps back and more atoms join them, in none of their triples: the wider graph. At its front, a new atom: You.',
+    alt: 'The lines that brought the data go back one by one, the card closing row by row, and the page fades. The graph comes back to the middle, Elon Musk into it, and turns to its other side as every atom of the story steps back and more atoms join them, in none of their triples: the wider graph. At its front, a new atom: civilization shall.',
     // The lines go back one by one, the last that came first, each row of
     // the card closing as its line leaves it; the page and the card fade
     // where they stand. Then the graph comes home to the middle, Elon Musk
     // into it, its triples drawing back, and turns to its other side as
     // the story's atoms step back and the wider graph's join them. Last,
-    // You arrives at its front.
+    // civilization shall arrives at its front, the subject alone.
     motionMs: 8000,
     stage: {
       ...ONE_GRAPH,
       atoms: {
         ...ONE_GRAPH.atoms,
-        you: {
-          at: YOUR_TRIPLE.startBuilding,
+        civilization: {
+          at: LAST_TRIPLE.startBuilding,
           role: 'identity',
           during: [0.75, 1],
         },
@@ -1454,36 +1476,48 @@ const BEAT_SPECS: readonly BeatSpec[] = [
     chapter: 'enrichment',
     // No caption: the picture asks the question.
     caption: [],
-    alt: 'The film’s last triple, at the front of the graph, among atoms no triple joins yet: You, start building, your graph. You and your graph quieten, and start building, the predicate, is the way on: a link to start building.',
-    // You makes room as start building and your graph arrive, and the line
-    // between them grows, as the film's first triple did. Then You and your
-    // graph quieten, for the predicate, the way on, to stand out.
-    motionMs: 6000,
+    alt: 'The film’s last triple, at the front of the graph, among atoms no triple joins yet: civilization shall, start building, the future of information. Its subject and object quieten, and start building, the predicate, is the way on: a link to start building.',
+    // Civilization shall makes room as start building and the future of
+    // information arrive, and the line between them grows, as the film's
+    // first triple did. The claim holds, whole; then the subject and object
+    // quieten, for the predicate, the way on, to stand out.
+    motionMs: LAST_BEAT_MS,
     stage: {
       ...ONE_GRAPH,
       atoms: {
         ...ONE_GRAPH.atoms,
-        // You makes room first, so the names never meet on the way.
-        you: { at: YOUR_TRIPLE.you, role: 'identity', during: [0, 0.3] },
-        startBuilding: {
-          at: YOUR_TRIPLE.startBuilding,
-          role: 'predicate',
-          during: [0.3, 0.48],
+        // The subject makes room first, so the names never meet on the way.
+        civilization: {
+          at: LAST_TRIPLE.civilization,
+          role: 'identity',
+          during: ofLastBeat(LAST_BEAT.subject),
         },
-        yourGraph: {
-          at: YOUR_TRIPLE.yourGraph,
+        startBuilding: {
+          at: LAST_TRIPLE.startBuilding,
+          role: 'predicate',
+          during: ofLastBeat(LAST_BEAT.predicate),
+        },
+        futureOfInformation: {
+          at: LAST_TRIPLE.futureOfInformation,
           role: 'object',
-          during: [0.39, 0.56],
+          during: ofLastBeat(LAST_BEAT.object),
         },
       },
-      triples: { youStartBuilding: { during: [0.48, 0.78] } },
+      triples: {
+        civilizationStartBuilding: { during: ofLastBeat(LAST_BEAT.line) },
+      },
       setBack: STORY_ATOM_IDS,
-      // Slowly, once the line is drawn: the way on grows as they quieten.
-      quiet: { atoms: ['you', 'yourGraph'], during: [0.78, 1] },
+      // Slowly, the claim held whole a while: the way on grows as they
+      // quieten.
+      quiet: {
+        atoms: ['civilization', 'futureOfInformation'],
+        during: ofLastBeat(LAST_BEAT.fade),
+      },
       camera: OTHER_SIDE_VIEW,
       crowd: WIDER_GRAPH,
-      // Without a caption, the graph grows into the caption's room.
-      enrichment: { ...BACK_HOME, room: [0, 0.3] },
+      // Without a caption, the graph grows into the caption's room, as the
+      // subject makes room.
+      enrichment: { ...BACK_HOME, room: ofLastBeat(LAST_BEAT.subject) },
     },
   },
 ];

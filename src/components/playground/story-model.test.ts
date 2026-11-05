@@ -714,7 +714,7 @@ describe('enrichment', () => {
     );
   });
 
-  it('lets the card and the page go, brings the graph home, sets the story back among the wider graph, and brings You to its front', () => {
+  it('lets the card and the page go, brings the graph home, sets the story back among the wider graph, and brings the last triple’s subject to its front', () => {
     expect(at('atom-again', 0.45).enrichment?.close).toBe(1);
     expect(at('atom-again', 0.4).enrichment?.home).toBe(0);
     expect(at('atom-again', 0.8).enrichment?.home).toBe(1);
@@ -726,7 +726,7 @@ describe('enrichment', () => {
     const end = settled('atom-again');
     expect(
       end.atoms
-        .filter(({ id }) => id !== 'you')
+        .filter(({ id }) => id !== 'civilization')
         .every(
           (drawn) => drawn.presence === 1 && end.setBack.get(drawn.id) === 1,
         ),
@@ -736,16 +736,17 @@ describe('enrichment', () => {
     expect(at('atom-again', 0.75).setBack.get('elonMusk')).toBe(1);
     expect(at('atom-again', 0.75).setBack.get('tweet')).toBe(1);
     expect(at('atom-again', 0.75).enrichment?.home).toBeLessThan(1);
-    // The wider graph comes, and You arrives last, at the front.
+    // The wider graph comes, and the last triple's subject arrives last, at
+    // the front.
     expect(at('atom-again', 0.55).crowd).toBe(0);
     expect(end.crowd).toBe(1);
-    expect(at('atom-again', 0.75).atoms.some(({ id }) => id === 'you')).toBe(
-      true,
-    );
-    expect(atom(at('atom-again', 0.75), 'you').presence).toBe(0);
-    expect(atom(end, 'you').presence).toBe(1);
-    expect(end.setBack.get('you')).toBeUndefined();
-    const [x, y, z] = atom(end, 'you').at;
+    expect(
+      at('atom-again', 0.75).atoms.some(({ id }) => id === 'civilization'),
+    ).toBe(true);
+    expect(atom(at('atom-again', 0.75), 'civilization').presence).toBe(0);
+    expect(atom(end, 'civilization').presence).toBe(1);
+    expect(end.setBack.get('civilization')).toBeUndefined();
+    const [x, y, z] = atom(end, 'civilization').at;
     const [fx, fy, fz] = end.camera.facing;
     expect(x * fx + y * fy + z * fz).toBeCloseTo(1);
     expect(captionText(beat('atom-again').caption)).toMatch(
@@ -777,29 +778,37 @@ describe('enrichment', () => {
     expect(Math.abs(travelled)).toBeCloseTo(Math.PI, 1);
   });
 
-  it('ends on the way on, without a caption: You, start building, your graph, the predicate standing out', () => {
+  it('ends on the way on, without a caption: civilization shall, start building, the future of information, the predicate standing out', () => {
     const turn = beat('your-turn');
     const end = settled('your-turn');
 
     expect(turn.index).toBe(BEATS.length - 1);
     expect(turn.caption).toEqual([]);
-    expect(TRIPLES.youStartBuilding.predicate).toBe(THE_WAY_ON);
+    expect(TRIPLES.civilizationStartBuilding.predicate).toBe(THE_WAY_ON);
     expect(
-      end.triples.find(({ id }) => id === 'youStartBuilding')?.progress,
+      end.triples.find(({ id }) => id === 'civilizationStartBuilding')
+        ?.progress,
+    ).toBe(1);
+    const shareOf = (ms: number) => ms / turn.motionMs;
+    const line = (ms: number) =>
+      at('your-turn', shareOf(ms)).triples.find(
+        ({ id }) => id === 'civilizationStartBuilding',
+      )?.progress;
+    expect(line(2800)).toBe(0);
+    expect(line(4700)).toBe(1);
+    // Whole once its object has arrived, the claim holds 5.28 seconds; then
+    // the subject and object quieten, and the way on does not.
+    expect(
+      atom(at('your-turn', shareOf(3360)), 'futureOfInformation').presence,
     ).toBe(1);
     expect(
-      at('your-turn', 0.45).triples.find(({ id }) => id === 'youStartBuilding')
-        ?.progress,
+      at('your-turn', shareOf(3360 + 5280)).quiet.get('civilization'),
     ).toBe(0);
-    // You and your graph quieten once the triple has formed; the way on does
-    // not.
-    expect(at('your-turn', 0.78).quiet.get('you')).toBe(0);
     expect(
-      at('your-turn', 0.78).triples.find(({ id }) => id === 'youStartBuilding')
-        ?.progress,
-    ).toBe(1);
-    expect(end.quiet.get('you')).toBe(1);
-    expect(end.quiet.get('yourGraph')).toBe(1);
+      at('your-turn', shareOf(3360 + 5280 + 100)).quiet.get('civilization'),
+    ).toBeGreaterThan(0);
+    expect(end.quiet.get('civilization')).toBe(1);
+    expect(end.quiet.get('futureOfInformation')).toBe(1);
     expect(end.quiet.has(THE_WAY_ON)).toBe(false);
     expect(end.crowd).toBe(1);
     expect(describeScene(end)).toContain('start building');
