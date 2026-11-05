@@ -6,8 +6,8 @@ import { DepositView } from './deposit-view';
 import { FeesView } from './fees-view';
 import { depositFlow } from './money-flow-model';
 
-/** The deposit shown: the smallest that splits into whole numbers. */
-const DEPOSIT = 2000;
+/** The deposit shown: about 1 TRUST for each term, and rounded, every figure still adds up. */
+const DEPOSIT = 350;
 
 const VIEWS = [
   { id: 'deposit', label: 'Deposit split' },
@@ -50,7 +50,7 @@ export function MoneyFlow(): ReactNode {
       <figcaption className="mt-4 text-center text-sm text-fg-muted">
         A deposit on an existing triple, on the side for it, when its vault and
         those of its three terms each hold at least 1 share. In TRUST, at
-        mainnet's current rates.
+        mainnet's current rates, rounded to whole TRUST.
       </figcaption>
     </figure>
   );

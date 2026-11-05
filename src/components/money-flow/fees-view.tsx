@@ -6,28 +6,28 @@ import {
   Amount,
   CENTRE,
   Drawing,
-  drop,
+  route,
   Flow,
   Gain,
   INNER_X,
-  innerVaultTop,
+  innerVaultPort,
   NestedTriple,
   number,
   OUTER_VAULT_X,
-  outerVaultTop,
+  outerVaultPort,
   SPACEX_X,
-  termVaultTop,
+  termVaultBase,
   WORTH_X,
 } from './flow-parts';
 import { feesByKind } from './money-flow-model';
 
-const HEIGHT = 544;
-const FEES = { y: 12, height: 68 };
-const SPLIT = { y: 138, height: 76 };
-const SPLIT_BAR = 110;
-const FRACTION_BAR = 238;
-const TRIPLE = 288;
-const GAIN_Y = FRACTION_BAR + 20;
+const HEIGHT = 566;
+const CLAIM = 12;
+const SPLIT = { y: 352, height: 76 };
+const FEES = { y: 486, height: 68 };
+const FRACTION_BAR = 326;
+const SPLIT_BAR = 457;
+const GAIN_Y = 298;
 const PROTOCOL_X = 960;
 
 const CELL = 'py-2 text-right tabular-nums';
@@ -75,14 +75,12 @@ function FeeSplit({
 }
 
 /**
- * Where the fees go: to the protocol, to the triple's vault, and to its three
- * terms, where they stop. Under it, the same by kind.
+ * Where the fees go, rising from what is taken: to the protocol, to the
+ * triple's vault, and to its three terms, where they stop. Under it, the same by kind.
  */
 export function FeesView({ flow }: { flow: DepositFlow }): ReactNode {
-  const feesEnd = FEES.y + FEES.height;
-  const splitEnd = SPLIT.y + SPLIT.height;
   const toTerm = (x: number, y: number): string =>
-    drop(CENTRE, splitEnd, FRACTION_BAR, x, y);
+    route(CENTRE, SPLIT.y, FRACTION_BAR, x, y);
 
   return (
     <div className="flex flex-col gap-4">
@@ -91,20 +89,36 @@ export function FeesView({ flow }: { flow: DepositFlow }): ReactNode {
         label={`Of ${number(flow.fees)} TRUST in fees, ${number(flow.protocol)} goes to the protocol, ${number(flow.entry)} stays in the outer triple's vault, and ${number(flow.perTerm)} goes to each of SpaceX, will be worth and the inner triple. The inner triple's atoms get nothing from this deposit.`}
       >
         <NestedTriple
-          top={TRIPLE}
+          top={CLAIM}
           gain={`+${number(flow.entry)}`}
           gainNotes={['Entry fee: lifts what', 'its shares are worth']}
           innerNote="Inner triple keeps its part"
           termsPaid
         />
 
-        <Flow d={drop(CENTRE, feesEnd, SPLIT_BAR, OUTER_VAULT_X, SPLIT.y)} />
-        <Flow d={`M${CENTRE} ${feesEnd}V${SPLIT.y}`} />
-        <Flow d={drop(CENTRE, feesEnd, SPLIT_BAR, PROTOCOL_X, SPLIT.y)} />
-        <Flow d={`M${OUTER_VAULT_X} ${splitEnd}V${outerVaultTop(TRIPLE)}`} />
-        <Flow d={toTerm(SPACEX_X, termVaultTop(TRIPLE))} />
-        <Flow d={toTerm(WORTH_X, termVaultTop(TRIPLE))} />
-        <Flow d={toTerm(INNER_X, innerVaultTop(TRIPLE))} />
+        <Flow
+          d={route(
+            CENTRE,
+            FEES.y,
+            SPLIT_BAR,
+            OUTER_VAULT_X,
+            SPLIT.y + SPLIT.height,
+          )}
+        />
+        <Flow d={`M${CENTRE} ${FEES.y}V${SPLIT.y + SPLIT.height}`} />
+        <Flow
+          d={route(
+            CENTRE,
+            FEES.y,
+            SPLIT_BAR,
+            PROTOCOL_X,
+            SPLIT.y + SPLIT.height,
+          )}
+        />
+        <Flow d={`M${OUTER_VAULT_X} ${SPLIT.y}V${outerVaultPort(CLAIM)}`} />
+        <Flow d={toTerm(SPACEX_X, termVaultBase(CLAIM))} />
+        <Flow d={toTerm(WORTH_X, termVaultBase(CLAIM))} />
+        <Flow d={toTerm(INNER_X, innerVaultPort(CLAIM))} />
 
         <Amount
           x={CENTRE}
@@ -135,9 +149,9 @@ export function FeesView({ flow }: { flow: DepositFlow }): ReactNode {
           label="Protocol fee (1.25%)"
         />
 
-        <Gain x={SPACEX_X} y={GAIN_Y} amount={`+${flow.perTerm}`} />
-        <Gain x={WORTH_X} y={GAIN_Y} amount={`+${flow.perTerm}`} />
-        <Gain x={INNER_X} y={GAIN_Y} amount={`+${flow.perTerm}`} />
+        <Gain x={SPACEX_X} y={GAIN_Y} amount={`+${number(flow.perTerm)}`} />
+        <Gain x={WORTH_X} y={GAIN_Y} amount={`+${number(flow.perTerm)}`} />
+        <Gain x={INNER_X} y={GAIN_Y} amount={`+${number(flow.perTerm)}`} />
       </Drawing>
 
       <FeeSplit
@@ -145,9 +159,10 @@ export function FeesView({ flow }: { flow: DepositFlow }): ReactNode {
         fees={feesByKind(flow, 2)}
       >
         <p className="mt-3 text-sm text-fg-muted">
-          Atoms: 6 each to SpaceX and will be worth. Triples: 10 to the outer
-          triple and 6 to the inner triple. Each part lifts what that vault's
-          shares are worth, and none goes further down.
+          Atoms: {number(flow.perTerm)} each to SpaceX and will be worth.
+          Triples: {number(flow.entry)} to the outer triple and{' '}
+          {number(flow.perTerm)} to the inner triple. Each part lifts what that
+          vault's shares are worth, and none goes further down.
         </p>
       </FeeSplit>
     </div>

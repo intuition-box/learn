@@ -18,31 +18,41 @@ const ORDERS_X = 760;
 const MORE_THAN_X = 900;
 const EARTH_X = 1050;
 
-const OUTER = { x: 30, width: 1140, height: 240 };
-const INNER = { x: 670, width: 480, height: 190 };
-const INNER_TOP = 32;
+const OUTER = { x: 30, width: 1140, height: 244 };
+const INNER = { x: 670, width: 480, height: 176 };
+const INNER_TOP = 16;
 export const INNER_X = INNER.x + INNER.width / 2;
 
-/** How far down the triple, from its top, a term's parts sit. */
-const VAULT_Y = 100;
-const SHAPE_Y = 150;
-const NAME_Y = 192;
+/** How far down the claim, from its top, a term's parts sit, its vault under its name. */
+const SHAPE_Y = 78;
+const NAME_Y = 118;
+const VAULT_Y = 158;
 const SHAPE_SIZE = 48;
 
-/** Where the triples' own vaults stand: the outer's beside its figures, the inner's in its box. */
-export const OUTER_VAULT_X = 110;
-const FIGURES_X = 142;
-const OUTER_VAULT_Y = 52;
-const INNER_VAULT_Y = 26;
+/** How far down the triples' own vaults sit: each under its box. */
+const INNER_VAULT_Y = 218;
+const OUTER_VAULT_Y = 280;
 
-/** Where a line lands on the triple, from its top: on the top of a vault. */
-export const TRIPLE_HEIGHT = OUTER.height;
-const onVault = (y: number): number => y - VAULT_SIZE / 2;
-export const outerVaultTop = (top: number): number =>
-  onVault(top + OUTER_VAULT_Y);
-export const innerVaultTop = (top: number): number =>
-  onVault(top + INNER_TOP + INNER_VAULT_Y);
-export const termVaultTop = (top: number): number => onVault(top + VAULT_Y);
+/** The column a line rises in to the outer triple's vault. */
+export const OUTER_VAULT_X = 110;
+const FIGURES_X = 54;
+
+const VAULT_SCALE = VAULT_SIZE / VAULT_ICON.size;
+const FROM_MIDDLE = VAULT_ICON.size / 2;
+const FOR_PORT_X = (VAULT_ICON.ports.for.x - FROM_MIDDLE) * VAULT_SCALE;
+const FOR_PORT_Y = (VAULT_ICON.ports.for.y - FROM_MIDDLE) * VAULT_SCALE;
+const BASE_Y = (VAULT_ICON.base.y - FROM_MIDDLE) * VAULT_SCALE;
+
+/**
+ * Where lines rise to on the claim, from its top, as in the film: on a triple,
+ * money goes to its side for it, so a line meets the corner of its blue face;
+ * on an atom, which has no sides, the bottom corner.
+ */
+export const outerVaultPort = (top: number): number =>
+  top + OUTER_VAULT_Y + FOR_PORT_Y;
+export const innerVaultPort = (top: number): number =>
+  top + INNER_VAULT_Y + FOR_PORT_Y;
+export const termVaultBase = (top: number): number => top + VAULT_Y + BASE_Y;
 
 const innerTop = (top: number): number => top + INNER_TOP;
 
@@ -51,13 +61,15 @@ const CHARACTER_WIDTH = 7.2;
 const NAME_PADDING = 12;
 const NAME_HEIGHT = 26;
 
-export const number = (value: number): string => value.toLocaleString('en-US');
+/** An amount in whole TRUST. */
+export const number = (value: number): string =>
+  value.toLocaleString('en-US', { maximumFractionDigits: 0 });
 
 /**
- * A line from a point down to a bar, along it and down to a target, its
- * corners rounded. A target straight below goes straight there.
+ * A line from a point to a bar, along it and on to a target, its corners
+ * rounded. A target straight ahead goes straight there.
  */
-export function drop(
+export function route(
   fromX: number,
   fromY: number,
   bar: number,
@@ -69,13 +81,14 @@ export function drop(
   }
 
   const side = toX > fromX ? 1 : -1;
+  const way = toY > fromY ? 1 : -1;
 
   return [
     `M${fromX} ${fromY}`,
-    `V${bar - CORNER}`,
+    `V${bar - way * CORNER}`,
     `Q${fromX} ${bar} ${fromX + side * CORNER} ${bar}`,
     `H${toX - side * CORNER}`,
-    `Q${toX} ${bar} ${toX} ${bar + CORNER}`,
+    `Q${toX} ${bar} ${toX} ${bar + way * CORNER}`,
     `V${toY}`,
   ].join('');
 }
@@ -192,12 +205,10 @@ export function Gain({
 
 /** A vault, by the rule every vault is drawn by: the faces it uses solid, the rest grey. */
 function Vault({ x, y, of }: { x: number; y: number; of: VaultOf }): ReactNode {
-  const scale = VAULT_SIZE / VAULT_ICON.size;
+  const half = VAULT_SIZE / 2;
 
   return (
-    <g
-      transform={`translate(${x - VAULT_SIZE / 2} ${y - VAULT_SIZE / 2}) scale(${scale})`}
-    >
+    <g transform={`translate(${x - half} ${y - half}) scale(${VAULT_SCALE})`}>
       {VAULT_ICON.paths.map(({ d, face }) => {
         const { colour, opacity } = vaultFace(of, face);
 
@@ -238,11 +249,7 @@ interface TermProps {
   empty: boolean;
 }
 
-/**
- * A term as the film draws it, its shape and its name in a pill under it,
- * with its vault, where what reaches it lands: over it here, for the money
- * comes down, its line on to the term as in the film.
- */
+/** A term as the film draws it: its shape, its name in a pill, and under them its vault. */
 function Term({ x, top, shape, name, empty }: TermProps): ReactNode {
   const width = name.length * CHARACTER_WIDTH + NAME_PADDING * 2;
   const [red, green, blue] = ROLE_COLOURS[shape];
@@ -253,7 +260,7 @@ function Term({ x, top, shape, name, empty }: TermProps): ReactNode {
     <g>
       <g opacity={empty ? 0.4 : 1}>
         <path
-          d={`M${x} ${vaultY + VAULT_SIZE / 2}V${shapeTop}`}
+          d={`M${x} ${vaultY - VAULT_SIZE / 2}V${top + NAME_Y + NAME_HEIGHT / 2}`}
           strokeWidth={1}
           className="stroke-fg-muted"
         />
@@ -306,7 +313,10 @@ export function NestedTriple({
   innerNote,
   termsPaid,
 }: NestedTripleProps): ReactNode {
-  const innerVaultY = innerTop(top) + INNER_VAULT_Y;
+  const innerBottom = innerTop(top) + INNER.height;
+  const outerBottom = top + OUTER.height;
+  const outerVaultX = OUTER_VAULT_X - FOR_PORT_X;
+  const innerVaultX = INNER_X - FOR_PORT_X;
 
   return (
     <g>
@@ -325,7 +335,12 @@ export function NestedTriple({
         stroke="rgb(255 79 94 / 0.35)"
       />
 
-      <Vault x={OUTER_VAULT_X} y={top + OUTER_VAULT_Y} of="triple" />
+      <path
+        d={`M${outerVaultX} ${top + OUTER_VAULT_Y - VAULT_SIZE / 2}V${outerBottom}`}
+        strokeWidth={1}
+        className="stroke-fg-muted"
+      />
+      <Vault x={outerVaultX} y={top + OUTER_VAULT_Y} of="triple" />
       <text x={FIGURES_X} y={top + 36} fontSize={13} className="fill-fg-muted">
         Outer triple's vault
       </text>
@@ -359,7 +374,12 @@ export function NestedTriple({
         {innerNote}
       </text>
       <g opacity={termsPaid ? 1 : 0.4}>
-        <Vault x={INNER_X} y={innerVaultY} of="triple" />
+        <path
+          d={`M${innerVaultX} ${top + INNER_VAULT_Y - VAULT_SIZE / 2}V${innerBottom}`}
+          strokeWidth={1}
+          className="stroke-fg-muted"
+        />
+        <Vault x={innerVaultX} y={top + INNER_VAULT_Y} of="triple" />
       </g>
 
       <Term

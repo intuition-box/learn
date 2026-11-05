@@ -19,8 +19,13 @@ export const RATES = {
   atomFraction: 90,
 } as const;
 
-/** What a builder's fee proxy adds on top of the deposit. Optional, and the builder's to set. */
-export const BUILDER_RATE = 100;
+/**
+ * What a builder's fee proxy adds on top of a deposit: a percentage of it, in
+ * basis points, and a flat fee in TRUST. Optional, and the builder's to set;
+ * these bring what the user sends to a round 360 on a deposit of 350.
+ */
+export const BUILDER_RATE = 200;
+export const BUILDER_FLAT = 3;
 
 /** The terms of a triple the fraction is shared between. */
 const TERMS = 3;
@@ -44,7 +49,7 @@ export interface DepositFlow {
 
 export function depositFlow(deposit: number): DepositFlow {
   const share = (rate: number): number => (deposit * rate) / WHOLE;
-  const builderFee = share(BUILDER_RATE);
+  const builderFee = share(BUILDER_RATE) + BUILDER_FLAT;
   const protocol = share(RATES.protocol);
   const entry = share(RATES.entry);
   const atomFraction = share(RATES.atomFraction);

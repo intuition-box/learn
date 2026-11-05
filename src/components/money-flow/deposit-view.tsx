@@ -6,27 +6,29 @@ import {
   Amount,
   CENTRE,
   Drawing,
-  drop,
+  route,
   Flow,
   NestedTriple,
   number,
   OUTER_VAULT_X,
-  outerVaultTop,
+  outerVaultPort,
 } from './flow-parts';
+import { BUILDER_FLAT, BUILDER_RATE } from './money-flow-model';
 
-const HEIGHT = 660;
-const TO_VAULT_BAR = 370;
-const SENT = { y: 12, height: 68 };
-const ENTERS = { y: 132, height: 68 };
-const SPLIT = { y: 258, height: 76 };
-const SPLIT_BAR = 230;
-const TRIPLE = 402;
+const HEIGHT = 686;
+const CLAIM = 12;
+const SPLIT = { y: 352, height: 76 };
+const ENTERS = { y: 486, height: 68 };
+const SENT = { y: 606, height: 68 };
+const TO_VAULT_BAR = 326;
+const SPLIT_BAR = 457;
+const SENT_BAR = 580;
 const BUILDER_X = 880;
 const FEES_X = 960;
 
-/** The money itself: what the user sends, and where the position lands. All of it in one vault. */
+/** The money itself, rising from what the user sends to the position. All of it in one vault. */
 export function DepositView({ flow }: { flow: DepositFlow }): ReactNode {
-  const sentEnd = SENT.y + SENT.height;
+  const splitEnd = SPLIT.y + SPLIT.height;
   const entersEnd = ENTERS.y + ENTERS.height;
 
   return (
@@ -35,26 +37,24 @@ export function DepositView({ flow }: { flow: DepositFlow }): ReactNode {
       label={`The user sends ${number(flow.sent)} TRUST: ${number(flow.builderFee)} for the builder, and ${number(flow.deposit)} into MultiVault. ${number(flow.fees)} of it goes to fees, and the ${number(flow.position)} left is the depositor's position, all of it in the outer triple's vault and none in any atom.`}
     >
       <NestedTriple
-        top={TRIPLE}
+        top={CLAIM}
         gain={`+${number(flow.position)}`}
         gainNotes={['The whole position', 'buys shares here']}
         innerNote="Inner triple: 0"
         termsPaid={false}
       />
 
-      <Flow d={`M${CENTRE} ${sentEnd}V${ENTERS.y}`} />
+      <Flow d={`M${CENTRE} ${SENT.y}V${entersEnd}`} />
+      <Flow d={route(CENTRE, SENT.y, SENT_BAR, BUILDER_X, entersEnd)} />
+      <Flow d={route(CENTRE, ENTERS.y, SPLIT_BAR, FEES_X, splitEnd)} />
+      <Flow d={`M${CENTRE} ${ENTERS.y}V${splitEnd}`} strong />
       <Flow
-        d={drop(CENTRE, sentEnd, (sentEnd + ENTERS.y) / 2, BUILDER_X, ENTERS.y)}
-      />
-      <Flow d={drop(CENTRE, entersEnd, SPLIT_BAR, FEES_X, SPLIT.y)} />
-      <Flow d={`M${CENTRE} ${entersEnd}V${SPLIT.y}`} strong />
-      <Flow
-        d={drop(
+        d={route(
           CENTRE,
-          SPLIT.y + SPLIT.height,
+          SPLIT.y,
           TO_VAULT_BAR,
           OUTER_VAULT_X,
-          outerVaultTop(TRIPLE),
+          outerVaultPort(CLAIM),
         )}
         strong
       />
@@ -69,9 +69,9 @@ export function DepositView({ flow }: { flow: DepositFlow }): ReactNode {
       <Amount
         x={BUILDER_X}
         {...ENTERS}
-        width={210}
+        width={240}
         amount={number(flow.builderFee)}
-        label="Builder fee, optional (1%)"
+        label={`Builder fee, optional (${BUILDER_RATE / 100}% + ${BUILDER_FLAT})`}
         look="optional"
       />
       <Amount
