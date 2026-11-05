@@ -59,6 +59,11 @@ export interface Camera {
   readonly whole?: number;
   /** How far up the picture is moved, as a share of the cloud's radius. */
   readonly raise?: number;
+  /**
+   * How far right the picture is moved, as a share of the cloud's radius:
+   * left, where it is less than 0.
+   */
+  readonly shift?: number;
 }
 
 /** The atoms the story uses. */
@@ -250,6 +255,11 @@ export interface PlaneState extends PlaneClaim {
   focus: string | readonly [string, string];
   /** Whether every screen, not only a narrow one, centres the focus. */
   isFocusCentred?: boolean;
+  /**
+   * Whether the claim stands a little lower than the middle: one line,
+   * with the cloud risen above it, and the room under it otherwise empty.
+   */
+  isLowered?: boolean;
 }
 
 interface StageState {
@@ -787,12 +797,18 @@ const AS_MY_FRIENDS_SEE_IT: PlaneList = {
 /**
  * The cloud behind the list: as the chapter leaves it, pushed back and out
  * of focus, the camera facing best, behind the list, and a little below
- * the equator, so the chain on to SpaceX stands to the list's left, level
- * with its middle.
+ * the equator; then moved left and down, so the chain on to SpaceX stands
+ * out from behind the list, to its left and under it.
  */
 const LISTED_CLOSE: StageState = {
   ...LISTED_GRAPH,
-  camera: { facing: lookingDown(5, -0.35), zoom: 0.45, during: [0, 0.7] },
+  camera: {
+    facing: lookingDown(5, -0.35),
+    zoom: 0.45,
+    shift: -0.732,
+    raise: -0.386,
+    during: [0, 0.7],
+  },
   depth: 1,
 };
 
@@ -1016,6 +1032,7 @@ const BEAT_SPECS: readonly BeatSpec[] = [
         focus: 'believes',
         spelled: BELIEVED_CLAIM,
         folded: ['worth'],
+        isLowered: true,
         during: [0.1, 1],
       },
     },
@@ -1033,7 +1050,12 @@ const BEAT_SPECS: readonly BeatSpec[] = [
     motionMs: 3600,
     stage: {
       ...UP_CLOSE,
-      plane: { term: BELIEF, focus: 'more', spelled: BELIEVED_CLAIM },
+      plane: {
+        term: BELIEF,
+        focus: 'more',
+        spelled: BELIEVED_CLAIM,
+        isLowered: true,
+      },
     },
   },
   {
@@ -1047,7 +1069,7 @@ const BEAT_SPECS: readonly BeatSpec[] = [
     motionMs: 4400,
     stage: {
       ...UP_CLOSE,
-      plane: { term: BELIEF, focus: 'worth' },
+      plane: { term: BELIEF, focus: 'worth', isLowered: true },
     },
   },
   {
@@ -1891,6 +1913,7 @@ export function sceneAt(time: number, isStill = false): Scene {
       ),
       whole: lerp(previous.camera.whole ?? 0, target.camera.whole ?? 0, camera),
       raise: lerp(previous.camera.raise ?? 0, target.camera.raise ?? 0, camera),
+      shift: lerp(previous.camera.shift ?? 0, target.camera.shift ?? 0, camera),
       // Zoom moves on a log scale, so a pull back feels even throughout.
       zoom: Math.exp(
         lerp(

@@ -62,6 +62,11 @@ const EYE_DISTANCE = 3.2;
 const ATOM_SHARE = 0.064;
 /** Points along each part of a triple's line, which curves round the cloud. */
 const ARC_STEPS = 16;
+/**
+ * How far a round line's handles reach along each side of the box between
+ * its ends, as a share of it: the cubic closest to a quarter of an ellipse.
+ */
+const ROUND_HANDLE = 0.5523;
 /** How fast the dots flow: `dotsAlong`'s units for each radian of line. */
 const DOT_UNITS_PER_RADIAN = 500;
 /**
@@ -103,6 +108,12 @@ const DEPTH_OF_FIELD = { blurPx: 4, fade: 0.4, risePx: 106 } as const;
  * stays at the least and follows the newest triple.
  */
 const PLANE_ZOOM = { max: 1.4, min: 0.82 } as const;
+
+/**
+ * How much lower than the middle a lowered claim stands (`isLowered`), as
+ * a share of the scene's height.
+ */
+const PLANE_LOWER = 0.1;
 /** The room the plane keeps from the edges, in CSS pixels. */
 const PLANE_MARGIN_PX = 20;
 /** How far in from each edge, in CSS pixels, the scene fades out. */
@@ -416,6 +427,41 @@ function easeInOutCubic(t: number): number {
 /** The angle between two directions, in radians. */
 function angleBetween(a: Vec3, b: Vec3): number {
   return Math.acos(Math.min(Math.max(dot(a, b), -1), 1));
+}
+
+/**
+ * A point `share` of the way round from `from` to `to`: the line leaves
+ * `from` level, toward `to`, and comes into `to` upright, a quarter of an
+ * ellipse between them, or straight where they are level or one above the
+ * other.
+ */
+function roundAbout(
+  from: ScreenPoint,
+  to: ScreenPoint,
+  share: number,
+): ScreenPoint {
+  const across = { x: from.x + (to.x - from.x) * ROUND_HANDLE, y: from.y };
+  const upright = { x: to.x, y: to.y - (to.y - from.y) * ROUND_HANDLE };
+  const rest = 1 - share;
+  const weights = [
+    rest ** 3,
+    3 * rest ** 2 * share,
+    3 * rest * share ** 2,
+    share ** 3,
+  ] as const;
+
+  return {
+    x:
+      weights[0] * from.x +
+      weights[1] * across.x +
+      weights[2] * upright.x +
+      weights[3] * to.x,
+    y:
+      weights[0] * from.y +
+      weights[1] * across.y +
+      weights[2] * upright.y +
+      weights[3] * to.y,
+  };
 }
 
 /** The length of each straight part of a line through `points`. */
@@ -846,6 +892,8 @@ export function StoryScene(props: StorySceneProps): ReactNode {
       // centres it on any screen.
       const centred = (claim: PlaneState | null): number =>
         claim?.isFocusCentred === true ? 1 : 0;
+      const lowered = (claim: PlaneState | null): number =>
+        claim?.isLowered === true ? 1 : 0;
       const turn = Math.max(
         Math.min(Math.max((zoom / wanted - 1) / 0.3, 0), 1),
         lerp(centred(from), centred(to), blended.settle),
@@ -871,8 +919,15 @@ export function StoryScene(props: StorySceneProps): ReactNode {
       const placed = {
         x: width / 2 - focus * zoom,
         // The whole claim in the middle, up and down: one that grows a
-        // branch above it moves down to make room.
-        y: height / 2 - ((blended.top + blended.bottom) / 2) * zoom,
+        // branch above it moves down to make room. One line, under the
+        // cloud risen above it, stands a little lower, where it would
+        // leave the room under it empty.
+        y:
+          height / 2 -
+          ((blended.top + blended.bottom) / 2) * zoom +
+          lerp(lowered(from), lowered(to), blended.settle) *
+            PLANE_LOWER *
+            height,
       };
       state.planeBox = {
         left: placed.x + blended.left * zoom,
@@ -2153,7 +2208,11 @@ export function StoryScene(props: StorySceneProps): ReactNode {
           const scale = EYE_DISTANCE / (EYE_DISTANCE - z);
 
           return {
-            x: centre.x + slide + x * sphereRadius * scale,
+            x:
+              centre.x +
+              slide +
+              (camera.shift ?? 0) * sphereRadius +
+              x * sphereRadius * scale,
             y: centre.y - lift + rise - y * sphereRadius * scale,
             z,
             scale,
@@ -2352,21 +2411,30 @@ export function StoryScene(props: StorySceneProps): ReactNode {
             outPredicate !== undefined &&
             outObject !== undefined;
           // Otherwise, how much of each point an atom at either end pulls with
-          // it.
+          // it; and how far along its half of the line, from it to the
+          // predicate, each point is.
           const pulls = [
             {
               out: outSubject,
               end: projected[0],
               weight: (index: number) =>
                 Math.max(1 - index / ARC_STEPS, 0) ** 2,
+              along: (index: number) => index / ARC_STEPS,
             },
             {
               out: outObject,
               end: projected[last],
               weight: (index: number) =>
                 Math.max(1 - (last - index) / ARC_STEPS, 0) ** 2,
+              along: (index: number) => (last - index) / ARC_STEPS,
             },
           ];
+          // A list's member, its name to its left, sends its line back to
+          // the cloud out to that side, behind its name, and round into the
+          // predicate, as far as it has come out: clear of the list.
+          const middle = projected[ARC_STEPS];
+          const isRound = (out: Lifted | undefined): out is Lifted =>
+            out?.nameSide === 'left' && outPredicate === undefined;
           const points = projected.map((point, index) => {
             if (isWhole) {
               // Along the straight line between its atoms where they are,
@@ -2401,6 +2469,14 @@ export function StoryScene(props: StorySceneProps): ReactNode {
               if (out !== undefined && end !== undefined) {
                 x += (out.x - end.x) * weight(index);
                 y += (out.y - end.y) * weight(index);
+              }
+            }
+            for (const { out, along } of pulls) {
+              const share = along(index);
+              if (isRound(out) && middle !== undefined && share <= 1) {
+                const round = roundAbout(out, middle, share);
+                x = lerp(x, round.x, out.amount);
+                y = lerp(y, round.y, out.amount);
               }
             }
 
