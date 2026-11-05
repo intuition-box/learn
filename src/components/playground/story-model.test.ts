@@ -588,7 +588,7 @@ describe('perspectives', () => {
     expect(at(0.9).setBack.get('ai')).toBe(1);
     for (const id of [
       'aiIsDangerous',
-      'aiDecreasesEconomy',
+      'aiIsOutOfControl',
       'aiRemovesJobs',
       'aiThreatensPeace',
     ]) {
@@ -611,11 +611,15 @@ describe('perspectives', () => {
     expect(
       scene.other?.atoms.map(({ id, at: where }) => ({ id, where })),
     ).toEqual(scene.atoms.map(({ id, at: where }) => ({ id, where })));
-    // The current Earth economy only the object of a triple there: a square.
+    // The current Earth economy, in none of its triples there, the same
+    // atom in the same shape on both, set back on the copy.
     const economy = (atoms: readonly Scene['atoms'][number][] | undefined) =>
       atoms?.find((atom) => atom.id === 'currentEarthEconomy')?.role.to;
     expect(economy(scene.atoms)).toBe('subjectAndObject');
-    expect(economy(scene.other?.atoms)).toBe('object');
+    expect(economy(scene.other?.atoms)).toBe('subjectAndObject');
+    // Is, the predicate of two of its triples, AI is dangerous and out of
+    // control: one atom.
+    expect(scene.other?.setBack.get('is')).toBe(0);
     for (const id of [
       'elonMusk',
       'spacex',
@@ -625,12 +629,9 @@ describe('perspectives', () => {
     ] as const) {
       expect(scene.other?.setBack.get(id)).toBe(1);
     }
-    expect(scene.other?.setBack.get('currentEarthEconomy')).toBe(0);
+    expect(scene.other?.setBack.get('currentEarthEconomy')).toBe(1);
     // Whose perspectives the two are, above them.
-    expect(scene.other?.viewers).toEqual([
-      'Optimistic builders',
-      'My pessimistic friends',
-    ]);
+    expect(scene.other?.viewers).toEqual(['AI Optimists', 'AI Pessimists']);
     expect(scene.other?.setBack.get('ai')).toBe(0);
   });
 });

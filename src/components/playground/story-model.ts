@@ -89,7 +89,7 @@ export const ATOMS = {
   ai: { label: 'AI' },
   is: { label: 'is' },
   dangerous: { label: 'dangerous' },
-  willDecrease: { label: 'will decrease' },
+  outOfControl: { label: 'out of control' },
   willRemove: { label: 'will remove' },
   jobs: { label: 'jobs' },
   threatens: { label: 'threatens' },
@@ -176,10 +176,10 @@ export const TRIPLES = {
     predicate: 'is',
     object: 'dangerous',
   },
-  aiDecreasesEconomy: {
+  aiIsOutOfControl: {
     subject: 'ai',
-    predicate: 'willDecrease',
-    object: 'currentEarthEconomy',
+    predicate: 'is',
+    object: 'outOfControl',
   },
   aiRemovesJobs: {
     subject: 'ai',
@@ -479,6 +479,16 @@ const WHOLE_VIEW: Camera = {
 };
 
 /**
+ * The whole cloud in view beside another perspective: turned toward Elon
+ * Musk and from a little below, so his chain runs across both, and on the
+ * copy, AI stands at the top of its triples, which fall away under it.
+ */
+const PERSPECTIVES_VIEW: Camera = {
+  ...WHOLE_VIEW,
+  facing: lookingDown(0.62, -0.12),
+};
+
+/**
  * The atoms the non-believers' triples use, which the story's have not:
  * spread through the space round the story's own, which stay where they
  * are. They are on the graph, set back, from the moment it is one graph.
@@ -487,7 +497,7 @@ const NON_BELIEVERS_ATOMS: Partial<Record<AtomId, AtomState>> = {
   ai: { at: onSphere(0.85, 0.2), role: 'identity' },
   is: { at: onSphere(1.58, -0.171), role: 'predicate' },
   dangerous: { at: onSphere(2.4, -0.35), role: 'object' },
-  willDecrease: { at: onSphere(1.05, 0.72), role: 'predicate' },
+  outOfControl: { at: onSphere(1.65, -0.55), role: 'object' },
   willRemove: { at: onSphere(0.019, 0.253), role: 'predicate' },
   jobs: { at: onSphere(-0.829, 0.37), role: 'object' },
   threatens: { at: onSphere(0.65, -0.053), role: 'predicate' },
@@ -497,18 +507,18 @@ const NON_BELIEVERS_IDS = Object.keys(NON_BELIEVERS_ATOMS) as AtomId[];
 
 /**
  * Another perspective of the same atoms, the non-believers': it trusts none
- * of the believers' triples, and says AI is dangerous, will decrease the
- * current Earth economy, will remove jobs, and threatens peace.
+ * of the believers' triples, and says AI is dangerous, is out of control,
+ * will remove jobs, and threatens peace.
  */
 const ANOTHER_PERSPECTIVE: OtherState = {
   trusted: [],
   triples: [
     'aiIsDangerous',
-    'aiDecreasesEconomy',
+    'aiIsOutOfControl',
     'aiRemovesJobs',
     'aiThreatensPeace',
   ],
-  viewers: ['Optimistic builders', 'My pessimistic friends'],
+  viewers: ['AI Optimists', 'AI Pessimists'],
 };
 
 /**
@@ -1388,13 +1398,18 @@ const BEAT_SPECS: readonly BeatSpec[] = [
     caption: [
       'The same atoms can be seen another way, and everyone who reads them has a perspective of their own:\nwho they follow, the atoms they stake on, and the triples they create.',
     ],
-    alt: 'Two perspectives of the same atoms, side by side: optimistic builders’, the graph so far; and my pessimistic friends’, which trusts none of their triples, and says AI is dangerous, will decrease the current Earth economy, will remove jobs, and threatens peace.',
+    alt: 'Two perspectives of the same atoms, side by side: AI Optimists’, the graph so far; and AI Pessimists’, which trusts none of their triples, and says AI is dangerous, is out of control, will remove jobs, and threatens peace.',
     // The cloud moves aside as a copy of it splits off to the other side.
     // On the copy alone, the triples it does not trust draw back, the atoms
     // they joined set back with them. Then its own triples grow, between
     // the same atoms, where they stand on both, which come forward with them.
+    // The camera turns as the two part.
     motionMs: 7000,
-    stage: { ...ONE_GRAPH, other: ANOTHER_PERSPECTIVE },
+    stage: {
+      ...ONE_GRAPH,
+      camera: { ...PERSPECTIVES_VIEW, during: [0, 0.3] },
+      other: ANOTHER_PERSPECTIVE,
+    },
   },
   {
     id: 'one-atom',
