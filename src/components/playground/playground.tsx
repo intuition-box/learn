@@ -180,6 +180,40 @@ export function Playground(): ReactNode {
   // that, it is the reader's to play and pause.
   const hasStarted = useRef(false);
   const wasPlayingBeforeScrub = useRef(false);
+  // The room under the scene it may draw into when its beat has no caption:
+  // the caption's and the gaps either side of it, less the card's padding,
+  // so the drawing stops as far above the timeline as the scene starts
+  // under the card's top.
+  const captionRef = useRef<HTMLDivElement>(null);
+  const [captionRoom, setCaptionRoom] = useState(0);
+
+  useEffect(() => {
+    const caption = captionRef.current;
+    if (caption === null) {
+      return;
+    }
+    const measure = (): void => {
+      const card = getComputedStyle(caption.parentElement ?? caption);
+      const px = (value: string): number => {
+        const parsed = Number.parseFloat(value);
+
+        return Number.isNaN(parsed) ? 0 : parsed;
+      };
+      setCaptionRoom(
+        Math.max(
+          caption.offsetHeight + px(card.rowGap) * 2 - px(card.paddingTop),
+          0,
+        ),
+      );
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(caption);
+    measure();
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
 
   const seek = useCallback((next: number) => {
     const clamped = Math.min(Math.max(next, 0), DURATION);
@@ -314,6 +348,20 @@ export function Playground(): ReactNode {
   }, [beatId]);
   const chapter = chapterAt(time);
   const isAtEnd = time >= DURATION;
+  // As the film's last triple quietens round its way on, the controls
+  // quieten with the graph, as far and as fast, frame for frame, and come
+  // back in full, eased, when the reader reaches for them (`--reach`): the
+  // pointer moving over them, or the keyboard on them. A pointer only resting there, from pressing Play,
+  // say, or a button focused by a click, does not hold them back; and each
+  // beat starts without the reach.
+  const quiet = Math.max(0, ...scene.quiet.values());
+  const controlsRef = useRef<HTMLDivElement>(null);
+  // The beat the reader reached for the controls in, if they still are.
+  const [reachedIn, setReachedIn] = useState<string | null>(null);
+  const isReaching = reachedIn === beatId;
+  useEffect(() => {
+    controlsRef.current?.style.setProperty('--quiet', String(quiet));
+  }, [quiet]);
 
   return (
     <div className="relative">
@@ -332,6 +380,7 @@ export function Playground(): ReactNode {
             hasStarted.current = true;
             setIsPlaying(false);
           }}
+          roomBelow={captionRoom}
           way={
             // The film's last predicate, start building, is the way on: a
             // link in the shape of its name's badge, laid out full grown and
@@ -356,7 +405,7 @@ export function Playground(): ReactNode {
          * they change. A caption starts on the top line. Being the one shown,
          * it is the one read, links and all.
          */}
-        <div className="grid min-h-[2lh] md:text-lg">
+        <div ref={captionRef} className="grid min-h-[2lh] md:text-lg">
           {BEATS.map((beat) => (
             <p
               key={beat.id}
@@ -379,8 +428,24 @@ export function Playground(): ReactNode {
           </p>
         </div>
 
-        {/* The play button beside the timeline, the track and its chapters' names centred on it together. */}
-        <div className="flex items-center gap-3">
+        {/*
+         * The play button beside the timeline, the track and its chapters'
+         * names centred on it together. As the film ends, at 15%, and whole
+         * again under the pointer or the keyboard.
+         */}
+        <div
+          ref={controlsRef}
+          data-reaching={isReaching}
+          className="flex items-center gap-3 opacity-[calc(1-0.85*var(--quiet,0)*(1-var(--reach)))] transition-[--reach] duration-200 ease-out has-focus-visible:[--reach:1] data-[reaching=true]:[--reach:1]"
+          onPointerMove={() => {
+            if (!isReaching) {
+              setReachedIn(beatId);
+            }
+          }}
+          onPointerLeave={() => {
+            setReachedIn(null);
+          }}
+        >
           <button
             type="button"
             aria-label={isPlaying ? 'Pause' : isAtEnd ? 'Play again' : 'Play'}

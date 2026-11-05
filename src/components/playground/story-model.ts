@@ -278,6 +278,8 @@ interface StageState {
   cloud?: { shown: number; during?: During };
   /** Atoms the cloud shows set back: there, but in none of its triples. */
   setBack?: readonly AtomId[];
+  /** When the atoms it sets back step back, when not over the whole beat. */
+  setBackDuring?: During;
   /**
    * The wider graph round the story's: more atoms, set back, in none of
    * its triples, and when they come (see `CROWD`).
@@ -305,8 +307,9 @@ interface StageState {
  * his triples, flow to the other side, into a card that comes in as his
  * name nears it; the graph shrinks to a sketch of itself; a page about him
  * comes in under it; and the page's data flows into the card too. Then
- * everything goes as it came, reversed; and the camera closes in on him,
- * back where the film began.
+ * everything goes as it came, reversed, and the graph comes home to the
+ * middle, Elon Musk into it. Last, in the beat without a caption, it grows
+ * into the caption's room.
  */
 export const ENRICHMENT_PARTS = [
   'out',
@@ -316,6 +319,7 @@ export const ENRICHMENT_PARTS = [
   'data',
   'close',
   'home',
+  'room',
 ] as const;
 
 export type EnrichmentPart = (typeof ENRICHMENT_PARTS)[number];
@@ -1414,6 +1418,9 @@ const BEAT_SPECS: readonly BeatSpec[] = [
       },
       triples: {},
       setBack: STORY_ATOM_IDS,
+      // All of the story steps back together, Elon Musk with it, by the
+      // time he is back in the graph.
+      setBackDuring: [0.3, 0.75],
       camera: { ...OTHER_SIDE_VIEW, during: [0.4, 0.85], isPanning: true },
       leave: [0.4, 0.7],
       crowd: WIDER_GRAPH,
@@ -1453,7 +1460,8 @@ const BEAT_SPECS: readonly BeatSpec[] = [
       quiet: { atoms: ['you', 'yourGraph'], during: [0.78, 1] },
       camera: OTHER_SIDE_VIEW,
       crowd: WIDER_GRAPH,
-      enrichment: BACK_HOME,
+      // Without a caption, the graph grows into the caption's room.
+      enrichment: { ...BACK_HOME, room: [0, 0.3] },
     },
   },
 ];
@@ -1833,8 +1841,8 @@ export function sceneAt(time: number, isStill = false): Scene {
   }
 
   // Set back as the beat says: one arriving, from the start; one that
-  // already stands, as the beat goes.
-  const shown = along(progress);
+  // already stands, as the beat goes, or when it says.
+  const shown = along(progress, target.setBackDuring);
   const setBack = new Map(
     atoms.flatMap((atom): Array<[AtomId, number]> => {
       const was = previous.setBack?.includes(atom.id) ?? false;
@@ -2003,6 +2011,7 @@ function enrichmentAt(
     data: amount('data'),
     close: amount('close'),
     home: amount('home'),
+    room: amount('room'),
   };
 }
 

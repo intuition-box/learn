@@ -652,6 +652,7 @@ describe('enrichment', () => {
     data: 0,
     close: 0,
     home: 0,
+    room: 0,
   };
 
   it('closes the other perspective back onto the cloud, and nothing more: the rest of the chapter is yet to come', () => {
@@ -730,6 +731,11 @@ describe('enrichment', () => {
           (drawn) => drawn.presence === 1 && end.setBack.get(drawn.id) === 1,
         ),
     ).toBe(true);
+    // The story steps back together, Elon Musk with it, done before he is
+    // back in the graph.
+    expect(at('atom-again', 0.75).setBack.get('elonMusk')).toBe(1);
+    expect(at('atom-again', 0.75).setBack.get('tweet')).toBe(1);
+    expect(at('atom-again', 0.75).enrichment?.home).toBeLessThan(1);
     // The wider graph comes, and You arrives last, at the front.
     expect(at('atom-again', 0.55).crowd).toBe(0);
     expect(end.crowd).toBe(1);

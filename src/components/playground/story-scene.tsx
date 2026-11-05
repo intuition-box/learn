@@ -242,6 +242,11 @@ export interface StorySceneProps {
    * pulse from `data-pulsing`.
    */
   way?: ReactNode;
+  /**
+   * How much room under the scene the film may draw into, in CSS pixels,
+   * when its beat has no caption: the beat grows into it.
+   */
+  roomBelow?: number;
 }
 
 interface ScreenPoint {
@@ -497,6 +502,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
   const planeRef = useRef<HTMLCanvasElement>(null);
   const wayRef = useRef<HTMLDivElement>(null);
   const hazeRef = useRef<HTMLDivElement>(null);
+  const sceneRef = useRef<HTMLDivElement>(null);
   // What the drawing and the listeners read, in a ref, so they see the
   // latest props without being set up again.
   const latest = useRef({
@@ -1982,11 +1988,17 @@ export function StoryScene(props: StorySceneProps): ReactNode {
           : '';
       canvas.style.opacity = String((1 - depth * DEPTH_OF_FIELD.fade) * cloud);
 
+      // Everything is laid out in the scene's own box; the canvas may
+      // reach below it, into the caption's room, where the film may draw.
       const width = canvas.clientWidth;
-      const height = canvas.clientHeight;
+      const drawnHeight = canvas.clientHeight;
+      const height = Math.min(
+        canvas.parentElement?.clientHeight ?? drawnHeight,
+        drawnHeight,
+      );
       const ratio = Math.min(window.devicePixelRatio, 2);
       context.setTransform(ratio, 0, 0, ratio, 0, 0);
-      context.clearRect(0, 0, width, height);
+      context.clearRect(0, 0, width, drawnHeight);
 
       const { camera, atoms, triples, cloudFlow } = state.props.scene;
       const planeView = viewPlane(width, height);
@@ -2088,11 +2100,17 @@ export function StoryScene(props: StorySceneProps): ReactNode {
       // and Elon Musk stood, to its foot, where the caption starts, but for
       // room for an atom on its rim to show whole. Furthest out, an atom
       // stands where the eye's line grazes the sphere, nearer than its
-      // middle, and so larger.
+      // middle, and so larger. Without a caption, it grows into the
+      // caption's room too, as far as the canvas reaches.
       const rimScale = EYE_DISTANCE / (EYE_DISTANCE - 1 / EYE_DISTANCE);
-      const homeReach =
-        (Math.min(width, height) / 2 - RIM_ROOM_PX) /
+      const reachIn = (tall: number): number =>
+        (Math.min(width, tall) / 2 - RIM_ROOM_PX) /
         (1 + (ATOM_SHARE * rimScale) / 2 / reachShare);
+      const roomBelow = state.props.roomBelow ?? 0;
+      const homeTall =
+        height +
+        Math.min(roomBelow * (enrichment?.room ?? 0), drawnHeight - height);
+      const homeReach = reachIn(homeTall);
       const enriched =
         enrichment === null ? null : enrichmentLayout(width, height, badge);
       const parted = centreOf(cells.first);
@@ -2106,7 +2124,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
           ? null
           : {
               x: lerp(away.x, width / 2, enrichment.home),
-              y: lerp(away.y, height / 2, enrichment.home),
+              y: lerp(away.y, homeTall / 2, enrichment.home),
               reach: lerp(away.reach, homeReach, enrichment.home),
             };
       const radius = globe === null ? partedRadius : globe.reach / reachShare;
@@ -2218,9 +2236,10 @@ export function StoryScene(props: StorySceneProps): ReactNode {
         Math.max(0, ...state.props.scene.quiet.values()),
       );
       // Whether its neighbours' names fit under the line beside its own,
-      // grown, where the cloud comes home: if not, theirs sit above them,
-      // throughout, so no name ever changes sides.
-      const homeRadius = homeReach / reachShare;
+      // grown, where the cloud comes home, into all the room it will have:
+      // if not, theirs sit above them, throughout, so no name ever changes
+      // sides.
+      const homeRadius = reachIn(height + roomBelow) / reachShare;
       const apartPx =
         Math.sin(WAY_APART) *
         homeRadius *
@@ -2280,7 +2299,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
         lifted: ReadonlyMap<AtomId, Lifted>,
         opacity: number,
         setBack: ReadonlyMap<AtomId, number>,
-        sketch?: { first: AtomId; detail: number },
+        sketch?: { first?: AtomId; detail: number },
         ending?: Ending,
       ): Line[] => {
         const detail = sketch?.detail ?? 1;
@@ -2542,7 +2561,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
           );
           const under = at.y + shape + gap;
           const top =
-            isRisen || under + tall > height - BADGE_SPACING_PX
+            isRisen || under + tall > drawnHeight - BADGE_SPACING_PX
               ? at.y - shape - gap - tall
               : under;
           const left = x - half;
@@ -2680,11 +2699,12 @@ export function StoryScene(props: StorySceneProps): ReactNode {
         1,
         state.props.scene.setBack,
         // A sketch, without its detail, while it is small; whole again
-        // once it is home.
+        // once it is home. Elon Musk's name first, for it to show as he
+        // leaves the graph; going home, his name is as any other's.
         enrichment === null
           ? undefined
           : {
-              first: 'elonMusk',
+              ...(enrichment.home > 0 ? {} : { first: 'elonMusk' as const }),
               detail: 1 - enrichment.small * (1 - enrichment.home),
             },
         enrichment === null
@@ -2715,7 +2735,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
       }
 
       // All of it in view, nothing runs past an edge to fade.
-      fadeEdges(context, width, height, 1 - whole);
+      fadeEdges(context, width, drawnHeight, 1 - whole);
       // Above each globe, whose perspective it is, closed, coming as the two
       // split: over the fade, as the page's, not the picture's.
       if (other !== null) {
@@ -2763,26 +2783,26 @@ export function StoryScene(props: StorySceneProps): ReactNode {
 
           return source === undefined ? at : project(source.at);
         });
-        // As strong as the cloud has him while he is in it, set back as the
-        // film ends, and whole once out.
+        // As strong as the cloud has him while he is in it, and whole once
+        // out; and set back with the rest of the story as the film ends,
+        // out or in. Going home, his name goes as soon as where he goes in
+        // the graph turns behind it, as any name there does.
         const front = frontness(at.z);
         const setBackHim = state.props.scene.setBack.get('elonMusk') ?? 0;
+        const isNameBehind = (enrichment?.home ?? 0) > 0 && at.z < 0.1;
         drawEnrichment(
           plane,
           enriched,
           {
             at,
             role: musk.role,
-            shape: lerp(
-              (0.2 + 0.8 * front) * lerp(1, SET_BACK.shape, setBackHim),
-              1,
-              out,
-            ),
-            name: lerp(
-              (0.35 + 0.65 * front) * lerp(1, SET_BACK.name, setBackHim),
-              1,
-              out,
-            ),
+            shape:
+              lerp(0.2 + 0.8 * front, 1, out) *
+              lerp(1, SET_BACK.shape, setBackHim),
+            name: isNameBehind
+              ? 0
+              : lerp(0.35 + 0.65 * front, 1, out) *
+                lerp(1, SET_BACK.name, setBackHim),
           },
           badge,
           graphSources,
@@ -3112,6 +3132,12 @@ export function StoryScene(props: StorySceneProps): ReactNode {
     const state = latest.current;
     const previous = state.props;
     state.props = props;
+    // The canvases reach into the room below the scene while the beat
+    // grows into it, and only then: the caption's links stay in reach.
+    sceneRef.current?.style.setProperty(
+      '--below',
+      `${(props.scene.enrichment?.room ?? 0) > 0 ? (props.roomBelow ?? 0) : 0}px`,
+    );
     if (
       (props.isPlaying && !previous.isPlaying) ||
       props.scene.beat.id !== previous.scene.beat.id
@@ -3123,13 +3149,17 @@ export function StoryScene(props: StorySceneProps): ReactNode {
 
   return (
     // Taller than wide on a phone; from tablet width up it fills the card
-    // the film's page gives it.
-    <div className="relative aspect-[4/5] w-full md:aspect-auto md:min-h-0 md:flex-1">
+    // the film's page gives it. Its canvases reach `--below` under it: a
+    // canvas takes its height from its own size, not its top and bottom.
+    <div
+      ref={sceneRef}
+      className="relative aspect-[4/5] w-full [--below:0px] md:aspect-auto md:min-h-0 md:flex-1"
+    >
       <canvas
         ref={canvasRef}
         role="img"
         aria-label={props.label}
-        className="absolute inset-0 size-full cursor-grab touch-none rounded-lg"
+        className="absolute top-0 left-0 h-[calc(100%+var(--below))] w-full cursor-grab touch-none rounded-lg"
       />
       {/*
        * The haze over the cloud behind the way on, as the film ends: the
@@ -3139,13 +3169,13 @@ export function StoryScene(props: StorySceneProps): ReactNode {
       <div
         ref={hazeRef}
         aria-hidden
-        className="pointer-events-none absolute inset-0 rounded-lg bg-bg/40 opacity-0 backdrop-blur-[2px]"
+        className="pointer-events-none absolute top-0 left-0 h-[calc(100%+var(--below))] w-full rounded-lg bg-bg/40 opacity-0 backdrop-blur-[2px]"
       />
       {/* The plane, sharp in front of the cloud: drawn, never touched. */}
       <canvas
         ref={planeRef}
         aria-hidden
-        className="pointer-events-none absolute inset-0 size-full"
+        className="pointer-events-none absolute top-0 left-0 h-[calc(100%+var(--below))] w-full"
       />
       {/* The way on, over its predicate's name, placed as the scene draws. */}
       {props.way !== undefined && (
