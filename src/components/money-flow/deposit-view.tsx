@@ -69,9 +69,9 @@ export function DepositView({ flow }: { flow: DepositFlow }): ReactNode {
       <Amount
         x={BUILDER_X}
         {...ENTERS}
-        width={240}
+        width={270}
         amount={number(flow.builderFee)}
-        label={`Builder fee, optional (${BUILDER_RATE / 100}% + ${BUILDER_FLAT})`}
+        label={`Builder fee, optional (${BUILDER_RATE / 100}% of ${number(flow.sent)} + ${BUILDER_FLAT})`}
         look="optional"
       />
       <Amount

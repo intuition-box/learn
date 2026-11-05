@@ -20,9 +20,10 @@ export const RATES = {
 } as const;
 
 /**
- * What a builder's fee proxy adds on top of a deposit: a percentage of it, in
- * basis points, and a flat fee in TRUST. Optional, and the builder's to set;
- * these bring what the user sends to a round 360 on a deposit of 350.
+ * What a builder's fee proxy takes before `MultiVault`: a percentage of all the
+ * user sends, in basis points, and a flat fee in TRUST. Optional, and the
+ * builder's to set. Intuition's template differs: its percentage is of what it
+ * forwards.
  */
 export const BUILDER_RATE = 200;
 export const BUILDER_FLAT = 3;
@@ -47,9 +48,8 @@ export interface DepositFlow {
   fees: number;
 }
 
-export function depositFlow(deposit: number): DepositFlow {
+export function depositFlow(deposit: number, builderFee = 0): DepositFlow {
   const share = (rate: number): number => (deposit * rate) / WHOLE;
-  const builderFee = share(BUILDER_RATE) + BUILDER_FLAT;
   const protocol = share(RATES.protocol);
   const entry = share(RATES.entry);
   const atomFraction = share(RATES.atomFraction);
@@ -66,6 +66,13 @@ export function depositFlow(deposit: number): DepositFlow {
     perTerm: atomFraction / TERMS,
     fees: protocol + entry + atomFraction,
   };
+}
+
+/** A deposit through a builder's fee proxy, from what the user sends. */
+export function sentFlow(sent: number): DepositFlow {
+  const builderFee = (sent * BUILDER_RATE) / WHOLE + BUILDER_FLAT;
+
+  return depositFlow(sent - builderFee, builderFee);
 }
 
 export interface FeesByKind {

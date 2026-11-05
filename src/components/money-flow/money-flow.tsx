@@ -4,10 +4,10 @@ import { type ReactNode, useState } from 'react';
 
 import { DepositView } from './deposit-view';
 import { FeesView } from './fees-view';
-import { depositFlow } from './money-flow-model';
+import { sentFlow } from './money-flow-model';
 
-/** The deposit shown: about 1 TRUST for each term, and rounded, every figure still adds up. */
-const DEPOSIT = 350;
+/** What the user sends: about 1 TRUST reaches each term, and rounded, every figure still adds up. */
+const SENT = 360;
 
 const VIEWS = [
   { id: 'deposit', label: 'Deposit split' },
@@ -23,7 +23,7 @@ type View = (typeof VIEWS)[number]['id'];
  */
 export function MoneyFlow(): ReactNode {
   const [view, setView] = useState<View>('deposit');
-  const flow = depositFlow(DEPOSIT);
+  const flow = sentFlow(SENT);
 
   return (
     <figure className="w-full max-w-7xl min-w-0">

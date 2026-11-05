@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { depositFlow, feesByKind } from './money-flow-model';
+import { depositFlow, feesByKind, sentFlow } from './money-flow-model';
 
 describe('depositFlow', () => {
   it('splits 2,000 in whole numbers, as the mainnet fork did', () => {
     expect(depositFlow(2000)).toEqual({
-      sent: 2043,
-      builderFee: 43,
+      sent: 2000,
+      builderFee: 0,
       deposit: 2000,
       position: 1947,
       protocol: 25,
@@ -23,14 +23,16 @@ describe('depositFlow', () => {
     expect([position, protocol, entry, perTerm]).toEqual([7788, 100, 40, 24]);
   });
 
-  it('adds up in whole TRUST on 350, with a round total sent', () => {
-    const flow = depositFlow(350);
+  it('takes the builder fee from all that is sent, and adds up in whole TRUST on 360', () => {
+    const flow = sentFlow(360);
     const { sent, builderFee, deposit, position, fees } = flow;
     const { protocol, entry, atomFraction, perTerm } = flow;
 
-    expect([sent, builderFee]).toEqual([360, 10]);
+    expect(sent).toBe(360);
+    expect(builderFee).toBeCloseTo(10.2);
+    expect(Math.round(builderFee) + Math.round(deposit)).toBe(sent);
     expect(Math.round(perTerm)).toBe(1);
-    expect(Math.round(position) + Math.round(fees)).toBe(deposit);
+    expect(Math.round(position) + Math.round(fees)).toBe(Math.round(deposit));
     expect(
       Math.round(protocol) + Math.round(entry) + Math.round(atomFraction),
     ).toBe(Math.round(fees));
