@@ -82,38 +82,73 @@ export interface VaultIcon extends Icon {
    * face's bottom corner, and for it, at the right face's.
    */
   ports: Readonly<Record<VaultFace, IconPoint>>;
+  /**
+   * Its bottom corner, where its two sides meet: where deposits in an
+   * atom come in, which has no sides to take.
+   */
+  base: IconPoint;
 }
 
 /**
- * The rule for a vault's faces, always: its lid is the subject, its left
- * face the stake against and its right face the stake for. Deposited in
- * an atom, a subject, the lid is solid and the other two at 40%; deposited
- * in a triple, all three faces are solid. Every vault is drawn by this, in
- * `VAULT_COLOURS`, `VAULT_SIZE` across.
+ * Which of a vault's faces it uses, by what it holds deposits in: its lid
+ * is the subject, its left face the stake against and its right face the
+ * stake for. An atom, a subject, uses its lid alone; a triple, all three.
  */
 export const VAULT_FACES = {
-  atom: { subject: 1, against: 0.4, for: 0.4 },
-  triple: { subject: 1, against: 1, for: 1 },
-} as const satisfies Record<string, Record<VaultFace, number>>;
+  atom: ['subject'],
+  triple: ['subject', 'against', 'for'],
+} as const satisfies Record<string, readonly VaultFace[]>;
 
 /** What a vault holds deposits in: an atom, or a whole triple. */
 export type VaultOf = keyof typeof VAULT_FACES;
 
+/** A colour in 0 to 255 channels. */
+type Rgb = readonly [number, number, number];
+
 /**
- * Every vault's colours, a face's by what it stands for: the lid pure
- * black; the stake against orange and the stake for blue, as Intuition
- * draws positions, for neither side is right or wrong. The lines to a
- * triple's vault take its sides' colours too. The orange and the blue are
- * each as light and as strong as the film's role colours (about 0.7 to
- * 0.76 lightness and 0.15 to 0.17 chroma in OKLCH), at hues none of them
- * takes: the orange 37 degrees from the object's red, the blue 35 from
- * the subject's.
+ * Each face's colour where it is used: the lid pure black; the stake
+ * against orange and the stake for blue, as Intuition draws positions, for
+ * neither side is right or wrong. The lines to a triple's vault take its
+ * sides' colours too. The orange and the blue are each as light and as
+ * strong as the film's role colours (about 0.7 to 0.76 lightness and 0.15
+ * to 0.17 chroma in OKLCH), at hues none of them takes: the orange 37
+ * degrees from the object's red, the blue 35 from the subject's.
  */
 export const VAULT_COLOURS = {
   subject: [0, 0, 0],
   against: [255, 145, 46],
   for: [40, 170, 245],
-} as const satisfies Record<VaultFace, readonly [number, number, number]>;
+} as const satisfies Record<VaultFace, Rgb>;
+
+/** A face a vault does not use: as if disabled, pure black at 40%. */
+const VAULT_UNUSED = { colour: [0, 0, 0], opacity: 0.4 } as const;
+
+/**
+ * The rule every vault is drawn by, always: a face it uses in its own
+ * colour, solid (`VAULT_COLOURS`); a face it does not, pure black at 40%.
+ * So an atom's vault is a black lid over grey sides, and a triple's a
+ * black lid, an orange side against and a blue side for.
+ */
+export function vaultFace(
+  of: VaultOf,
+  face: VaultFace,
+): { colour: Rgb; opacity: number } {
+  const uses: readonly VaultFace[] = VAULT_FACES[of];
+
+  return uses.includes(face)
+    ? { colour: VAULT_COLOURS[face], opacity: 1 }
+    : VAULT_UNUSED;
+}
+
+/**
+ * A person who deposits, always in the colour of the face of the vault
+ * they stake on: on an atom, its lid's pure black; against a triple,
+ * orange; for it, blue. Their head stays lighter, at the icon's own 30%
+ * (`USER_ICON`).
+ */
+export function depositorColour(face: VaultFace): Rgb {
+  return VAULT_COLOURS[face];
+}
 
 /**
  * Every vault's size, in CSS pixels where it stands full size (on the
@@ -124,24 +159,24 @@ export const VAULT_SIZE = 24;
 /**
  * A vault: a cube seen from above a corner. Every atom has one, and every
  * triple one: what is deposited in a term goes into its vault. Its own
- * opacities are an atom's (see `VAULT_FACES`).
+ * opacities are an atom's (see `vaultFace`), drawn in black.
  */
 export const VAULT_ICON: VaultIcon = {
   size: 24,
   paths: [
     {
       d: 'M 20.765 7.982 L 20.787 8.172 L 20.794 8.366 L 20.794 15.634 C 20.794 16.464 20.382 17.239 19.695 17.704 L 19.545 17.799 L 13.25 21.433 L 13.126 21.5 L 13 21.56 L 13 12.57 L 20.765 7.982 Z',
-      opacity: VAULT_FACES.atom.for,
+      opacity: VAULT_UNUSED.opacity,
       face: 'for',
     },
     {
       d: 'M 13.25 2.567 L 19.544 6.201 C 19.594 6.231 19.644 6.261 19.692 6.293 L 12 10.838000000000001 L 4.308 6.293 C 4.356 6.261 4.406 6.23 4.456 6.201 L 10.75 2.567 C 11.524000000000001 2.12 12.476 2.12 13.25 2.567 Z',
-      opacity: VAULT_FACES.atom.subject,
+      opacity: 1,
       face: 'subject',
     },
     {
       d: 'M 3.235 7.982 L 11 12.571 L 11 21.559 C 10.914 21.522 10.831 21.48 10.75 21.433 L 4.456 17.799 C 3.683 17.352 3.206 16.527 3.206 15.634 L 3.206 8.366 C 3.206 8.236 3.216 8.108 3.236 7.982 L 3.235 7.982 Z',
-      opacity: VAULT_FACES.atom.against,
+      opacity: VAULT_UNUSED.opacity,
       face: 'against',
     },
   ],
@@ -155,6 +190,7 @@ export const VAULT_ICON: VaultIcon = {
     against: { x: 3.541, y: 16.884 },
     for: { x: 20.502, y: 16.806 },
   },
+  base: { x: 12, y: 21.56 },
 };
 
 /** An icon with an open ring in it, where whoever draws it sets something. */

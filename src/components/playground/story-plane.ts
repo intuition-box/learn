@@ -83,8 +83,8 @@ export interface PlaneVaults {
   for: readonly number[];
   /** Whether each person's line shows their position. */
   isWeighed?: boolean;
-  /** Whether each side's lines show which vault they lead to. */
-  isSided?: boolean;
+  /** Whether each side shows all the positions on it, where its lines run together. */
+  isTotalled?: boolean;
 }
 
 /** Whose perspective a claim is seen through: the people to choose from, and the one chosen. */
@@ -873,8 +873,8 @@ export interface BlendedWeight extends PlaneWeight {
 export interface BlendedVaultLine extends VaultLine {
   /** How far it is drawn, from its start. */
   presence: number;
-  /** How far it has taken its vault's colour, from grey, and its total shows. */
-  sided: number;
+  /** How far its side's total shows, where it has one. */
+  totalled: number;
   /** How far the position on it shows. */
   weighed: number;
 }
@@ -974,8 +974,8 @@ interface Stages {
   roles: Window;
   /** The people's positions show on their lines. */
   weights: Window;
-  /** The lines to each vault take its colour, and show all the positions in it. */
-  sides: Window;
+  /** Each side shows all the positions on it. */
+  totals: Window;
   /** A list's members show their ranks, once they stand in order. */
   ranks: Window;
   /**
@@ -1009,8 +1009,8 @@ export const HANGING_RISE: Window = [0, 0.35];
  * at once what rose from it draws back and goes, an atom left with one role
  * takes it, and the claim moves up; then the vault and the people arrive
  * below it, and their lines grow up to it, one after another, through the
- * vault. Weighing them, each position shows on its line, then each side
- * takes its colour. Seen through a perspective, the
+ * vault. Weighing them, each position shows on its line, then all the
+ * positions on each side, where its lines run together. Seen through a perspective, the
  * claim moves down to make room for the menu above it, which shows. Choosing
  * another, the menu opens, moves to it, and closes on it; the weights change
  * to the new perspective's; the members move into their new order; and
@@ -1031,7 +1031,7 @@ const STAGES = {
     lines: [0.8, 1],
     roles: NONE,
     weights: NONE,
-    sides: NONE,
+    totals: NONE,
     ranks: NONE,
     pick: NONE,
     reweigh: NONE,
@@ -1048,7 +1048,7 @@ const STAGES = {
     lines: [0.85, 1],
     roles: NONE,
     weights: NONE,
-    sides: NONE,
+    totals: NONE,
     ranks: NONE,
     pick: NONE,
     reweigh: NONE,
@@ -1065,7 +1065,7 @@ const STAGES = {
     lines: [0.65, 0.92],
     roles: [0.92, 1],
     weights: NONE,
-    sides: NONE,
+    totals: NONE,
     ranks: NONE,
     pick: NONE,
     reweigh: NONE,
@@ -1082,7 +1082,7 @@ const STAGES = {
     lines: [0.7, 0.92],
     roles: [0.92, 1],
     weights: NONE,
-    sides: NONE,
+    totals: NONE,
     ranks: NONE,
     pick: NONE,
     reweigh: NONE,
@@ -1099,7 +1099,7 @@ const STAGES = {
     lines: [0.6, 0.85],
     roles: [0.85, 1],
     weights: NONE,
-    sides: NONE,
+    totals: NONE,
     ranks: NONE,
     pick: NONE,
     reweigh: NONE,
@@ -1116,7 +1116,7 @@ const STAGES = {
     lines: [0.6, 0.95],
     roles: HANGING_RISE,
     weights: NONE,
-    sides: NONE,
+    totals: NONE,
     ranks: NONE,
     pick: NONE,
     reweigh: NONE,
@@ -1133,7 +1133,7 @@ const STAGES = {
     lines: NONE,
     roles: NONE,
     weights: NONE,
-    sides: NONE,
+    totals: NONE,
     ranks: NONE,
     pick: NONE,
     reweigh: NONE,
@@ -1150,7 +1150,7 @@ const STAGES = {
     lines: NONE,
     roles: NONE,
     weights: [0.65, 0.9],
-    sides: NONE,
+    totals: NONE,
     ranks: NONE,
     pick: NONE,
     reweigh: NONE,
@@ -1167,7 +1167,7 @@ const STAGES = {
     lines: NONE,
     roles: NONE,
     weights: NONE,
-    sides: NONE,
+    totals: NONE,
     ranks: [0.75, 0.95],
     pick: NONE,
     reweigh: NONE,
@@ -1184,7 +1184,7 @@ const STAGES = {
     lines: NONE,
     roles: NONE,
     weights: [0, 0.4],
-    sides: [0.55, 1],
+    totals: [0.55, 1],
     ranks: NONE,
     pick: NONE,
     reweigh: NONE,
@@ -1201,7 +1201,7 @@ const STAGES = {
     lines: NONE,
     roles: NONE,
     weights: NONE,
-    sides: NONE,
+    totals: NONE,
     ranks: NONE,
     pick: [0.25, 0.65],
     reweigh: NONE,
@@ -1218,7 +1218,7 @@ const STAGES = {
     lines: NONE,
     roles: NONE,
     weights: NONE,
-    sides: NONE,
+    totals: NONE,
     ranks: [0.84, 0.97],
     pick: [0, 0.36],
     reweigh: [0.38, 0.52],
@@ -1572,7 +1572,7 @@ export function planeAt(
   const roles = through(stages.roles, t);
   const weigh = through(stages.weights, t);
   const rank = through(stages.ranks, t);
-  const side = through(stages.sides, t);
+  const totalling = through(stages.totals, t);
   const reweigh = through(stages.reweigh, t);
   const [leaveStart, leaveEnd] = stages.leave;
   const retract = through([leaveStart, (leaveStart + leaveEnd) / 2], t);
@@ -1772,10 +1772,10 @@ export function planeAt(
     newVaults?.isWeighed === true,
     weigh,
   );
-  const sided = shift(
-    oldVaults?.isSided === true,
-    newVaults?.isSided === true,
-    side,
+  const totalled = shift(
+    oldVaults?.isTotalled === true,
+    newVaults?.isTotalled === true,
+    totalling,
   );
   const growth = vaultGrowth(after?.vaultLines ?? [], stages.lines, durationMs);
   const vaultLines: BlendedVaultLine[] = (after?.vaultLines ?? []).map(
@@ -1787,7 +1787,7 @@ export function planeAt(
       return {
         ...line,
         presence: isThere ? 1 : growth(line, t),
-        sided,
+        totalled,
         weighed,
       };
     },
@@ -1797,7 +1797,7 @@ export function planeAt(
       vaultLines.push({
         ...line,
         presence: 1 - retract,
-        sided,
+        totalled,
         weighed,
       });
     }

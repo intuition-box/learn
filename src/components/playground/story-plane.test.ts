@@ -374,7 +374,7 @@ describe("a triple's vaults", () => {
   };
   const WEIGHED: PlaneClaim = {
     ...HUNG,
-    vaults: { ...POSITIONS, isWeighed: true, isSided: true },
+    vaults: { ...POSITIONS, isWeighed: true, isTotalled: true },
   };
   const hanging = (t: number) =>
     planeAt(SOURCED, HUNG, t, measureText, labelOf, WEIGHED);
@@ -526,10 +526,10 @@ describe("a triple's vaults", () => {
     expect(hanging(0.95).vaultLines.every((line) => line.presence === 1)).toBe(
       true,
     );
-    // Grey until weighed.
+    // No positions or totals until weighed.
     expect(
       hanging(1).vaultLines.every(
-        (line) => line.sided === 0 && line.weighed === 0,
+        (line) => line.totalled === 0 && line.weighed === 0,
       ),
     ).toBe(true);
   });
@@ -647,15 +647,14 @@ describe("a triple's vaults", () => {
     });
   });
 
-  it('shows the positions, then the side each line leads to', () => {
+  it('shows the positions, then all the positions on each side', () => {
     const line = (plane: ReturnType<typeof weighing>) =>
       plane.vaultLines.find((candidate) => candidate.id === 'belief:against:0');
 
-    expect(line(weighing(0))).toMatchObject({ weighed: 0, sided: 0 });
-    expect(line(weighing(0.4))).toMatchObject({ weighed: 1, sided: 0 });
-    expect(line(weighing(1))).toMatchObject({ weighed: 1, sided: 1 });
-    // Where a side's lines run together, all the positions in its vault,
-    // once, as they take the vault's colour.
+    expect(line(weighing(0))).toMatchObject({ weighed: 0, totalled: 0 });
+    expect(line(weighing(0.4))).toMatchObject({ weighed: 1, totalled: 0 });
+    expect(line(weighing(1))).toMatchObject({ weighed: 1, totalled: 1 });
+    // Where a side's lines run together, all the positions on it, once.
     const totals = (plane: ReturnType<typeof weighing>) =>
       plane.vaultLines.flatMap((candidate) =>
         candidate.total === undefined
@@ -666,7 +665,7 @@ describe("a triple's vaults", () => {
       { side: 'against', value: 620 },
       { side: 'for', value: 430 },
     ]);
-    expect(line(weighing(0.4))?.sided).toBe(0);
+    expect(line(weighing(0.4))?.totalled).toBe(0);
     // Nothing else moves.
     expect(weighing(0.5).atoms).toEqual(weighing(0).atoms);
     expect(weighing(0.5).people).toEqual(weighing(0).people);

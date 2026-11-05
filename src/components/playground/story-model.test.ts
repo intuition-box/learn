@@ -102,25 +102,45 @@ describe('the first chapters', () => {
     expect(scene.vault).toBeNull();
   });
 
-  it('brings in Elon Musk’s vault under his name, as he stands still', () => {
+  it('brings in Elon Musk’s vault under his name with people under it, then their lines up to it and its own on to him, as he stands still', () => {
     const { start, motionMs } = beat('atom-vault');
+    const at = (share: number) => sceneAt(start + motionMs * share).vault;
 
-    expect(sceneAt(start).vault).toEqual({ atom: 'elonMusk', shown: 0 });
+    expect(at(0)).toEqual({
+      atom: 'elonMusk',
+      shown: 0,
+      deposits: 0,
+      onward: 0,
+    });
     expect(settled('atom-vault').vault).toEqual({
       atom: 'elonMusk',
       shown: 1,
+      deposits: 1,
+      onward: 1,
     });
     expect(atom(settled('atom-vault'), 'elonMusk').at).toEqual(
       atom(settled('atom'), 'elonMusk').at,
     );
-    expect(sceneAt(start + motionMs * 0.6).vault?.shown).toBeGreaterThan(0);
-    expect(sceneAt(start + motionMs * 0.6).vault?.shown).toBeLessThan(1);
+    // The vault and the people, then the people's lines, then the vault's.
+    expect(at(0.25)?.shown).toBeGreaterThan(0);
+    expect(at(0.25)?.deposits).toBe(0);
+    expect(at(0.6)).toMatchObject({ shown: 1, onward: 0 });
+    expect(at(0.6)?.deposits).toBeGreaterThan(0);
+    expect(at(0.6)?.deposits).toBeLessThan(1);
+    expect(at(0.9)).toMatchObject({ shown: 1, deposits: 1 });
+    expect(at(0.9)?.onward).toBeGreaterThan(0);
+    expect(at(0.9)?.onward).toBeLessThan(1);
   });
 
-  it('takes the vault away as SpaceX arrives', () => {
+  it('takes the vault, the people and their lines away as SpaceX arrives', () => {
     const { start, motionMs } = beat('second-atom');
 
-    expect(sceneAt(start).vault).toEqual({ atom: 'elonMusk', shown: 1 });
+    expect(sceneAt(start).vault).toEqual({
+      atom: 'elonMusk',
+      shown: 1,
+      deposits: 1,
+      onward: 1,
+    });
     expect(sceneAt(start + motionMs * 0.2).vault?.shown).toBeLessThan(1);
     expect(sceneAt(start + motionMs * 0.4).vault?.shown).toBe(0);
     expect(settled('third-atom').vault).toBeNull();
@@ -915,7 +935,7 @@ describe('describeScene', () => {
     expect(describeScene(sceneAt(0))).toBe('An empty scene.');
     expect(describeScene(settled('atom'))).toBe('An atom: Elon Musk.');
     expect(describeScene(settled('atom-vault'))).toBe(
-      'An atom, Elon Musk, and its vault under its name.',
+      'An atom, Elon Musk, with its vault under its name, and people depositing into it.',
     );
     expect(describeScene(settled('second-atom'))).toBe(
       'Atoms: Elon Musk and SpaceX.',

@@ -5,10 +5,11 @@ import {
   MEDAL_ICON,
   USER_ICON,
   VAULT_COLOURS,
-  VAULT_FACES,
   VAULT_ICON,
   VAULT_SIZE,
   type VaultOf,
+  depositorColour,
+  vaultFace,
 } from '@/lib/icons';
 import {
   arcPoint,
@@ -133,6 +134,24 @@ const NARROW_PX = 480;
 /** A name's badge: the plane's, so a name reads the same on both. */
 const BADGE = PLANE.badge;
 const BADGE_NARROW = { height: 20, padding: 7, fontSize: 12, gap: 6 } as const;
+/**
+ * How far under an atom's name its vault stands: this many times the gap
+ * between a name and its shape, so the line up to the atom shows.
+ */
+const VAULT_UNDER_NAME = 4;
+/**
+ * The people shown depositing into an atom's vault, under it: there to
+ * show that people do, smaller than any atom. How many, how large, how far
+ * apart, how far below the vault's bottom corner, and how far below it
+ * their lines meet, to run together up into it, in CSS pixels.
+ */
+const DEPOSITORS = {
+  count: 3,
+  size: 20,
+  apart: 44,
+  below: 44,
+  meet: 12,
+} as const;
 /** The least room, in CSS pixels, between two names side by side. */
 const BADGE_SPACING_PX = 6;
 /** How far apart up the cloud, as a share of its radius, two rows of atoms are. */
@@ -145,9 +164,8 @@ const LINE = { width: 1, alpha: 0.16 } as const;
 /** A frame round a triple inside a claim: how strong its tint is, inside and round it. */
 const FRAME = { fill: 0.07, stroke: 0.45 } as const;
 /**
- * Each side's colour on its lines to a triple's vault: its face's, orange
- * against the triple and blue for it. Until they show their side, the
- * lines are grey.
+ * Each side's colour on its lines to a triple's vault, from the moment
+ * they grow: its face's, orange against the triple and blue for it.
  */
 const SIDE_COLOURS = {
   against: VAULT_COLOURS.against,
@@ -621,11 +639,12 @@ export function StoryScene(props: StorySceneProps): ReactNode {
     const ink = readToken('--wave-docs-fg');
     // The page's own colour: the words on a name's badge.
     const page = readToken('--wave-docs-bg');
-    // A vault's lines before they show their side, the ring round a
-    // position, and a person, in the icon's own colour.
+    // The line from a triple's vault to the triple, and an atom's vault's
+    // lines; the ring round a position; and the person on a page about
+    // Elon Musk, in the icon's own colour.
     const grey = readToken('--color-graphite-500');
     const ring = readToken('--color-graphite-100');
-    const personColour = readToken('--color-graphite-950');
+    const pagePerson = readToken('--color-graphite-950');
     const pathsOf = (icon: Icon) =>
       icon.paths.map((path) => ({
         path: new Path2D(path.d),
@@ -1081,19 +1100,21 @@ export function StoryScene(props: StorySceneProps): ReactNode {
     }
 
     /**
-     * A person, `size` across, centred on `at`: the icon's shapes, each at
-     * its own strength.
+     * A person, `size` across, centred on `at`, in `colour`: the icon's
+     * shapes, each at its own strength. One who deposits takes the colour
+     * of what they stake on (see `depositorColour`).
      */
     function drawPerson(
       target: CanvasRenderingContext2D,
       at: ScreenPoint,
       size: number,
       alpha: number,
+      colour: Rgb,
     ): void {
       target.save();
       target.translate(at.x - size / 2, at.y - size / 2);
       target.scale(size / USER_ICON.size, size / USER_ICON.size);
-      target.fillStyle = rgba(personColour);
+      target.fillStyle = rgba(colour);
       for (const { path, opacity } of personPaths) {
         target.globalAlpha = alpha * opacity;
         target.fill(path);
@@ -1104,7 +1125,8 @@ export function StoryScene(props: StorySceneProps): ReactNode {
     /**
      * The vault of an atom or of a triple, as large as an icon `size`
      * across, the middle of its shape on `at`: each face as strong as the
-     * rule says for what it holds (see `VAULT_FACES`), in its own colour.
+     * rule says for what it holds (see `vaultFace`): in its own colour,
+     * solid, where it is used, and pure black at 40% where not.
      */
     function drawVault(
       target: CanvasRenderingContext2D,
@@ -1120,8 +1142,9 @@ export function StoryScene(props: StorySceneProps): ReactNode {
       target.scale(scale, scale);
       target.translate(-(box.x + box.width / 2), -(box.y + box.height / 2));
       for (const { path, face } of vaultPaths) {
-        target.fillStyle = rgba(VAULT_COLOURS[face]);
-        target.globalAlpha = alpha * VAULT_FACES[of][face];
+        const { colour, opacity } = vaultFace(of, face);
+        target.fillStyle = rgba(colour);
+        target.globalAlpha = alpha * opacity;
         target.fill(path);
       }
       target.restore();
@@ -1293,7 +1316,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
 
       // A triple's vault: the lines down from its frame to it, and from
       // its faces against and for to each person on that side, a side's
-      // running together to the vault, grey until they show their side;
+      // running together to the vault, each side in its colour;
       // the vault, a triple's; each person's position, on their line, and
       // all the positions on each side, where its lines run together; and
       // the people, arriving as atoms do.
@@ -1310,10 +1333,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
           progress: line.presence,
           alpha: 1,
           flow: state.props.scene.flow,
-          colour:
-            line.side === null
-              ? grey
-              : mix(grey, SIDE_COLOURS[line.side], line.sided),
+          colour: line.side === null ? grey : SIDE_COLOURS[line.side],
         });
       }
       for (const line of blended.vaultLines) {
@@ -1326,13 +1346,13 @@ export function StoryScene(props: StorySceneProps): ReactNode {
             line.weighed,
           );
         }
-        if (line.total !== undefined && line.sided > 0) {
+        if (line.total !== undefined && line.totalled > 0) {
           drawWeight(
             plane,
             String(line.total.value),
             onCanvas(line.total),
             zoom,
-            line.sided,
+            line.totalled,
           );
         }
       }
@@ -1354,6 +1374,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
             onCanvas(person),
             PLANE.atomSize * zoom * (0.55 + 0.45 * person.presence),
             person.presence,
+            depositorColour(person.side),
           );
         }
       }
@@ -2020,6 +2041,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
         },
         110,
         0.4 * shown,
+        pagePerson,
       );
       target.globalAlpha = shown;
       bar(
@@ -2756,26 +2778,93 @@ export function StoryScene(props: StorySceneProps): ReactNode {
             wayName = { x: name.x, top: name.top, alpha };
             continue;
           }
+          // Its vault, an atom's, under its name, where the beat shows it,
+          // and people under it: their lines meeting, then together up into
+          // its bottom corner, and its own from its top on up to the atom,
+          // under the name.
+          const vault = state.props.scene.vault;
+          const isVaulted = vault?.atom === atom.id && vault.shown > 0;
+          const { box, size, ports, base } = VAULT_ICON;
+          const scale = VAULT_SIZE / size;
+          const middle = {
+            x: name.x,
+            y:
+              name.top +
+              badge.height +
+              badge.gap * VAULT_UNDER_NAME +
+              (box.height * scale) / 2,
+          };
+          const port = (point: { x: number; y: number }): ScreenPoint => ({
+            x: middle.x + (point.x - (box.x + box.width / 2)) * scale,
+            y: middle.y + (point.y - (box.y + box.height / 2)) * scale,
+          });
+          const into = port(base);
+          const people = Array.from(
+            { length: DEPOSITORS.count },
+            (_, index): ScreenPoint => ({
+              x:
+                middle.x +
+                (index - (DEPOSITORS.count - 1) / 2) * DEPOSITORS.apart,
+              y: into.y + DEPOSITORS.below,
+            }),
+          );
+          if (isVaulted) {
+            context.globalAlpha = 1;
+            const line = (
+              id: string,
+              points: readonly ScreenPoint[],
+              progress: number,
+            ): void => {
+              drawLine(context, {
+                id: `vault:${atom.id}:${id}`,
+                points,
+                units: segmentLengths(points).reduce(
+                  (sum, part) => sum + part,
+                  0,
+                ),
+                progress,
+                alpha: alpha * vault.shown,
+                flow: state.props.scene.flow,
+                colour: grey,
+              });
+            };
+            // From the top of each person's icon to where their lines
+            // meet, and together on up into the vault, as on the plane.
+            const meet = { x: into.x, y: into.y + DEPOSITORS.meet };
+            for (const [index, person] of people.entries()) {
+              line(
+                String(index),
+                [
+                  { x: person.x, y: person.y - DEPOSITORS.size / 2 },
+                  meet,
+                  into,
+                ],
+                vault.deposits,
+              );
+            }
+            line(
+              'onward',
+              [
+                port(ports.subject),
+                { x: at.x, y: at.y + ATOM_SHARE * radius * at.scale * 0.5 },
+              ],
+              vault.onward,
+            );
+          }
           context.globalAlpha = alpha;
           drawBadge(context, atom.label, name.x, name.top, badge);
-          // Its vault, an atom's, under its name, where the beat shows it.
-          const vault = state.props.scene.vault;
-          if (vault?.atom === atom.id && vault.shown > 0) {
-            const { box, size } = VAULT_ICON;
-            drawVault(
-              context,
-              {
-                x: name.x,
-                y:
-                  name.top +
-                  badge.height +
-                  badge.gap +
-                  ((box.height / size) * VAULT_SIZE) / 2,
-              },
-              VAULT_SIZE,
-              'atom',
-              alpha * vault.shown,
-            );
+          if (isVaulted) {
+            drawVault(context, middle, VAULT_SIZE, 'atom', alpha * vault.shown);
+            for (const person of people) {
+              drawPerson(
+                context,
+                person,
+                DEPOSITORS.size,
+                alpha * vault.shown,
+                depositorColour('subject'),
+              );
+            }
+            context.globalAlpha = alpha;
           }
         }
         // The wider graph's names, last, where no other name is: blank, set
