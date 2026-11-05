@@ -56,10 +56,10 @@ const STAR_ATTRIBUTES = [
    */
   { name: 'aScatter', size: 4 },
   /**
-   * Its size, its role, and its band of the logo, or -1 for a star of the
-   * sky, which never joins the logo.
+   * Its size, its role, its band of the logo, or -1 for a star of the sky,
+   * which never joins the logo, and its size once the stars have parted.
    */
-  { name: 'aLook', size: 3 },
+  { name: 'aLook', size: 4 },
 ] as const;
 
 /** Floats per star. */
@@ -67,6 +67,8 @@ export const STAR_STRIDE = STAR_ATTRIBUTES.reduce(
   (sum, attribute) => sum + attribute.size,
   0,
 );
+/** Where in a star its size once parted is: `aLook`'s last float. */
+export const PARTED_LOOK = STAR_STRIDE - 1;
 /** Seconds after the last push at which pushed stars count as home. */
 export const SETTLE_SECONDS = 6;
 /** Pixels across each role's shape in the texture the stars are drawn from. */
@@ -137,6 +139,16 @@ const DEPTH_SPREAD = 0.2;
 const BIG_CHANCE = { sky: 0.075, logo: 0.02 } as const;
 /** The same seed draws the same stars on every visit. */
 const SEED = 0x243f6a88;
+/**
+ * How many times as many big stars there are once the stars have parted:
+ * small ones, picked at random, grow to a big one's size as they part.
+ */
+const PARTED_BIG_TIMES = 2;
+/**
+ * The seed of the small stars that grow: a draw of its own, so the stars
+ * themselves stay the same.
+ */
+const PARTED_SEED = 0x85a308d3;
 
 /** Seconds the stars take to come in from the sky and form the mark. */
 const INTRO_SECONDS = 5.5;
@@ -222,18 +234,25 @@ const BAND_AREAS = LOGO.bands.map(
 
 /**
  * Every star, `STAR_STRIDE` floats each: the logo's first, spread evenly
- * over its bands, then the sky's. Most are small; a few are big.
+ * over its bands, then the sky's. Most are small; a few are big, and once
+ * the stars have parted, `PARTED_BIG_TIMES` as many.
  */
 export function createStars(): Float32Array {
   const random = createRandom(SEED);
   const count = MARK_STARS + SKY_STARS;
   const data = new Float32Array(count * STAR_STRIDE);
+  const bigSizes: number[] = [];
+  const small: number[] = [];
   for (let i = 0; i < count; i += 1) {
     const size = random();
-    const scale =
-      random() < (i < MARK_STARS ? BIG_CHANCE.logo : BIG_CHANCE.sky)
-        ? 0.9 + 1.2 * size
-        : 0.13 + 0.75 * size ** 3;
+    const isBig =
+      random() < (i < MARK_STARS ? BIG_CHANCE.logo : BIG_CHANCE.sky);
+    const scale = isBig ? 0.9 + 1.2 * size : 0.13 + 0.75 * size ** 3;
+    if (isBig) {
+      bigSizes.push(2 * scale);
+    } else {
+      small.push(i);
+    }
     data.set(
       [
         random(),
@@ -247,9 +266,25 @@ export function createStars(): Float32Array {
         2 * scale,
         pick(ROLE_SHARES, random()),
         i < MARK_STARS ? pick(BAND_AREAS, random()) : -1,
+        2 * scale,
       ],
       i * STAR_STRIDE,
     );
+  }
+  // Small stars that grow as they part, each to the size of a big star,
+  // so none is bigger than a big one already is.
+  const grow = createRandom(PARTED_SEED);
+  const growing = Math.min(
+    bigSizes.length * (PARTED_BIG_TIMES - 1),
+    small.length,
+  );
+  for (let picked = 0; picked < growing; picked += 1) {
+    const swap = picked + Math.floor(grow() * (small.length - picked));
+    const star = small[swap] ?? 0;
+    small[swap] = small[picked] ?? 0;
+    small[picked] = star;
+    data[star * STAR_STRIDE + PARTED_LOOK] =
+      bigSizes[Math.floor(grow() * bigSizes.length)] ?? 0;
   }
   return data;
 }
@@ -482,6 +517,7 @@ layout(location = ${WAKE_LOCATION}) in vec4 aWake;
 
 const float TAU = 6.28318530718;
 const float SETTLE = ${glslFloat(SETTLE_SECONDS)};
+const float PARTED_SIZE = ${glslFloat(PARTED_SIZE)};
 // How far each layer bows in depth round the mark, either side, and where
 // along the outline its bow peaks.
 const float DEPTHS[3] = float[3](0.9, -0.9, 0.18);
@@ -638,7 +674,9 @@ void main() {
   place = arrive(place, skyPlace, mix(uIntro, 1.0, sky), seed.z, seed.y);
   vec4 clip = vec4(place.xy / (0.5 * uView), 0.0, 1.0);
 
-  float size = 0.4 + 3.9 * aLook.x;
+  // As the stars part and shrink, some small ones grow to a big one's size.
+  float opened = clamp((1.0 - uShrink) / (1.0 - PARTED_SIZE), 0.0, 1.0);
+  float size = 0.4 + 3.9 * mix(aLook.x, aLook.w, opened);
   // Bigger stars are heavier: pushed less, and slower home.
   float mass = mix(0.6, 2.4, clamp((size - 1.0) / 13.0, 0.0, 1.0));
   vec4 push = uWakeAge < SETTLE ? settle(aWake, mass, uWakeAge) : vec4(0.0);

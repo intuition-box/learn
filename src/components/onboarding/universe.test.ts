@@ -5,6 +5,7 @@ import { ROLES } from '@/components/playground/story-shapes';
 import {
   createStars,
   LOGO,
+  PARTED_LOOK,
   SETTLE_SECONDS,
   STAR_STRIDE,
   createTimeline,
@@ -66,6 +67,30 @@ describe('createStars', () => {
     expect(new Set(bands.filter((band) => band >= 0)).size).toBe(
       LOGO.bands.length,
     );
+  });
+
+  it('has twice as many big stars once parted, small ones grown to a big one’s size', () => {
+    const sizes = field(8);
+    const parted = field(PARTED_LOOK);
+    // A big star's size is at least 1.8; a small one's at most 1.76.
+    const isBig = (size: number) => size >= 1.8;
+    const big = sizes.filter(isBig);
+    const grown = parted.filter(
+      (size, star) => isBig(size) && !isBig(sizes[star] ?? NaN),
+    );
+    expect(big.length).toBeGreaterThan(0);
+    expect(parted.filter(isBig)).toHaveLength(2 * big.length);
+    expect(grown).toHaveLength(big.length);
+    expect(grown.every((size) => big.includes(size))).toBe(true);
+    expect(
+      parted.every(
+        (size, star) =>
+          isBig(sizes[star] ?? NaN) === false || size === sizes[star],
+      ),
+    ).toBe(true);
+    expect(
+      parted.every((size, star) => isBig(size) || size === sizes[star]),
+    ).toBe(true);
   });
 });
 

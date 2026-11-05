@@ -157,9 +157,9 @@
 
   /*
    * The playground's card. Opaque, so it reads cleanly over the field, and
-   * lifted off it by a wide, soft shadow.
+   * set off from it by its border alone.
    */
   .panel {
-    @apply rounded-2xl border border-border bg-bg shadow-2xl shadow-fg/10;
+    @apply rounded-2xl border border-border bg-bg;
   }
 }
