@@ -23,26 +23,22 @@ describe('depositFlow', () => {
     expect([position, protocol, entry, perTerm]).toEqual([7788, 100, 40, 24]);
   });
 
-  it('takes the builder fee from all that is sent, and adds up in whole TRUST on 360', () => {
-    const flow = sentFlow(360);
-    const { sent, builderFee, deposit, position, fees } = flow;
+  it('takes the builder fee from all that is sent, and adds up to two decimals on 100', () => {
+    const flow = sentFlow(100);
+    const cents = (value: number): number => Math.round(value * 100);
+    const { builderFee, deposit, position, fees } = flow;
     const { protocol, entry, atomFraction, perTerm } = flow;
-
-    expect(sent).toBe(360);
-    expect(builderFee).toBeCloseTo(10.2);
-    expect(Math.round(builderFee) + Math.round(deposit)).toBe(sent);
-    expect(Math.round(perTerm)).toBe(1);
-    expect(Math.round(position) + Math.round(fees)).toBe(Math.round(deposit));
-    expect(
-      Math.round(protocol) + Math.round(entry) + Math.round(atomFraction),
-    ).toBe(Math.round(fees));
-    expect(Math.round(perTerm) * 3).toBe(Math.round(atomFraction));
-
     const { atoms, triples } = feesByKind(flow, 2);
 
-    expect(Math.round(atoms) + Math.round(triples) + Math.round(protocol)).toBe(
-      Math.round(fees),
+    expect(builderFee).toBeCloseTo(0.5);
+    expect(deposit).toBeCloseTo(99.5);
+    expect(cents(perTerm)).toBe(30);
+    expect(cents(position) + cents(fees)).toBe(cents(deposit));
+    expect(cents(protocol) + cents(entry) + cents(atomFraction)).toBe(
+      cents(fees),
     );
+    expect(cents(perTerm) * 3).toBe(cents(atomFraction));
+    expect(cents(atoms) + cents(triples) + cents(protocol)).toBe(cents(fees));
   });
 
   it('accounts for all of the deposit', () => {

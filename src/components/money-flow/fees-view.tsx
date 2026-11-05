@@ -4,6 +4,7 @@ import type { DepositFlow, FeesByKind } from './money-flow-model';
 
 import {
   Amount,
+  appearsAt,
   CENTRE,
   Drawing,
   route,
@@ -15,6 +16,7 @@ import {
   number,
   OUTER_VAULT_X,
   outerVaultPort,
+  runsAt,
   SPACEX_X,
   termVaultBase,
   WORTH_X,
@@ -82,78 +84,123 @@ export function FeesView({ flow }: { flow: DepositFlow }): ReactNode {
   const toTerm = (x: number, y: number): string =>
     route(CENTRE, SPLIT.y, FRACTION_BAR, x, y);
 
+  const drawing = (
+    <Drawing
+      height={HEIGHT}
+      label={`Of ${number(flow.fees)} TRUST in fees, ${number(flow.protocol)} goes to the protocol, ${number(flow.entry)} stays in the outer triple's vault, and ${number(flow.perTerm)} goes to each of SpaceX, will be worth and the inner triple. The inner triple's atoms get nothing from this deposit.`}
+    >
+      <NestedTriple
+        top={CLAIM}
+        gain={`+${number(flow.entry)}`}
+        gainNotes={['Entry fee: lifts what', 'its shares are worth']}
+        gainAt={appearsAt(2)}
+        innerNote="Inner triple keeps its part"
+        termsPaid
+      />
+
+      <Flow
+        d={route(
+          CENTRE,
+          FEES.y,
+          SPLIT_BAR,
+          OUTER_VAULT_X,
+          SPLIT.y + SPLIT.height,
+        )}
+        at={runsAt(0)}
+        coin="fee"
+      />
+      <Flow
+        d={`M${CENTRE} ${FEES.y}V${SPLIT.y + SPLIT.height}`}
+        at={runsAt(0)}
+        coin="fee"
+      />
+      <Flow
+        d={route(CENTRE, FEES.y, SPLIT_BAR, PROTOCOL_X, SPLIT.y + SPLIT.height)}
+        at={runsAt(0)}
+        coin="fee"
+      />
+      <Flow
+        d={`M${OUTER_VAULT_X} ${SPLIT.y}V${outerVaultPort(CLAIM)}`}
+        at={runsAt(1)}
+        coin="fee"
+      />
+      <Flow
+        d={toTerm(SPACEX_X, termVaultBase(CLAIM))}
+        at={runsAt(1)}
+        coin="fee"
+      />
+      <Flow
+        d={toTerm(WORTH_X, termVaultBase(CLAIM))}
+        at={runsAt(1)}
+        coin="fee"
+      />
+      <Flow
+        d={toTerm(INNER_X, innerVaultPort(CLAIM))}
+        at={runsAt(1)}
+        coin="fee"
+      />
+
+      <Amount
+        x={CENTRE}
+        {...FEES}
+        width={220}
+        amount={number(flow.fees)}
+        label={`Fees on ${number(flow.deposit)} (2.65%)`}
+        at={appearsAt(0)}
+        fee
+      />
+      <Amount
+        x={OUTER_VAULT_X}
+        {...SPLIT}
+        width={140}
+        amount={number(flow.entry)}
+        label="Entry fee (0.5%)"
+        at={appearsAt(1)}
+        fee
+      />
+      <Amount
+        x={CENTRE}
+        {...SPLIT}
+        width={220}
+        amount={number(flow.atomFraction)}
+        label="Atom deposit fraction (0.9%)"
+        at={appearsAt(1)}
+        fee
+      />
+      <Amount
+        x={PROTOCOL_X}
+        {...SPLIT}
+        width={170}
+        amount={number(flow.protocol)}
+        label="Protocol fee (1.25%)"
+        at={appearsAt(1)}
+        fee
+      />
+
+      <Gain
+        x={SPACEX_X}
+        y={GAIN_Y}
+        amount={`+${number(flow.perTerm)}`}
+        at={appearsAt(2)}
+      />
+      <Gain
+        x={WORTH_X}
+        y={GAIN_Y}
+        amount={`+${number(flow.perTerm)}`}
+        at={appearsAt(2)}
+      />
+      <Gain
+        x={INNER_X}
+        y={GAIN_Y}
+        amount={`+${number(flow.perTerm)}`}
+        at={appearsAt(2)}
+      />
+    </Drawing>
+  );
+
   return (
     <div className="flex flex-col gap-4">
-      <Drawing
-        height={HEIGHT}
-        label={`Of ${number(flow.fees)} TRUST in fees, ${number(flow.protocol)} goes to the protocol, ${number(flow.entry)} stays in the outer triple's vault, and ${number(flow.perTerm)} goes to each of SpaceX, will be worth and the inner triple. The inner triple's atoms get nothing from this deposit.`}
-      >
-        <NestedTriple
-          top={CLAIM}
-          gain={`+${number(flow.entry)}`}
-          gainNotes={['Entry fee: lifts what', 'its shares are worth']}
-          innerNote="Inner triple keeps its part"
-          termsPaid
-        />
-
-        <Flow
-          d={route(
-            CENTRE,
-            FEES.y,
-            SPLIT_BAR,
-            OUTER_VAULT_X,
-            SPLIT.y + SPLIT.height,
-          )}
-        />
-        <Flow d={`M${CENTRE} ${FEES.y}V${SPLIT.y + SPLIT.height}`} />
-        <Flow
-          d={route(
-            CENTRE,
-            FEES.y,
-            SPLIT_BAR,
-            PROTOCOL_X,
-            SPLIT.y + SPLIT.height,
-          )}
-        />
-        <Flow d={`M${OUTER_VAULT_X} ${SPLIT.y}V${outerVaultPort(CLAIM)}`} />
-        <Flow d={toTerm(SPACEX_X, termVaultBase(CLAIM))} />
-        <Flow d={toTerm(WORTH_X, termVaultBase(CLAIM))} />
-        <Flow d={toTerm(INNER_X, innerVaultPort(CLAIM))} />
-
-        <Amount
-          x={CENTRE}
-          {...FEES}
-          width={220}
-          amount={number(flow.fees)}
-          label={`Fees on ${number(flow.deposit)} (2.65%)`}
-        />
-        <Amount
-          x={OUTER_VAULT_X}
-          {...SPLIT}
-          width={140}
-          amount={number(flow.entry)}
-          label="Entry fee (0.5%)"
-        />
-        <Amount
-          x={CENTRE}
-          {...SPLIT}
-          width={220}
-          amount={number(flow.atomFraction)}
-          label="Atom deposit fraction (0.9%)"
-        />
-        <Amount
-          x={PROTOCOL_X}
-          {...SPLIT}
-          width={170}
-          amount={number(flow.protocol)}
-          label="Protocol fee (1.25%)"
-        />
-
-        <Gain x={SPACEX_X} y={GAIN_Y} amount={`+${number(flow.perTerm)}`} />
-        <Gain x={WORTH_X} y={GAIN_Y} amount={`+${number(flow.perTerm)}`} />
-        <Gain x={INNER_X} y={GAIN_Y} amount={`+${number(flow.perTerm)}`} />
-      </Drawing>
-
+      {drawing}
       <FeeSplit
         title={`Fees of ${number(flow.deposit)} on the outer triple`}
         fees={feesByKind(flow, 2)}

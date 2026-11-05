@@ -31,6 +31,7 @@ import {
   type PlaneVaults,
   planeSentence,
 } from './story-plane';
+import type { MoneyFlowMoment } from './story-money';
 
 /**
  * The shape an atom is drawn as, and its colour: the role it plays in its
@@ -206,6 +207,7 @@ export const CHAPTERS = [
   { id: 'triples', title: 'Triples' },
   { id: 'nested', title: 'Nested triples' },
   { id: 'vaults', title: 'Vaults' },
+  { id: 'money', title: 'Money flow' },
   { id: 'lists', title: 'Lists' },
   { id: 'perspectives', title: 'Perspectives' },
   { id: 'enrichment', title: 'Enrichment' },
@@ -865,6 +867,23 @@ const BELIEVED_CLAIM: readonly AtomId[] = [
   'currentEarthEconomy',
 ];
 
+/**
+ * The triple with its positions weighed: the end of the chapter of vaults,
+ * and where the money flow plays.
+ */
+const WEIGHED: StageState = {
+  ...UP_CLOSE,
+  cloud: { shown: 0 },
+  plane: {
+    term: BELIEF,
+    focus: 'worth',
+    frame: 'identity',
+    isFrameHidden: true,
+    vaults: { ...POSITIONS, isWeighed: true, isTotalled: true },
+    faded: SET_BACK,
+  },
+};
+
 const BEAT_SPECS: readonly BeatSpec[] = [
   {
     id: 'atom',
@@ -1228,18 +1247,31 @@ const BEAT_SPECS: readonly BeatSpec[] = [
     // Each person's position shows on their line; then, where each side's
     // lines run together, all the positions on it.
     motionMs: 3200,
-    stage: {
-      ...UP_CLOSE,
-      cloud: { shown: 0 },
-      plane: {
-        term: BELIEF,
-        focus: 'worth',
-        frame: 'identity',
-        isFrameHidden: true,
-        vaults: { ...POSITIONS, isWeighed: true, isTotalled: true },
-        faded: SET_BACK,
-      },
-    },
+    stage: WEIGHED,
+  },
+  {
+    id: 'money-deposit',
+    chapter: 'money',
+    caption: [
+      'A deposit is not all position. A builder’s app can take a small fee first, then the protocol takes its own.\nThe rest buys the depositor’s shares, all of it in the vault of the triple.',
+    ],
+    alt: 'One person deposits on the side for the triple, SpaceX will be worth orders of magnitude more than the current Earth economy. Of 100 TRUST sent, 0.5 goes to the builder and 99.5 enters MultiVault. 2.64 of that goes to fees, and the 96.86 left is the position, all of it in the outer triple’s vault.',
+    // The same triple and vault. The other positions go, and one person's
+    // deposit rises up their line: fees leave it, the rest reaches the vault.
+    motionMs: 4400,
+    stage: WEIGHED,
+  },
+  {
+    id: 'money-fees',
+    chapter: 'money',
+    caption: [
+      'The fees go to the protocol, to the triple’s vault, and to its three terms.\nThey lift those vaults’ shares and stop there: the atoms nested inside a term get nothing.',
+    ],
+    alt: 'The fees of 2.64 TRUST: 1.24 to the protocol, 0.5 stays in the outer triple’s vault, and 0.3 each goes to SpaceX, will be worth and the inner triple. The inner triple’s atoms get nothing.',
+    // From the fees, lines reach the protocol, the vault, and the vaults of
+    // the triple's terms, which show under them. The inner atoms' stay empty.
+    motionMs: 3400,
+    stage: WEIGHED,
   },
   {
     id: 'list-back',
@@ -1673,6 +1705,58 @@ export function beatAt(time: number): Beat {
   return BEATS.findLast((beat) => beat.start <= time) ?? firstBeat();
 }
 
+/** The money flow's two pictures, by the beat that shows each. */
+const MONEY_FLOW_VIEWS = {
+  'money-deposit': 'deposit',
+  'money-fees': 'fees',
+} as const;
+
+/** How long the rest of the vault takes to quieten, and the money to go. */
+const MONEY_FLOW_FADE_MS = 500;
+
+/** How far into a beat its money starts to move: once the plane is quiet. */
+const MONEY_FLOW_START_MS = 600;
+
+/** Long past the end of a picture: how far it has played when it holds still. */
+const MONEY_FLOW_PLAYED_S = 60;
+
+/**
+ * The money flow at `time`, or none: played on the plane the chapter of
+ * vaults leaves, from one depositor. It stays through the next beat, as the
+ * plane closes, so the positions it set aside do not come back.
+ */
+export function moneyFlowAt(
+  time: number,
+  isStill = false,
+): MoneyFlowMoment | undefined {
+  const beat = beatAt(time);
+  const into = time - beat.start;
+  const fade = into / MONEY_FLOW_FADE_MS;
+
+  if (beat.chapter === 'money') {
+    const isFirst = BEATS[beat.index - 1]?.chapter !== 'money';
+    const played = (into - MONEY_FLOW_START_MS) / 1000;
+
+    return {
+      view: MONEY_FLOW_VIEWS[beat.id as keyof typeof MONEY_FLOW_VIEWS],
+      seconds: isStill ? MONEY_FLOW_PLAYED_S : played,
+      shown: 1,
+      quiet: isFirst && !isStill ? Math.min(fade, 1) : 1,
+    };
+  }
+
+  if (BEATS[beat.index - 1]?.chapter === 'money') {
+    return {
+      view: 'fees',
+      seconds: MONEY_FLOW_PLAYED_S,
+      shown: Math.max(1 - fade, 0),
+      quiet: 1,
+    };
+  }
+
+  return undefined;
+}
+
 /** The chapter playing at `time`. */
 export function chapterAt(time: number): ChapterSpan {
   const { chapter } = beatAt(time);
@@ -1790,6 +1874,8 @@ export interface OtherScene {
 
 export interface Scene {
   beat: Beat;
+  /** The money flow on the plane, in its chapter. */
+  moneyFlow: MoneyFlowMoment | undefined;
   camera: Camera;
   atoms: DrawnAtom[];
   triples: DrawnTriple[];
@@ -2052,6 +2138,7 @@ export function sceneAt(time: number, isStill = false): Scene {
           : 1,
     quiet: quietAt(previous, target, progress),
     vault: vaultAt(previous, target, progress),
+    moneyFlow: moneyFlowAt(time, isStill),
   };
 }
 

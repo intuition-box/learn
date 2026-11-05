@@ -4,6 +4,7 @@ import type { DepositFlow } from './money-flow-model';
 
 import {
   Amount,
+  appearsAt,
   CENTRE,
   Drawing,
   route,
@@ -12,6 +13,7 @@ import {
   number,
   OUTER_VAULT_X,
   outerVaultPort,
+  runsAt,
 } from './flow-parts';
 import { BUILDER_FLAT, BUILDER_RATE } from './money-flow-model';
 
@@ -40,14 +42,32 @@ export function DepositView({ flow }: { flow: DepositFlow }): ReactNode {
         top={CLAIM}
         gain={`+${number(flow.position)}`}
         gainNotes={['The whole position', 'buys shares here']}
+        gainAt={appearsAt(3)}
         innerNote="Inner triple: 0"
         termsPaid={false}
       />
 
-      <Flow d={`M${CENTRE} ${SENT.y}V${entersEnd}`} />
-      <Flow d={route(CENTRE, SENT.y, SENT_BAR, BUILDER_X, entersEnd)} />
-      <Flow d={route(CENTRE, ENTERS.y, SPLIT_BAR, FEES_X, splitEnd)} />
-      <Flow d={`M${CENTRE} ${ENTERS.y}V${splitEnd}`} strong />
+      <Flow
+        d={`M${CENTRE} ${SENT.y}V${entersEnd}`}
+        at={runsAt(0)}
+        coin="money"
+      />
+      <Flow
+        d={route(CENTRE, SENT.y, SENT_BAR, BUILDER_X, entersEnd)}
+        at={runsAt(0)}
+        coin="fee"
+      />
+      <Flow
+        d={route(CENTRE, ENTERS.y, SPLIT_BAR, FEES_X, splitEnd)}
+        at={runsAt(1)}
+        coin="fee"
+      />
+      <Flow
+        d={`M${CENTRE} ${ENTERS.y}V${splitEnd}`}
+        at={runsAt(1)}
+        coin="money"
+        strong
+      />
       <Flow
         d={route(
           CENTRE,
@@ -56,6 +76,8 @@ export function DepositView({ flow }: { flow: DepositFlow }): ReactNode {
           OUTER_VAULT_X,
           outerVaultPort(CLAIM),
         )}
+        at={runsAt(2)}
+        coin="money"
         strong
       />
 
@@ -65,6 +87,7 @@ export function DepositView({ flow }: { flow: DepositFlow }): ReactNode {
         width={220}
         amount={number(flow.sent)}
         label="User sends"
+        at={appearsAt(0)}
       />
       <Amount
         x={BUILDER_X}
@@ -73,6 +96,8 @@ export function DepositView({ flow }: { flow: DepositFlow }): ReactNode {
         amount={number(flow.builderFee)}
         label={`Builder fee, optional (${BUILDER_RATE / 100}% of ${number(flow.sent)} + ${BUILDER_FLAT})`}
         look="optional"
+        at={appearsAt(1)}
+        fee
       />
       <Amount
         x={CENTRE}
@@ -80,6 +105,7 @@ export function DepositView({ flow }: { flow: DepositFlow }): ReactNode {
         width={220}
         amount={number(flow.deposit)}
         label="Enters MultiVault"
+        at={appearsAt(1)}
       />
       <Amount
         x={CENTRE}
@@ -88,6 +114,7 @@ export function DepositView({ flow }: { flow: DepositFlow }): ReactNode {
         amount={number(flow.position)}
         label="Position (97.35%)"
         look="strong"
+        at={appearsAt(2)}
       />
       <Amount
         x={FEES_X}
@@ -95,6 +122,8 @@ export function DepositView({ flow }: { flow: DepositFlow }): ReactNode {
         width={170}
         amount={number(flow.fees)}
         label="Fees (2.65%)"
+        at={appearsAt(2)}
+        fee
       />
     </Drawing>
   );

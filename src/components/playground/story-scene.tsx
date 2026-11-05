@@ -4,6 +4,7 @@ import {
   type Icon,
   MEDAL_ICON,
   USER_ICON,
+  FEE_ICON,
   VAULT_COLOURS,
   VAULT_ICON,
   VAULT_SIZE,
@@ -65,6 +66,14 @@ import {
   planeAt,
   type VaultSide,
 } from './story-plane';
+import {
+  alongPoints,
+  DEPOSITOR,
+  type MoneyFlowMoment,
+  moneyPicture,
+  RUN_SECONDS,
+  STOP_SECONDS,
+} from './story-money';
 import { ROLE_COLOURS, traceShape } from './story-shapes';
 
 /** How far the eye is from the cloud's centre, in radii: the perspective. */
@@ -651,6 +660,10 @@ export function StoryScene(props: StorySceneProps): ReactNode {
         opacity: path.opacity,
       }));
     const personPaths = pathsOf(USER_ICON);
+    const feePaths = FEE_ICON.paths.map(({ d, opacity }) => ({
+      path: new Path2D(d),
+      opacity,
+    }));
     const vaultPaths = VAULT_ICON.paths.map((path) => ({
       path: new Path2D(path.d),
       face: path.face,
@@ -1150,6 +1163,166 @@ export function StoryScene(props: StorySceneProps): ReactNode {
       target.restore();
     }
 
+    /** The fee icon, as large as `size`, its middle on `at`. */
+    function drawFeeIcon(
+      target: CanvasRenderingContext2D,
+      at: ScreenPoint,
+      size: number,
+      alpha: number,
+    ): void {
+      target.save();
+      target.translate(at.x - size / 2, at.y - size / 2);
+      target.scale(size / FEE_ICON.size, size / FEE_ICON.size);
+      target.fillStyle = rgba(ink);
+      for (const { path, opacity } of feePaths) {
+        target.globalAlpha = alpha * opacity;
+        target.fill(path);
+      }
+      target.restore();
+    }
+
+    /**
+     * The money flow, on the plane the chapter of vaults leaves: new lines
+     * growing as their coins run, the coins on the lines, the amounts in the
+     * same pills as the positions, and the vaults the fees reach.
+     */
+    function drawMoneyFlow(
+      target: CanvasRenderingContext2D,
+      moment: MoneyFlowMoment,
+      blended: BlendedPlane,
+      onCanvas: (point: PlanePoint) => ScreenPoint,
+      zoom: number,
+    ): void {
+      const line = blended.vaultLines.find(({ id }) => id === DEPOSITOR);
+      const [from, meet, face] = line?.points ?? [];
+      const vault = blended.vaults[0];
+      const inner = blended.frames.find(({ id }) => id === 'more');
+      const xOf = (atom: AtomId): number | undefined =>
+        blended.atoms.find(({ id }) => id === atom)?.x;
+      const spacex = xOf('spacex');
+      const willBeWorth = xOf('willBeWorth');
+      if (
+        from === undefined ||
+        meet === undefined ||
+        face === undefined ||
+        vault === undefined ||
+        inner === undefined ||
+        spacex === undefined ||
+        willBeWorth === undefined
+      ) {
+        return;
+      }
+      const { runs, stops, vaults, trunks } = moneyPicture(moment.view, {
+        line: [from, meet, face],
+        vault,
+        inner,
+        spacex,
+        willBeWorth,
+        innerAtoms: (
+          ['ordersOfMagnitude', 'moreThan', 'currentEarthEconomy'] as const
+        )
+          .map(xOf)
+          .filter((x) => x !== undefined),
+      });
+      const { seconds, shown } = moment;
+      const eased = (value: number): number => Math.min(Math.max(value, 0), 1);
+
+      for (const points of trunks) {
+        const drawn = points.map(onCanvas);
+        drawLine(target, {
+          id: 'money:trunk',
+          points: drawn,
+          units: segmentLengths(drawn).reduce((sum, part) => sum + part, 0),
+          progress: 1,
+          alpha: shown,
+          flow: state.props.scene.flow,
+          colour: grey,
+        });
+      }
+      for (const run of runs) {
+        const ran = eased((seconds - run.at) / RUN_SECONDS);
+        if (run.isNew && ran > 0) {
+          const drawn = run.points.map(onCanvas);
+          drawLine(target, {
+            id: `money:${run.id}`,
+            points: drawn,
+            units: segmentLengths(drawn).reduce((sum, part) => sum + part, 0),
+            progress: ran,
+            alpha: shown * (run.held ?? 1),
+            flow: state.props.scene.flow,
+            colour: grey,
+          });
+        }
+      }
+      for (const { of, point, size, isEmpty } of vaults) {
+        const at = onCanvas(point);
+        const alpha = shown * eased((seconds + 0.5) / STOP_SECONDS);
+        drawVault(target, at, size * zoom, of, alpha * (isEmpty ? 0.4 : 1));
+        if (isEmpty) {
+          target.save();
+          target.globalAlpha = alpha * 0.6;
+          target.fillStyle = rgba(ink);
+          target.font = `600 ${WEIGHT.fontSize * zoom * 0.9}px ${fontFamily}`;
+          target.textBaseline = 'middle';
+          target.fillText('0', at.x + (size / 2 + 3) * zoom, at.y);
+          target.restore();
+        }
+      }
+      for (const run of runs) {
+        const ran = (seconds - run.at) / RUN_SECONDS;
+        if (ran > 0 && ran < 1) {
+          const at = onCanvas(alongPoints(run.points, ran));
+          const isMoney = run.coin === 'money';
+          target.save();
+          target.globalAlpha = shown * (isMoney ? 0.3 : 1);
+          target.fillStyle = rgba(ink);
+          target.beginPath();
+          target.arc(at.x, at.y, (isMoney ? 9 : 4.5) * zoom, 0, Math.PI * 2);
+          target.fill();
+          target.restore();
+        }
+      }
+      for (const stop of stops) {
+        const alpha =
+          shown * (stop.held ?? 1) * eased((seconds - stop.at) / STOP_SECONDS);
+        if (alpha <= 0) {
+          continue;
+        }
+        const at = onCanvas(stop.point);
+        drawWeight(target, stop.amount, at, zoom, alpha);
+        target.save();
+        target.font = `600 ${WEIGHT.fontSize}px ${fontFamily}`;
+        const half =
+          ((target.measureText(stop.amount).width + WEIGHT.padding * 2) / 2) *
+          zoom;
+        target.restore();
+        if (stop.isFee === true) {
+          const size = WEIGHT.height * zoom;
+          drawFeeIcon(
+            target,
+            { x: at.x - half - size * 0.7, y: at.y },
+            size,
+            alpha,
+          );
+        }
+        if (stop.label !== undefined) {
+          const isUnder = stop.labelAt === 'under';
+          target.save();
+          target.globalAlpha = alpha * 0.7;
+          target.fillStyle = rgba(ink);
+          target.font = `500 ${WEIGHT.fontSize * zoom}px ${fontFamily}`;
+          target.textAlign = isUnder ? 'center' : 'left';
+          target.textBaseline = 'middle';
+          target.fillText(
+            stop.label,
+            isUnder ? at.x : at.x + half + 6 * zoom,
+            isUnder ? at.y + (WEIGHT.height * 0.5 + 9) * zoom : at.y,
+          );
+          target.restore();
+        }
+      }
+    }
+
     /**
      * The plane, sharp in front of the cloud: a branch off the graph, drawn
      * as the cloud is drawn, only flat. First, the lines that run from the
@@ -1324,6 +1497,12 @@ export function StoryScene(props: StorySceneProps): ReactNode {
         x: origin.x + point.x * zoom,
         y: origin.y + point.y * zoom,
       });
+      // In the money flow, only the depositor's line and the vault's stay.
+      const moneyFlow = state.props.scene.moneyFlow;
+      const quiet = moneyFlow?.quiet ?? 0;
+      const stays = (id: string): boolean =>
+        id === DEPOSITOR ||
+        (!id.includes(':for:') && !id.includes(':against:'));
       for (const line of blended.vaultLines) {
         const points = line.points.map(onCanvas);
         drawLine(plane, {
@@ -1331,7 +1510,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
           points,
           units: segmentLengths(points).reduce((sum, part) => sum + part, 0),
           progress: line.presence,
-          alpha: 1,
+          alpha: stays(line.id) ? 1 : 1 - quiet,
           flow: state.props.scene.flow,
           colour: line.side === null ? grey : SIDE_COLOURS[line.side],
         });
@@ -1343,7 +1522,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
             String(line.weight.value),
             onCanvas(line.weight),
             zoom,
-            line.weighed,
+            line.weighed * (1 - quiet),
           );
         }
         if (line.total !== undefined && line.totalled > 0) {
@@ -1352,7 +1531,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
             String(line.total.value),
             onCanvas(line.total),
             zoom,
-            line.totalled,
+            line.totalled * (1 - quiet),
           );
         }
       }
@@ -1373,10 +1552,15 @@ export function StoryScene(props: StorySceneProps): ReactNode {
             plane,
             onCanvas(person),
             PLANE.atomSize * zoom * (0.55 + 0.45 * person.presence),
-            person.presence,
+            person.presence * (stays(person.id) ? 1 : 1 - quiet),
             depositorColour(person.side),
           );
         }
+      }
+
+      // The money flow, on this same picture.
+      if (moneyFlow !== undefined) {
+        drawMoneyFlow(plane, moneyFlow, blended, onCanvas, zoom);
       }
 
       // An atom the cloud has keeps its shape from there: it is the same

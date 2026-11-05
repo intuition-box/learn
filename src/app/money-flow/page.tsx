@@ -10,8 +10,8 @@ export const metadata: Metadata = {
 };
 
 /**
- * The next chapter's picture, on a page of its own until it joins the film:
- * nothing links here, and the sitemap leaves it out.
+ * The money flow chapter's picture on a page of its own, played once, with
+ * the fees by kind under it: nothing links here, and the sitemap leaves it out.
  */
 export default function MoneyFlowPage(): ReactNode {
   return (

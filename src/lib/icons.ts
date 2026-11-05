@@ -35,6 +35,18 @@ export const USER_ICON: Icon = {
 };
 
 /**
+ * A fee: a small coin leaving a larger one, lighter. A draft, until Saulo
+ * supplies one.
+ */
+export const FEE_ICON: Icon = {
+  size: 24,
+  paths: [
+    { d: 'M10 6a8 8 0 1 0 0 16a8 8 0 1 0 0-16Z', opacity: 0.3 },
+    { d: 'M18.5 1.5a4 4 0 1 0 0 8a4 4 0 1 0 0-8Z', opacity: 1 },
+  ],
+};
+
+/**
  * A triple: its subject, a circle; its object, a square; its predicate, a
  * triangle over them. In one colour, the subject lightest.
  */

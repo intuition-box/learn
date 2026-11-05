@@ -7,6 +7,7 @@ import {
   captionText,
   CHAPTER_SPANS,
   chapterAt,
+  moneyFlowAt,
   CROWD,
   describeScene,
   DURATION,
@@ -912,8 +913,11 @@ describe('stepping by chapter', () => {
       stepFrom(beat('look-closer').start + 100, 1, 'start', 'chapter'),
     ).toBe(beat('vaults').start);
     expect(stepFrom(beat('vaults').start + 100, 1, 'start', 'chapter')).toBe(
-      beat('list-back').start,
+      beat('money-deposit').start,
     );
+    expect(
+      stepFrom(beat('money-deposit').start + 100, 1, 'start', 'chapter'),
+    ).toBe(beat('list-back').start);
     expect(stepFrom(beat('list-back').start + 100, 1, 'start', 'chapter')).toBe(
       beat('perspective').start,
     );
@@ -946,5 +950,47 @@ describe('describeScene', () => {
     expect(describeScene(settled('triple'))).toBe(
       'A triple: Elon Musk, the subject; founder of, the predicate; SpaceX, the object.',
     );
+  });
+});
+
+describe('the money flow chapter', () => {
+  it('comes after vaults and before lists, one beat a picture', () => {
+    const titles = CHAPTER_SPANS.map((span) => span.title);
+
+    expect(titles.slice(3, 6)).toEqual(['Vaults', 'Money flow', 'Lists']);
+    expect(moneyFlowAt(beat('money-deposit').end - 1)?.view).toBe('deposit');
+    expect(moneyFlowAt(beat('money-fees').start)?.view).toBe('fees');
+  });
+
+  it('plays on the plane the vaults leave, which holds to the lists', () => {
+    expect(beat('money-deposit').stage).toBe(beat('positions').stage);
+    expect(beat('money-fees').stage).toBe(beat('positions').stage);
+  });
+
+  it('sets the other positions aside, and they stay gone as the plane closes', () => {
+    expect(moneyFlowAt(beat('positions').end - 1)).toBeUndefined();
+    expect(moneyFlowAt(beat('money-deposit').start)?.quiet).toBe(0);
+    expect(moneyFlowAt(beat('money-deposit').start + 500)?.quiet).toBe(1);
+    expect(moneyFlowAt(beat('list-back').start + 250)).toMatchObject({
+      quiet: 1,
+      shown: 0.5,
+    });
+    expect(moneyFlowAt(beat('list-grows').start)).toBeUndefined();
+  });
+
+  it('plays with the clock, starting over with each picture', () => {
+    const { start } = beat('money-fees');
+
+    expect(moneyFlowAt(start)?.seconds).toBeLessThan(0);
+    expect(moneyFlowAt(start + 1600)?.seconds).toBeCloseTo(1);
+  });
+
+  it('settles played through, and shows so at once for reduced motion', () => {
+    for (const id of ['money-deposit', 'money-fees']) {
+      const { start, motionMs } = beat(id);
+
+      expect(moneyFlowAt(start + motionMs)?.seconds).toBeGreaterThan(2.5);
+      expect(moneyFlowAt(start, true)?.seconds).toBeGreaterThan(10);
+    }
   });
 });

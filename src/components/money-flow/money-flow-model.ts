@@ -19,14 +19,17 @@ export const RATES = {
   atomFraction: 90,
 } as const;
 
+/** What the user sends in the picture. */
+export const SENT = 100;
+
 /**
  * What a builder's fee proxy takes before `MultiVault`: a percentage of all the
  * user sends, in basis points, and a flat fee in TRUST. Optional, and the
  * builder's to set. Intuition's template differs: its percentage is of what it
  * forwards.
  */
-export const BUILDER_RATE = 200;
-export const BUILDER_FLAT = 3;
+export const BUILDER_RATE = 40;
+export const BUILDER_FLAT = 0.1;
 
 /** The terms of a triple the fraction is shared between. */
 const TERMS = 3;

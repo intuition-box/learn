@@ -1,11 +1,17 @@
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 
 import type { Role } from '@/components/playground/story-model';
 import {
   outlinePath,
   ROLE_COLOURS,
 } from '@/components/playground/story-shapes';
-import { VAULT_ICON, VAULT_SIZE, vaultFace, type VaultOf } from '@/lib/icons';
+import {
+  FEE_ICON,
+  VAULT_ICON,
+  VAULT_SIZE,
+  vaultFace,
+  type VaultOf,
+} from '@/lib/icons';
 
 /** The width both views are drawn to, and the column they share: the middle. */
 export const WIDTH = 1200;
@@ -57,13 +63,14 @@ export const termVaultBase = (top: number): number => top + VAULT_Y + BASE_Y;
 const innerTop = (top: number): number => top + INNER_TOP;
 
 const CORNER = 12;
+const FEE_INSET = 10;
 const CHARACTER_WIDTH = 7.2;
 const NAME_PADDING = 12;
 const NAME_HEIGHT = 26;
 
-/** An amount in whole TRUST. */
+/** An amount in TRUST, to two decimals at most. */
 export const number = (value: number): string =>
-  value.toLocaleString('en-US', { maximumFractionDigits: 0 });
+  value.toLocaleString('en-US', { maximumFractionDigits: 2 });
 
 /**
  * A line from a point to a bar, along it and on to a target, its corners
@@ -93,21 +100,52 @@ export function route(
   ].join('');
 }
 
+/** How long a step of the animation takes: a coin's run, and a pause. */
+const STEP = 1.1;
+const RUN_START = 0.4;
+
+/** When what a step brings appears, and when the lines leaving it start. */
+export const appearsAt = (step: number): number => step * STEP;
+export const runsAt = (step: number): number => RUN_START + step * STEP;
+
+const delay = (seconds: number): CSSProperties => ({
+  animationDelay: `${seconds}s`,
+});
+
+/** The coins, as the fee icon draws them: the money large and light, a fee small and solid. */
+const COINS = {
+  money: { r: 9, fillOpacity: 0.3 },
+  fee: { r: 5, fillOpacity: 1 },
+} as const;
+
 export function Flow({
   d,
+  at,
+  coin,
   strong = false,
 }: {
   d: string;
+  /** When it appears, and its coin sets off. */
+  at: number;
+  coin: keyof typeof COINS;
   strong?: boolean;
 }): ReactNode {
   return (
-    <path
-      d={d}
-      fill="none"
-      strokeWidth={strong ? 3 : 1.5}
-      markerEnd={`url(#money-flow-${strong ? 'strong' : 'arrow'})`}
-      className={strong ? 'stroke-fg' : 'stroke-fg-muted'}
-    />
+    <g>
+      <path
+        d={d}
+        fill="none"
+        strokeWidth={strong ? 3 : 1.5}
+        markerEnd={`url(#money-flow-${strong ? 'strong' : 'arrow'})`}
+        style={delay(at)}
+        className={`money-flow-in ${strong ? 'stroke-fg' : 'stroke-fg-muted'}`}
+      />
+      <circle
+        {...COINS[coin]}
+        style={{ ...delay(at), offsetPath: `path("${d}")` }}
+        className="money-flow-coin fill-fg"
+      />
+    </g>
   );
 }
 
@@ -119,6 +157,21 @@ interface AmountProps {
   amount: string;
   label: string;
   look?: 'plain' | 'strong' | 'optional';
+  /** It is a fee: the fee icon in its corner. */
+  fee?: boolean;
+  /** When it appears. */
+  at: number;
+}
+
+/** The fee icon, its top left corner at a point. */
+function FeeMark({ x, y }: { x: number; y: number }): ReactNode {
+  return (
+    <g transform={`translate(${x} ${y})`}>
+      {FEE_ICON.paths.map(({ d, opacity }) => (
+        <path key={d} d={d} fillOpacity={opacity} className="fill-fg" />
+      ))}
+    </g>
+  );
 }
 
 /** A box of money: its amount, and in words what it is. */
@@ -130,11 +183,13 @@ export function Amount({
   amount,
   label,
   look = 'plain',
+  fee = false,
+  at,
 }: AmountProps): ReactNode {
   const strong = look === 'strong';
 
   return (
-    <g>
+    <g style={delay(at)} className="money-flow-in">
       <rect
         x={x - width / 2}
         y={y}
@@ -144,6 +199,7 @@ export function Amount({
         strokeDasharray={look === 'optional' ? '5 5' : undefined}
         className={strong ? 'fill-fg' : 'fill-bg stroke-border-strong'}
       />
+      {fee && <FeeMark x={x - width / 2 + FEE_INSET} y={y + FEE_INSET} />}
       <text
         x={x}
         y={y + height / 2 - 2}
@@ -172,15 +228,18 @@ export function Gain({
   x,
   y,
   amount,
+  at,
 }: {
   x: number;
   y: number;
   amount: string;
+  /** When it appears. */
+  at: number;
 }): ReactNode {
   const width = 26 + amount.length * CHARACTER_WIDTH;
 
   return (
-    <g>
+    <g style={delay(at)} className="money-flow-in">
       <rect
         x={x - width / 2}
         y={y - 12}
@@ -299,6 +358,8 @@ interface NestedTripleProps {
   /** What the outer triple's vault gains, its size and what it is. */
   gain: string;
   gainNotes: readonly string[];
+  /** When the gain and its notes appear. */
+  gainAt: number;
   /** What the words in the inner triple's box say of it. */
   innerNote: string;
   /** Whether the vaults of SpaceX, will be worth and the inner triple received anything. */
@@ -310,6 +371,7 @@ export function NestedTriple({
   top,
   gain,
   gainNotes,
+  gainAt,
   innerNote,
   termsPaid,
 }: NestedTripleProps): ReactNode {
@@ -344,26 +406,28 @@ export function NestedTriple({
       <text x={FIGURES_X} y={top + 36} fontSize={13} className="fill-fg-muted">
         Outer triple's vault
       </text>
-      <text
-        x={FIGURES_X}
-        y={top + 80}
-        fontSize={34}
-        fontWeight={600}
-        className="fill-fg"
-      >
-        {gain}
-      </text>
-      {gainNotes.map((note, index) => (
+      <g style={delay(gainAt)} className="money-flow-in">
         <text
-          key={note}
           x={FIGURES_X}
-          y={top + 114 + index * 22}
-          fontSize={13}
-          className="fill-fg-muted"
+          y={top + 80}
+          fontSize={34}
+          fontWeight={600}
+          className="fill-fg"
         >
-          {note}
+          {gain}
         </text>
-      ))}
+        {gainNotes.map((note, index) => (
+          <text
+            key={note}
+            x={FIGURES_X}
+            y={top + 114 + index * 22}
+            fontSize={13}
+            className="fill-fg-muted"
+          >
+            {note}
+          </text>
+        ))}
+      </g>
 
       <text
         x={INNER.x + 16}
@@ -449,6 +513,13 @@ interface DrawingProps {
 
 /** A view's drawing, in a card that scrolls sideways on a phone so its words stay readable. */
 export function Drawing({ height, label, children }: DrawingProps): ReactNode {
+  const defs = (
+    <defs>
+      <Arrowhead id="money-flow-arrow" size={9} />
+      <Arrowhead id="money-flow-strong" size={12} />
+    </defs>
+  );
+
   return (
     <div className="overflow-x-auto rounded-2xl border border-border bg-bg p-4 md:p-6">
       <svg
@@ -457,10 +528,7 @@ export function Drawing({ height, label, children }: DrawingProps): ReactNode {
         aria-label={label}
         className="block h-auto w-full min-w-3xl font-sans"
       >
-        <defs>
-          <Arrowhead id="money-flow-arrow" size={9} />
-          <Arrowhead id="money-flow-strong" size={12} />
-        </defs>
+        {defs}
         {children}
       </svg>
     </div>

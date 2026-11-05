@@ -4,10 +4,7 @@ import { type ReactNode, useState } from 'react';
 
 import { DepositView } from './deposit-view';
 import { FeesView } from './fees-view';
-import { sentFlow } from './money-flow-model';
-
-/** What the user sends: about 1 TRUST reaches each term, and rounded, every figure still adds up. */
-const SENT = 360;
+import { SENT, sentFlow } from './money-flow-model';
 
 const VIEWS = [
   { id: 'deposit', label: 'Deposit split' },
@@ -23,6 +20,7 @@ type View = (typeof VIEWS)[number]['id'];
  */
 export function MoneyFlow(): ReactNode {
   const [view, setView] = useState<View>('deposit');
+  const [run, setRun] = useState(0);
   const flow = sentFlow(SENT);
 
   return (
@@ -41,16 +39,25 @@ export function MoneyFlow(): ReactNode {
             {label}
           </button>
         ))}
+        <button
+          type="button"
+          onClick={() => {
+            setRun(run + 1);
+          }}
+          className="rounded-full px-4 py-1.5 text-sm font-medium text-fg-muted outline-offset-2 outline-accent hover:text-fg focus-visible:outline-2 motion-reduce:hidden"
+        >
+          Replay
+        </button>
       </div>
       {view === 'deposit' ? (
-        <DepositView flow={flow} />
+        <DepositView key={run} flow={flow} />
       ) : (
-        <FeesView flow={flow} />
+        <FeesView key={run} flow={flow} />
       )}
       <figcaption className="mt-4 text-center text-sm text-fg-muted">
         A deposit on an existing triple, on the side for it, when its vault and
         those of its three terms each hold at least 1 share. In TRUST, at
-        mainnet's current rates, rounded to whole TRUST.
+        mainnet's current rates, rounded to two decimals.
       </figcaption>
     </figure>
   );
