@@ -17,6 +17,8 @@
  * piece of text is.
  */
 
+import { VAULT_ICON, VAULT_SIZE } from '@/lib/icons';
+
 import type { AtomId, Role } from './story-model';
 
 /**
@@ -68,9 +70,9 @@ export interface PlaneBranch {
 }
 
 /**
- * A triple's two vaults, and the people with a position in them. Lines hang
- * from the middle of the bottom of its frame: down, then apart, one side for
- * each vault, then to each person.
+ * A triple's vault, and the people with a position in it. Lines hang from
+ * the middle of the bottom of its frame: down to the vault, then apart, one
+ * side against the triple and one for it, then to each person.
  */
 export interface PlaneVaults {
   /** The triple whose vaults they are: its frame. */
@@ -146,9 +148,10 @@ export const PLANE = {
   /** Between one atom and the next up a branch: room for its name and the line. */
   branchStep: 96,
   /**
-   * A triple's vaults: how far below the claim its line splits in two, how
-   * far either side the two vaults' lines go, how far apart the people on
-   * one side stand, and how far along a person's line their position shows.
+   * A triple's vault: how far below the claim it stands, where its line
+   * splits in two, as large as every vault (`VAULT_SIZE`); how far either
+   * side the two sides' lines go; how far apart the people on one side
+   * stand; and how far along a person's line their position shows.
    */
   vaults: { split: 26, spread: 160, apart: 100, weightAt: 0.6, staggerMs: 150 },
   /**
@@ -181,7 +184,7 @@ export const PLANE = {
   faded: 0.3,
 } as const;
 
-/** Which of a triple's two vaults: the one against it, or the one for it. */
+/** Which side of a triple's vault: the stake against it, or the stake for it. */
 export type VaultSide = 'against' | 'for';
 
 /** A point on the plane: along the line, and down from it. */
@@ -191,10 +194,11 @@ export interface PlanePoint {
 }
 
 /**
- * A line of a triple's vaults, through `points`, from the top down: the
- * trunk, from the frame to where it splits; or a person's, from there
- * through their vault to them. A side's lines run together as far as its
- * vault, so the stretch they share shows stronger, as a list's lines do.
+ * A line of a triple's vault, through `points`: the trunk, from the top
+ * of the vault to the frame; or a person's, from them, through where their
+ * side's lines meet, to the vault's face for their side. A side's lines
+ * run together from where they meet to the vault, so the stretch they
+ * share shows stronger, as a list's lines do.
  */
 export interface VaultLine {
   id: string;
@@ -202,16 +206,22 @@ export interface VaultLine {
   side: VaultSide | null;
   /**
    * A person's line, its turn to grow, from 0: the people's lines grow one
-   * after another. The trunk has none: it grows once the first reaches it.
+   * after another. The trunk has none: it grows once the first reaches the
+   * vault.
    */
   turn?: number;
   /** The position of the person it reaches, and where on the line that shows. */
   weight?: PlanePoint & { value: number };
   /**
-   * On a side's first line, all the positions in its vault, where the
+   * On a side's first line, all the positions on that side, where the
    * side's lines run together.
    */
   total?: PlanePoint & { value: number };
+}
+
+/** A triple's vault: the middle of its icon's shape. */
+export interface PlaneVault extends PlanePoint {
+  id: string;
 }
 
 /** A person with a position in a vault: the middle of their icon, an atom's size. */
@@ -305,6 +315,7 @@ export interface PlaneLayout {
   weights: PlaneWeight[];
   /** The lines down to the people with a position in a triple's vaults, from the frame on. */
   vaultLines: VaultLine[];
+  vaults: PlaneVault[];
   people: PlanePerson[];
   width: number;
   top: number;
@@ -620,6 +631,7 @@ export function layoutPlane(
     links: [],
     weights: [],
     vaultLines: [],
+    vaults: [],
     people: [],
     width: laid.width,
     top: ATOM_TOP,
@@ -723,10 +735,11 @@ export function layoutPlane(
 }
 
 /**
- * Hangs a triple's vaults below its frame. The lines reach as far below the
- * claim as a claim rising from its top reaches above it, a row for the
- * vaults and a row for the people, so the plane is as tall with either; from
- * a triple inside the claim, the line down to where it splits is longer.
+ * Hangs a triple's vault below its frame. The lines reach as far below the
+ * claim as a claim rising from its top reaches above it, a row where each
+ * side's lines meet and a row for the people, so the plane is as tall with
+ * either; from a triple inside the claim, the line down to the vault is
+ * longer.
  */
 function hangVaults(
   vaults: PlaneVaults,
@@ -736,13 +749,22 @@ function hangVaults(
   const { split, spread, apart, weightAt } = PLANE.vaults;
   const step = PLANE.branchStep;
   const root = { x: frame.x + frame.width / 2, y: frame.bottom };
-  const fork = { x: root.x, y: into.bottom + split };
-  const vaultsRow = into.bottom + step * 0.75;
-  const peopleRow = vaultsRow + step;
+  // The vault, the middle of its icon where the line splits, and where a
+  // line meets each of its faces.
+  const vault = { x: root.x, y: into.bottom + split };
+  const { box, ports, size } = VAULT_ICON;
+  const scale = VAULT_SIZE / size;
+  const port = (face: keyof typeof ports): PlanePoint => ({
+    x: vault.x + (ports[face].x - (box.x + box.width / 2)) * scale,
+    y: vault.y + (ports[face].y - (box.y + box.height / 2)) * scale,
+  });
+  const sidesRow = into.bottom + step * 0.75;
+  const peopleRow = sidesRow + step;
+  into.vaults.push({ id: `${vaults.frame}:vault`, ...vault });
   // The people make the claim: every line runs from them up to it.
   into.vaultLines.push({
     id: `${vaults.frame}:vaults`,
-    points: [fork, root],
+    points: [port('subject'), root],
     side: null,
   });
   let turn = 0;
@@ -750,28 +772,30 @@ function hangVaults(
     ['against', vaults.against, -1],
     ['for', vaults.for, 1],
   ] as const) {
-    const vault = { x: root.x + spread * direction, y: vaultsRow };
-    // The people on a side centred on its vault, left to right; each one's
-    // line from the top of their icon, through the vault, to the split.
+    const meet = { x: root.x + spread * direction, y: sidesRow };
+    const face = port(side);
+    // The people on a side centred on where its lines meet, left to right;
+    // each one's line from the top of their icon, through there, to the
+    // vault's face for their side.
     for (const [index, value] of positions.entries()) {
       const id = `${vaults.frame}:${side}:${index}`;
-      const x = vault.x + (index - (positions.length - 1) / 2) * apart;
+      const x = meet.x + (index - (positions.length - 1) / 2) * apart;
       const to = { x, y: peopleRow - PLANE.atomSize / 2 };
       into.vaultLines.push({
         id,
-        points: [to, vault, fork],
+        points: [to, meet, face],
         side,
         turn,
         weight: {
-          x: vault.x + (to.x - vault.x) * weightAt,
-          y: vault.y + (to.y - vault.y) * weightAt,
+          x: meet.x + (to.x - meet.x) * weightAt,
+          y: meet.y + (to.y - meet.y) * weightAt,
           value,
         },
         ...(index === 0
           ? {
               total: {
-                x: fork.x + (vault.x - fork.x) * weightAt,
-                y: fork.y + (vault.y - fork.y) * weightAt,
+                x: face.x + (meet.x - face.x) * weightAt,
+                y: face.y + (meet.y - face.y) * weightAt,
                 value: positions.reduce((sum, position) => sum + position, 0),
               },
             }
@@ -855,6 +879,11 @@ export interface BlendedVaultLine extends VaultLine {
   weighed: number;
 }
 
+/** A triple's vault partway from one beat's claim to the next. */
+export interface BlendedVault extends PlaneVault {
+  presence: number;
+}
+
 /** A person partway from one beat's claim to the next. */
 export interface BlendedPerson extends PlanePerson {
   presence: number;
@@ -901,6 +930,7 @@ export interface BlendedPlane {
   links: BlendedLink[];
   weights: BlendedWeight[];
   vaultLines: BlendedVaultLine[];
+  vaults: BlendedVault[];
   people: BlendedPerson[];
   words: BlendedWords[];
   picker: BlendedPicker | null;
@@ -975,11 +1005,12 @@ export const HANGING_RISE: Window = [0, 0.35];
  * in their shapes above them, the words grow their pills, and the lines
  * grow. Framing the whole claim, it
  * moves into place, then the frame forms round it, then what rises from it
- * arrives and the lines grow up to it. Hanging a triple's vaults below it,
+ * arrives and the lines grow up to it. Hanging a triple's vault below it,
  * at once what rose from it draws back and goes, an atom left with one role
- * takes it, and the claim moves up; then the people arrive below it, and
- * their lines grow up to it, one after another. Weighing them, each position shows on its line,
- * then each side takes its vault's colour. Seen through a perspective, the
+ * takes it, and the claim moves up; then the vault and the people arrive
+ * below it, and their lines grow up to it, one after another, through the
+ * vault. Weighing them, each position shows on its line, then each side
+ * takes its colour. Seen through a perspective, the
  * claim moves down to make room for the menu above it, which shows. Choosing
  * another, the menu opens, moves to it, and closes on it; the weights change
  * to the new perspective's; the members move into their new order; and
@@ -1292,8 +1323,8 @@ function through([start, end]: Window, t: number): number {
  * How far each of a triple's vault lines has grown at `t`, in a stage that
  * grows them over `window` of a change `durationMs` long, evenly: the
  * people's lines one after another, `staggerMs` apart, at one speed; the
- * trunk from when the first of them reaches it, at that speed, as that line
- * going on up; and all of it done as the stage ends. Without a duration,
+ * trunk from when the first of them reaches the vault, at that speed, as
+ * that line going on up through it; and all of it done as the stage ends. Without a duration,
  * the people's lines start together.
  */
 function vaultGrowth(
@@ -1414,6 +1445,7 @@ function shifted(layout: PlaneLayout, shift: number): Placed {
       ...(line.weight === undefined ? {} : { weight: moved(line.weight) }),
       ...(line.total === undefined ? {} : { total: moved(line.total) }),
     })),
+    vaults: layout.vaults.map(moved),
     people: layout.people.map(moved),
     ...(layout.picker === undefined
       ? {}
@@ -1770,6 +1802,18 @@ export function planeAt(
       });
     }
   }
+  // The vault arrives with the people.
+  const vaults: BlendedVault[] = (after?.vaults ?? []).map((vault) => ({
+    ...vault,
+    presence: (before?.vaults ?? []).some((old) => old.id === vault.id)
+      ? 1
+      : arrive,
+  }));
+  for (const vault of before?.vaults ?? []) {
+    if (!vaults.some((next) => next.id === vault.id)) {
+      vaults.push({ ...vault, presence: 1 - leave });
+    }
+  }
   const people: BlendedPerson[] = (after?.people ?? []).map((person) => ({
     ...person,
     presence: (before?.people ?? []).some((old) => old.id === person.id)
@@ -1889,6 +1933,7 @@ export function planeAt(
     links,
     weights,
     vaultLines,
+    vaults,
     people,
     words,
     picker: pickerAt(),

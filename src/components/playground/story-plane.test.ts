@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import { VAULT_ICON, VAULT_SIZE } from '@/lib/icons';
+
 import type { AtomId } from './story-model';
 import {
   ATOM_BOTTOM,
@@ -379,35 +381,51 @@ describe("a triple's vaults", () => {
   const weighing = (t: number) =>
     planeAt(HUNG, WEIGHED, t, measureText, labelOf, WEIGHED);
 
-  it('hangs from the middle of the bottom of its frame, splits in two, and reaches three people on each side', () => {
+  it('hangs from the middle of the bottom of its frame through one vault, splits in two, and reaches three people on each side', () => {
     const layout = layoutPlane(DEEPEST, measure, {
       frame: 'object',
       vaults: POSITIONS,
     });
     const frame = layout.frames.find((candidate) => candidate.id === 'belief');
     const [trunk, ...rest] = layout.vaultLines;
+    const [vault] = layout.vaults;
+    // Where a line meets one of the vault's faces, on the plane.
+    const { box, ports, size } = VAULT_ICON;
+    const port = (face: keyof typeof ports) => ({
+      x:
+        (vault?.x ?? 0) +
+        (ports[face].x - (box.x + box.width / 2)) * (VAULT_SIZE / size),
+      y:
+        (vault?.y ?? 0) +
+        (ports[face].y - (box.y + box.height / 2)) * (VAULT_SIZE / size),
+    });
 
-    // From the people up: the trunk ends at the middle of the bottom of
-    // the frame; every person's line ends where it starts, through one of
-    // two vaults, and a side's lines run together from its vault.
+    // One vault, under the middle of the frame. From the people up: the
+    // trunk leaves the top of the vault and ends at the middle of the
+    // bottom of the frame; every person's line ends at the vault's face
+    // for their side, and a side's lines run together from where they meet.
+    expect(layout.vaults).toHaveLength(1);
+    expect(vault?.x).toBe((frame?.x ?? 0) + (frame?.width ?? 0) / 2);
+    expect(trunk?.points[0]).toEqual(port('subject'));
     expect(trunk?.points.at(-1)).toEqual({
       x: (frame?.x ?? 0) + (frame?.width ?? 0) / 2,
       y: frame?.bottom,
     });
     expect(trunk?.side).toBeNull();
-    expect(rest.every((line) => line.points.at(-1) === trunk?.points[0])).toBe(
-      true,
-    );
-    expect(new Set(rest.map((line) => line.points[1]))).toHaveProperty(
-      'size',
-      2,
-    );
     for (const side of ['against', 'for'] as const) {
       const lines = rest.filter((line) => line.side === side);
+      expect(lines).toHaveLength(3);
+      expect(lines.every((line) => line.points.length === 3)).toBe(true);
       expect(
         lines.every((line) => line.points[1] === lines[0]?.points[1]),
       ).toBe(true);
+      for (const line of lines) {
+        expect(line.points.at(-1)).toEqual(port(side));
+      }
     }
+    // The face against the triple on the left, the face for it on the right.
+    expect(port('against').x).toBeLessThan(vault?.x ?? 0);
+    expect(port('for').x).toBeGreaterThan(vault?.x ?? 0);
     // Against on the left, for on the right, each person's position on
     // their line, left to right as given.
     const people = layout.people.toSorted((a, b) => a.x - b.x);
@@ -492,8 +510,14 @@ describe("a triple's vaults", () => {
     expect(hanging(0.35).people.every((person) => person.presence === 0)).toBe(
       true,
     );
-    // The people, then the lines.
+    expect(hanging(0.35).vaults.every((vault) => vault.presence === 0)).toBe(
+      true,
+    );
+    // The vault and the people, then the lines.
     expect(hanging(0.55).people.every((person) => person.presence === 1)).toBe(
+      true,
+    );
+    expect(hanging(0.55).vaults.every((vault) => vault.presence === 1)).toBe(
       true,
     );
     expect(hanging(0.6).vaultLines.every((line) => line.presence === 0)).toBe(

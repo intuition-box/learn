@@ -1,6 +1,15 @@
 import { type ReactNode, useEffect, useRef } from 'react';
 
-import { MEDAL_ICON, USER_ICON } from '@/lib/icons';
+import {
+  type Icon,
+  MEDAL_ICON,
+  USER_ICON,
+  VAULT_COLOURS,
+  VAULT_FACES,
+  VAULT_ICON,
+  VAULT_SIZE,
+  type VaultOf,
+} from '@/lib/icons';
 import {
   arcPoint,
   axisAngle,
@@ -53,6 +62,7 @@ import {
   type PlaneEnd,
   type PlanePoint,
   planeAt,
+  type VaultSide,
 } from './story-plane';
 import { ROLE_COLOURS, traceShape } from './story-shapes';
 
@@ -135,13 +145,14 @@ const LINE = { width: 1, alpha: 0.16 } as const;
 /** A frame round a triple inside a claim: how strong its tint is, inside and round it. */
 const FRAME = { fill: 0.07, stroke: 0.45 } as const;
 /**
- * Each vault's colour on the lines to it: the palette's red against the
- * triple, its green for it. Until they show their side, the lines are grey.
+ * Each side's colour on its lines to a triple's vault: its face's, orange
+ * against the triple and blue for it. Until they show their side, the
+ * lines are grey.
  */
 const SIDE_COLOURS = {
-  against: ROLE_COLOURS.object,
-  for: ROLE_COLOURS.predicate,
-} as const;
+  against: VAULT_COLOURS.against,
+  for: VAULT_COLOURS.for,
+} as const satisfies Record<VaultSide, Rgb>;
 /** A perspective's outline, round or square: a faint fill, a dashed hairline. */
 const OUTLINE = { fill: 0.025, stroke: 0.12, dash: [3, 4] } as const;
 /**
@@ -615,9 +626,15 @@ export function StoryScene(props: StorySceneProps): ReactNode {
     const grey = readToken('--color-graphite-500');
     const ring = readToken('--color-graphite-100');
     const personColour = readToken('--color-graphite-950');
-    const personPaths = USER_ICON.paths.map((path) => ({
+    const pathsOf = (icon: Icon) =>
+      icon.paths.map((path) => ({
+        path: new Path2D(path.d),
+        opacity: path.opacity,
+      }));
+    const personPaths = pathsOf(USER_ICON);
+    const vaultPaths = VAULT_ICON.paths.map((path) => ({
       path: new Path2D(path.d),
-      opacity: path.opacity,
+      face: path.face,
     }));
     const medalPath = new Path2D(MEDAL_ICON.paths[0]?.d ?? '');
     const fontFamily = getComputedStyle(canvas).fontFamily;
@@ -1085,6 +1102,32 @@ export function StoryScene(props: StorySceneProps): ReactNode {
     }
 
     /**
+     * The vault of an atom or of a triple, as large as an icon `size`
+     * across, the middle of its shape on `at`: each face as strong as the
+     * rule says for what it holds (see `VAULT_FACES`), in its own colour.
+     */
+    function drawVault(
+      target: CanvasRenderingContext2D,
+      at: ScreenPoint,
+      size: number,
+      of: VaultOf,
+      alpha: number,
+    ): void {
+      const { box } = VAULT_ICON;
+      const scale = size / VAULT_ICON.size;
+      target.save();
+      target.translate(at.x, at.y);
+      target.scale(scale, scale);
+      target.translate(-(box.x + box.width / 2), -(box.y + box.height / 2));
+      for (const { path, face } of vaultPaths) {
+        target.fillStyle = rgba(VAULT_COLOURS[face]);
+        target.globalAlpha = alpha * VAULT_FACES[of][face];
+        target.fill(path);
+      }
+      target.restore();
+    }
+
+    /**
      * The plane, sharp in front of the cloud: a branch off the graph, drawn
      * as the cloud is drawn, only flat. First, the lines that run from the
      * atoms it shares with the cloud back into it, sharp near the plane and
@@ -1248,11 +1291,12 @@ export function StoryScene(props: StorySceneProps): ReactNode {
         }
       }
 
-      // A triple's vaults: the lines down from its frame, grey until they
-      // show the vault they lead to, a side's running together as far as
-      // its vault; each person's position, on their line, and each vault's
-      // total, where its lines run together; and the people, arriving as
-      // atoms do.
+      // A triple's vault: the lines down from its frame to it, and from
+      // its faces against and for to each person on that side, a side's
+      // running together to the vault, grey until they show their side;
+      // the vault, a triple's; each person's position, on their line, and
+      // all the positions on each side, where its lines run together; and
+      // the people, arriving as atoms do.
       const onCanvas = (point: PlanePoint): ScreenPoint => ({
         x: origin.x + point.x * zoom,
         y: origin.y + point.y * zoom,
@@ -1289,6 +1333,17 @@ export function StoryScene(props: StorySceneProps): ReactNode {
             onCanvas(line.total),
             zoom,
             line.sided,
+          );
+        }
+      }
+      for (const vault of blended.vaults) {
+        if (vault.presence > 0) {
+          drawVault(
+            plane,
+            onCanvas(vault),
+            VAULT_SIZE * zoom * (0.55 + 0.45 * vault.presence),
+            'triple',
+            vault.presence,
           );
         }
       }
@@ -2703,6 +2758,25 @@ export function StoryScene(props: StorySceneProps): ReactNode {
           }
           context.globalAlpha = alpha;
           drawBadge(context, atom.label, name.x, name.top, badge);
+          // Its vault, an atom's, under its name, where the beat shows it.
+          const vault = state.props.scene.vault;
+          if (vault?.atom === atom.id && vault.shown > 0) {
+            const { box, size } = VAULT_ICON;
+            drawVault(
+              context,
+              {
+                x: name.x,
+                y:
+                  name.top +
+                  badge.height +
+                  badge.gap +
+                  ((box.height / size) * VAULT_SIZE) / 2,
+              },
+              VAULT_SIZE,
+              'atom',
+              alpha * vault.shown,
+            );
+          }
         }
         // The wider graph's names, last, where no other name is: blank, set
         // back, as a name no triple joins is.

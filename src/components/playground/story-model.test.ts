@@ -99,6 +99,31 @@ describe('the first chapters', () => {
     // At the front of the cloud, facing the viewer.
     expect(atom(scene, 'elonMusk').at).toEqual([0, 0, 1]);
     expect(atom(scene, 'elonMusk').role.to).toBe('identity');
+    expect(scene.vault).toBeNull();
+  });
+
+  it('brings in Elon Musk’s vault under his name, as he stands still', () => {
+    const { start, motionMs } = beat('atom-vault');
+
+    expect(sceneAt(start).vault).toEqual({ atom: 'elonMusk', shown: 0 });
+    expect(settled('atom-vault').vault).toEqual({
+      atom: 'elonMusk',
+      shown: 1,
+    });
+    expect(atom(settled('atom-vault'), 'elonMusk').at).toEqual(
+      atom(settled('atom'), 'elonMusk').at,
+    );
+    expect(sceneAt(start + motionMs * 0.6).vault?.shown).toBeGreaterThan(0);
+    expect(sceneAt(start + motionMs * 0.6).vault?.shown).toBeLessThan(1);
+  });
+
+  it('takes the vault away as SpaceX arrives', () => {
+    const { start, motionMs } = beat('second-atom');
+
+    expect(sceneAt(start).vault).toEqual({ atom: 'elonMusk', shown: 1 });
+    expect(sceneAt(start + motionMs * 0.2).vault?.shown).toBeLessThan(1);
+    expect(sceneAt(start + motionMs * 0.4).vault?.shown).toBe(0);
+    expect(settled('third-atom').vault).toBeNull();
   });
 
   it('moves Elon Musk left to make room for SpaceX, both plain atoms', () => {
@@ -332,7 +357,7 @@ describe('moving through the film', () => {
   });
 
   it('steps forward to the next beat, and to the end after the last', () => {
-    const second = beat('second-atom');
+    const second = beat('atom-vault');
 
     expect(stepFrom(0, 1, 'start')).toBe(second.start);
     expect(stepFrom(0, 1, 'settled')).toBe(second.start + second.motionMs);
@@ -413,13 +438,13 @@ describe('nested triples', () => {
 describe('vaults', () => {
   it('takes away what rose from the whole triple, and hangs the vaults of what he believes below it', () => {
     expect(describeScene(settled('vaults'))).toBe(
-      'A triple: Elon Musk believes (SpaceX will be worth (orders of magnitude more than current Earth economy)). 6 people have a position in the two vaults of SpaceX will be worth (orders of magnitude more than current Earth economy): 3 against it, and 3 for it.',
+      'A triple: Elon Musk believes (SpaceX will be worth (orders of magnitude more than current Earth economy)). 6 people have a position in the vault of SpaceX will be worth (orders of magnitude more than current Earth economy): 3 against it, and 3 for it.',
     );
   });
 
   it('then shows each position: 400, 200 and 20 against, 200, 150 and 80 for', () => {
     expect(describeScene(settled('positions'))).toBe(
-      'A triple: Elon Musk believes (SpaceX will be worth (orders of magnitude more than current Earth economy)). 6 people have a position in the two vaults of SpaceX will be worth (orders of magnitude more than current Earth economy): 3 against it, with 400, 200 and 20 (620 in all), and 3 for it, with 200, 150 and 80 (430 in all).',
+      'A triple: Elon Musk believes (SpaceX will be worth (orders of magnitude more than current Earth economy)). 6 people have a position in the vault of SpaceX will be worth (orders of magnitude more than current Earth economy): 3 against it, with 400, 200 and 20 (620 in all), and 3 for it, with 200, 150 and 80 (430 in all).',
     );
   });
 
@@ -889,6 +914,9 @@ describe('describeScene', () => {
   it('says what is on the stage', () => {
     expect(describeScene(sceneAt(0))).toBe('An empty scene.');
     expect(describeScene(settled('atom'))).toBe('An atom: Elon Musk.');
+    expect(describeScene(settled('atom-vault'))).toBe(
+      'An atom, Elon Musk, and its vault under its name.',
+    );
     expect(describeScene(settled('second-atom'))).toBe(
       'Atoms: Elon Musk and SpaceX.',
     );

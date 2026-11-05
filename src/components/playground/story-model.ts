@@ -286,6 +286,11 @@ interface StageState {
    * unless a beat takes it away.
    */
   cloud?: { shown: number; during?: During };
+  /**
+   * An atom's vault, under its name, and when it arrives: every atom has
+   * one. It goes as the next beat starts.
+   */
+  vault?: { atom: AtomId; during?: During };
   /** Atoms the cloud shows set back: there, but in none of its triples. */
   setBack?: readonly AtomId[];
   /** When the atoms it sets back step back, when not over the whole beat. */
@@ -773,8 +778,8 @@ const SOURCE: PlaneBranch = {
 };
 
 /**
- * The two vaults of what Elon Musk believes, and six people with a position
- * in them: three against it, on the left, and three for it, on the right.
+ * The vault of what Elon Musk believes, and six people with a position in
+ * it: three against it, on the left, and three for it, on the right.
  */
 const POSITIONS: PlaneVaults = {
   frame: 'worth',
@@ -782,7 +787,7 @@ const POSITIONS: PlaneVaults = {
   for: [200, 150, 80],
 };
 
-/** Who believes it, set back while the vaults of what he believes show. */
+/** Who believes it, set back while the vault of what he believes shows. */
 const SET_BACK: readonly AtomId[] = ['elonMusk', 'believes'];
 
 /**
@@ -865,6 +870,22 @@ const BEAT_SPECS: readonly BeatSpec[] = [
       camera: { facing: FRONT, zoom: 1.5 },
       atoms: { elonMusk: { at: FRONT, role: 'identity', during: [0.2, 1] } },
       triples: {},
+    },
+  },
+  {
+    id: 'atom-vault',
+    chapter: 'atoms',
+    caption: [
+      'Every atom has a vault, which holds its value.\nAnyone can deposit into it, to signal that the atom matters.',
+    ],
+    alt: 'An atom, Elon Musk, and its vault under its name.',
+    // Elon Musk stays as he is, and his vault arrives under his name.
+    motionMs: 1200,
+    stage: {
+      camera: { facing: FRONT, zoom: 1.5 },
+      atoms: { elonMusk: { at: FRONT, role: 'identity' } },
+      triples: {},
+      vault: { atom: 'elonMusk', during: [0.2, 1] },
     },
   },
   {
@@ -1159,14 +1180,17 @@ const BEAT_SPECS: readonly BeatSpec[] = [
   {
     id: 'vaults',
     chapter: 'vaults',
-    caption: ['Every triple has two vaults, one against it and one for it.'],
+    caption: [
+      'Every triple has a vault, with a side against it and a side for it.',
+    ],
     // At once, what rose from the whole triple draws back and goes, its
     // frame goes but keeps its room, Elon Musk and believes are set back,
     // the current Earth economy, an object and nothing else again, is a
     // square again, the cloud behind goes, and the triple rises to the top.
-    // Then six people arrive below it, and grey lines grow down from the
-    // frame of what he believes, split in two, one side for each vault, and
-    // split again to reach them.
+    // Then its vault and six people arrive below it, and grey lines grow
+    // down from the frame of what he believes to the vault, split in two
+    // there, one side against it and one for it, and split again to reach
+    // them.
     motionMs: 4400,
     stage: {
       ...UP_CLOSE,
@@ -1185,11 +1209,11 @@ const BEAT_SPECS: readonly BeatSpec[] = [
     id: 'positions',
     chapter: 'vaults',
     caption: [
-      'Anyone can take a position by depositing into either, and the positions give the triple its weight.\nA triple is a claim, not a fact: its weight shows how many stand behind it, and how much.',
+      'Anyone can take a position by depositing on either side, and the positions give the triple its weight.\nA triple is a claim, not a fact: its weight shows how many stand behind it, and how much.',
     ],
     // Each person's position shows on their line; then each side takes its
-    // vault's colour, red against, green for, and the line to each vault
-    // shows all the positions in it.
+    // colour, orange against, blue for, and where its lines run together
+    // they show all the positions on it.
     motionMs: 3200,
     stage: {
       ...UP_CLOSE,
@@ -1801,6 +1825,8 @@ export interface Scene {
   crowd: number;
   /** Atoms shown quieter than the rest, and how far, 0 to 1. */
   quiet: ReadonlyMap<AtomId, number>;
+  /** An atom's vault, under its name, and how far it shows, 0 to 1; or `null`. */
+  vault: { atom: AtomId; shown: number } | null;
 }
 
 function clamp01(value: number): number {
@@ -2003,7 +2029,31 @@ export function sceneAt(time: number, isStill = false): Scene {
           ? along(progress, target.crowd)
           : 1,
     quiet: quietAt(previous, target, progress),
+    vault: vaultAt(previous, target, progress),
   };
+}
+
+/** When, in the beat after the one that shows an atom's vault, the vault goes. */
+const VAULT_LEAVES: During = [0, 0.4];
+
+/** The atom's vault shown, and how far, `progress` of the way into the beat. */
+function vaultAt(
+  previous: StageState,
+  target: StageState,
+  progress: number,
+): Scene['vault'] {
+  const was = previous.vault?.atom;
+  const is = target.vault;
+  if (is !== undefined) {
+    return {
+      atom: is.atom,
+      shown: was === is.atom ? 1 : along(progress, is.during),
+    };
+  }
+
+  return was === undefined
+    ? null
+    : { atom: was, shown: 1 - along(progress, VAULT_LEAVES) };
 }
 
 /** The atoms shown quieter, and how far, `progress` of the way into the beat. */
@@ -2279,8 +2329,8 @@ function tripleIn(term: PlaneTerm, id: string): PlaneTriple | undefined {
 }
 
 /**
- * A triple's vaults, and the people with a position in them, in words: the
- * claim's own, or those of a triple inside it.
+ * A triple's vault, and the people with a position in it, in words: the
+ * claim's own, or that of a triple inside it.
  */
 function describeVaults(
   vaults: PlaneVaults,
@@ -2290,8 +2340,8 @@ function describeVaults(
   const owner = tripleIn(term, vaults.frame);
   const whose =
     owner === undefined || ('triple' in term && term.triple === owner)
-      ? 'its two vaults'
-      : `the two vaults of ${planeSentence({ triple: owner }, labelOf)}`;
+      ? 'its vault'
+      : `the vault of ${planeSentence({ triple: owner }, labelOf)}`;
   const side = (positions: readonly number[], which: string): string =>
     `${positions.length} ${which} it${vaults.isWeighed === true ? `, with ${listed(positions)}` : ''}${vaults.isSided === true ? ` (${positions.reduce((sum, value) => sum + value, 0)} in all)` : ''}`;
 

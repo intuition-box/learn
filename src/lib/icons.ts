@@ -59,6 +59,104 @@ export const TRIPLE_ICON: Icon = {
   ],
 };
 
+/** A vault's three faces: its lid, the subject, and its stakes against and for it. */
+export type VaultFace = 'subject' | 'against' | 'for';
+
+/** A point in an icon's units. */
+interface IconPoint {
+  x: number;
+  y: number;
+}
+
+/**
+ * A vault's icon: its three faces are what it holds, and lines run
+ * through it, each meeting it at the outer corner of its face.
+ */
+export interface VaultIcon extends Icon {
+  paths: readonly (IconPath & { face: VaultFace })[];
+  /** Where its shape stands, in the icon's units: its top left, and its size. */
+  box: { x: number; y: number; width: number; height: number };
+  /**
+   * Where a line meets each face, in the icon's units: on to the term,
+   * from the lid's top corner; in from the stakes against it, at the left
+   * face's bottom corner, and for it, at the right face's.
+   */
+  ports: Readonly<Record<VaultFace, IconPoint>>;
+}
+
+/**
+ * The rule for a vault's faces, always: its lid is the subject, its left
+ * face the stake against and its right face the stake for. Deposited in
+ * an atom, a subject, the lid is solid and the other two at 40%; deposited
+ * in a triple, all three faces are solid. Every vault is drawn by this, in
+ * `VAULT_COLOURS`, `VAULT_SIZE` across.
+ */
+export const VAULT_FACES = {
+  atom: { subject: 1, against: 0.4, for: 0.4 },
+  triple: { subject: 1, against: 1, for: 1 },
+} as const satisfies Record<string, Record<VaultFace, number>>;
+
+/** What a vault holds deposits in: an atom, or a whole triple. */
+export type VaultOf = keyof typeof VAULT_FACES;
+
+/**
+ * Every vault's colours, a face's by what it stands for: the lid pure
+ * black; the stake against orange and the stake for blue, as Intuition
+ * draws positions, for neither side is right or wrong. The lines to a
+ * triple's vault take its sides' colours too. The orange and the blue are
+ * each as light and as strong as the film's role colours (about 0.7 to
+ * 0.76 lightness and 0.15 to 0.17 chroma in OKLCH), at hues none of them
+ * takes: the orange 37 degrees from the object's red, the blue 35 from
+ * the subject's.
+ */
+export const VAULT_COLOURS = {
+  subject: [0, 0, 0],
+  against: [255, 145, 46],
+  for: [40, 170, 245],
+} as const satisfies Record<VaultFace, readonly [number, number, number]>;
+
+/**
+ * Every vault's size, in CSS pixels where it stands full size (on the
+ * plane, at zoom 1): smaller than an atom, under a name or on a line.
+ */
+export const VAULT_SIZE = 24;
+
+/**
+ * A vault: a cube seen from above a corner. Every atom has one, and every
+ * triple one: what is deposited in a term goes into its vault. Its own
+ * opacities are an atom's (see `VAULT_FACES`).
+ */
+export const VAULT_ICON: VaultIcon = {
+  size: 24,
+  paths: [
+    {
+      d: 'M 20.765 7.982 L 20.787 8.172 L 20.794 8.366 L 20.794 15.634 C 20.794 16.464 20.382 17.239 19.695 17.704 L 19.545 17.799 L 13.25 21.433 L 13.126 21.5 L 13 21.56 L 13 12.57 L 20.765 7.982 Z',
+      opacity: VAULT_FACES.atom.for,
+      face: 'for',
+    },
+    {
+      d: 'M 13.25 2.567 L 19.544 6.201 C 19.594 6.231 19.644 6.261 19.692 6.293 L 12 10.838000000000001 L 4.308 6.293 C 4.356 6.261 4.406 6.23 4.456 6.201 L 10.75 2.567 C 11.524000000000001 2.12 12.476 2.12 13.25 2.567 Z',
+      opacity: VAULT_FACES.atom.subject,
+      face: 'subject',
+    },
+    {
+      d: 'M 3.235 7.982 L 11 12.571 L 11 21.559 C 10.914 21.522 10.831 21.48 10.75 21.433 L 4.456 17.799 C 3.683 17.352 3.206 16.527 3.206 15.634 L 3.206 8.366 C 3.206 8.236 3.216 8.108 3.236 7.982 L 3.235 7.982 Z',
+      opacity: VAULT_FACES.atom.against,
+      face: 'against',
+    },
+  ],
+  // The sides' outer edges, the lid's rounded top corner, and the sides'
+  // bottom corners.
+  box: { x: 3.206, y: 2.232, width: 17.588, height: 19.328 },
+  // The middles of the lid's top curve and of the sides' rounded outer
+  // bottom corners.
+  ports: {
+    subject: { x: 12, y: 2.232 },
+    against: { x: 3.541, y: 16.884 },
+    for: { x: 20.502, y: 16.806 },
+  },
+};
+
 /** An icon with an open ring in it, where whoever draws it sets something. */
 export interface RingedIcon extends Icon {
   /** Where its shape stands, in the icon's units: its top left, and its size. */
