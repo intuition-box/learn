@@ -765,6 +765,7 @@ describe('perspectives', () => {
       'carsSaveLives',
       'anthropicResearchesSafety',
       'proteinFoldingUnlocksMedicines',
+      'newJobsOutnumberJobsLost',
     ]) {
       expect(onCloud(id)).toBe(1);
       expect(onCopy(id)).toBe(0);

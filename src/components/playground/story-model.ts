@@ -138,6 +138,8 @@ export const ATOMS = {
   aiSafety: { label: 'AI safety' },
   unlocks: { label: 'unlocks' },
   newMedicines: { label: 'new medicines' },
+  outnumber: { label: 'outnumber' },
+  jobsLost: { label: 'jobs lost' },
 } as const satisfies Record<string, { label: string }>;
 
 export type AtomId = keyof typeof ATOMS;
@@ -324,6 +326,11 @@ export const TRIPLES = {
     subject: 'proteinFolding',
     predicate: 'unlocks',
     object: 'newMedicines',
+  },
+  newJobsOutnumberJobsLost: {
+    subject: 'newJobs',
+    predicate: 'outnumber',
+    object: 'jobsLost',
   },
 } as const satisfies Record<string, TripleAtoms>;
 
@@ -686,6 +693,7 @@ const OPTIMISTS_TRIPLES: readonly TripleId[] = [
   'carsSaveLives',
   'anthropicResearchesSafety',
   'proteinFoldingUnlocksMedicines',
+  'newJobsOutnumberJobsLost',
 ];
 
 /**
@@ -715,12 +723,12 @@ const PERSPECTIVES_ATOMS: Partial<Record<AtomId, AtomState>> = {
   poses: { at: onSphere(-5.556, 0.168), role: 'predicate' },
   existentialRisk: { at: onSphere(-3.837, 0.143), role: 'object' },
   lessThanTheHype: { at: onSphere(2.98, 0.39), role: 'object' },
-  willCure: { at: onSphere(-6.295, 0.948), role: 'predicate' },
-  diseases: { at: onSphere(-4.998, 0.773), role: 'object' },
-  creates: { at: onSphere(6.6, 0.616), role: 'predicate' },
-  newJobs: { at: onSphere(7.672, 0.406), role: 'object' },
-  speedsUp: { at: onSphere(-3.825, 0.553), role: 'predicate' },
-  science: { at: onSphere(-5.283, 0.545), role: 'object' },
+  willCure: { at: onSphere(-0.3, 1.0), role: 'predicate' },
+  diseases: { at: onSphere(6.98, 1.44), role: 'object' },
+  creates: { at: onSphere(5.073, 0.832), role: 'predicate' },
+  newJobs: { at: onSphere(6.569, 0.745), role: 'bridge' },
+  speedsUp: { at: onSphere(-1.7, 0.89), role: 'predicate' },
+  science: { at: onSphere(-5.12, 1.18), role: 'object' },
   alphafold: { at: onSphere(6.001, -0.64), role: 'identity' },
   solved: { at: onSphere(6.969, -0.934), role: 'predicate' },
   proteinFolding: { at: onSphere(6.08, -1.43), role: 'bridge' },
@@ -734,6 +742,8 @@ const PERSPECTIVES_ATOMS: Partial<Record<AtomId, AtomState>> = {
   aiSafety: { at: onSphere(4.6, -1.09), role: 'object' },
   unlocks: { at: onSphere(2.48, -1.02), role: 'predicate' },
   newMedicines: { at: onSphere(3.3, -0.8), role: 'object' },
+  outnumber: { at: onSphere(7.14, 0.32), role: 'predicate' },
+  jobsLost: { at: onSphere(6.2, 0.01), role: 'object' },
 };
 
 /** The pessimists' further atoms: set back on the cloud, which is the optimists'. */
@@ -1798,7 +1808,7 @@ const BEAT_SPECS: readonly BeatSpec[] = [
     caption: [
       'The same atoms can be seen another way, and everyone who reads them has a perspective of their own:\nwho they follow, the atoms they stake on, and the triples they create.',
     ],
-    alt: 'Two perspectives of the same atoms, side by side. AI Optimists’: the graph so far, and that AI will cure diseases, creates new jobs and speeds up science, AlphaFold solved protein folding, AI tutors teach every child, self-driving cars save lives, Anthropic researches AI safety, and protein folding unlocks new medicines. AI Pessimists’, which trusts none of their triples: AI is dangerous, is out of control, will remove jobs, threatens peace and democracy, spreads misinformation, and will be worth less than the hype; Democrats call for a pause on advanced AI and a ban on superintelligence, and Elon Musk reposted the call for a pause; deepfakes undermine elections, data centers strain the power grid, and superintelligence poses an existential risk.',
+    alt: 'Two perspectives of the same atoms, side by side. AI Optimists’: the graph so far, and that AI will cure diseases, creates new jobs and speeds up science, new jobs outnumber jobs lost, AlphaFold solved protein folding, AI tutors teach every child, self-driving cars save lives, Anthropic researches AI safety, and protein folding unlocks new medicines. AI Pessimists’, which trusts none of their triples: AI is dangerous, is out of control, will remove jobs, threatens peace and democracy, spreads misinformation, and will be worth less than the hype; Democrats call for a pause on advanced AI and a ban on superintelligence, and Elon Musk reposted the call for a pause; deepfakes undermine elections, data centers strain the power grid, and superintelligence poses an existential risk.',
     // The cloud moves aside as a copy of it splits off to the other side.
     // On the copy alone, the triples it does not trust draw back, the atoms
     // they joined set back with them. Then the atoms of both perspectives'
