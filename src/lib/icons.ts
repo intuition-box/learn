@@ -271,6 +271,29 @@ export const APP_ICON: AppIcon = {
 /** An app's colour: pure black, as a fee. */
 export const APP_COLOUR: Rgb = [0, 0, 0];
 
+/**
+ * A hand, pointing up and to the left, and an arrow over its closed
+ * fingers, pointing right: the gesture of a drag across, as a hint shows
+ * it. The hand light, at 30%, the arrow solid, both in `HAND_COLOUR`. The
+ * hand and the arrow are Saulo's, the hand traced and tilted 20 degrees.
+ */
+export const HAND_ICON: Icon = {
+  size: 24,
+  paths: [
+    {
+      d: 'M 5.913 7.523 A 1.742 1.742 0 0 1 9.186 6.332 L 10.821 10.823 A 1.337 1.337 0 0 1 13.125 10.76 A 1.337 1.337 0 0 1 15.637 10.794 A 1.337 1.337 0 0 1 18.191 10.468 L 19.714 14.654 C 20.545 16.938 18.387 19.533 15.419 20.614 C 13.44 21.334 11.803 20.982 10.436 20.186 L 4.905 16.596 A 1.823 1.823 0 0 1 6.199 13.281 L 8.78 15.401 Z',
+      opacity: 0.3,
+    },
+    {
+      d: 'M 16 6.413 L 13.6 6.413 C 13.16 6.413 12.8 6.053 12.8 5.613 C 12.8 5.173 13.16 4.813 13.6 4.813 L 16 4.813 L 16 3.381 C 16 3.021 16.432 2.845 16.68 3.101 L 18.912 5.341 C 19.072 5.501 19.064 5.749 18.912 5.909 L 16.68 8.141 C 16.432 8.381 16 8.205 16 7.853 L 16 6.413 Z',
+      opacity: 1,
+    },
+  ],
+};
+
+/** A hand's colour: pure black, as a fee. */
+export const HAND_COLOUR: Rgb = [0, 0, 0];
+
 /** An icon with an open ring in it, where whoever draws it sets something. */
 export interface RingedIcon extends Icon {
   /** Where its shape stands, in the icon's units: its top left, and its size. */

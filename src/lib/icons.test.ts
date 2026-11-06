@@ -6,6 +6,8 @@ import {
   depositorColour,
   FEE_COLOUR,
   FEE_ICON,
+  HAND_COLOUR,
+  HAND_ICON,
   USER_ICON,
   USER_ICON_FOOT,
   VAULT_COLOURS,
@@ -83,5 +85,12 @@ describe('an app', () => {
 
   it('meets a line from above at the top of its bar', () => {
     expect(APP_ICON.ports.above).toEqual({ x: 12, y: 4 });
+  });
+});
+
+describe('a hand', () => {
+  it('is a hand, light, under an arrow, solid, in black', () => {
+    expect(HAND_ICON.paths.map((path) => path.opacity)).toEqual([0.3, 1]);
+    expect(HAND_COLOUR).toEqual([0, 0, 0]);
   });
 });

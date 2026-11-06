@@ -5,6 +5,8 @@ import {
   APP_ICON,
   FEE_COLOUR,
   FEE_ICON,
+  HAND_COLOUR,
+  HAND_ICON,
   type Icon,
   MEDAL_ICON,
   USER_ICON,
@@ -208,6 +210,51 @@ function cellsOf(
     first: { x: width / 2, y: height / 4 },
     second: { x: width / 2, y: (height * 3) / 4 },
     side: Math.min(width, height / 2),
+  };
+}
+
+/**
+ * The hint, once two globes stand apart, that the reader can turn them: a
+ * hand between them presses, drags across and lets go, and the globes turn
+ * with it, as far as a drag that long turns them, then back. Each time
+ * `loopMs` long, `loops` times; gone for good once the reader turns them.
+ * `travelPx` across, rising `arcPx` at its middle, the hand `sizePx` tall.
+ */
+const TURN_HINT = {
+  loopMs: 2000,
+  loops: 3,
+  travelPx: 40,
+  arcPx: 6,
+  sizePx: 36,
+  pressed: 0.9,
+} as const;
+
+/**
+ * The hint `elapsed` milliseconds in: how far across the hand has dragged, 0
+ * to 1, how far it is pressed, how strongly it shows, and how far the globes
+ * have turned with it, 0 to 1. `null` once its loops are over.
+ */
+function turnHintAt(elapsed: number): {
+  across: number;
+  press: number;
+  alpha: number;
+  turn: number;
+} | null {
+  const { loopMs, loops } = TURN_HINT;
+  if (elapsed < 0 || elapsed >= loopMs * loops) {
+    return null;
+  }
+  const f = (elapsed % loopMs) / loopMs;
+  const part = (from: number, to: number): number =>
+    easeInOutCubic(Math.min(Math.max((f - from) / (to - from), 0), 1));
+  // In, pressed, across, let go, out; the globes turn back as it goes.
+  const across = part(0.25, 0.65);
+
+  return {
+    across,
+    press: part(0.15, 0.25) - part(0.65, 0.75),
+    alpha: part(0, 0.15) - part(0.75, 0.95),
+    turn: across - part(0.75, 1),
   };
 }
 
@@ -710,6 +757,10 @@ export function StoryScene(props: StorySceneProps): ReactNode {
     } | null,
     frame: 0,
     lastTick: 0,
+    // When the hint that the globes can be turned began, as two stood apart;
+    // and whether the reader has turned them, after which it never shows.
+    hint: null as { startedAt: number } | null,
+    hasTurned: false,
     refresh: null as (() => void) | null,
     returnToFilm: null as (() => void) | null,
   });
@@ -751,6 +802,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
     const personPaths = pathsOf(USER_ICON);
     const feePaths = pathsOf(FEE_ICON);
     const appPaths = pathsOf(APP_ICON);
+    const handPaths = pathsOf(HAND_ICON);
     const vaultPaths = VAULT_ICON.paths.map((path) => ({
       path: new Path2D(path.d),
       face: path.face,
@@ -2940,9 +2992,32 @@ export function StoryScene(props: StorySceneProps): ReactNode {
               reach: lerp(away.reach, homeReach, enrichment.home),
             };
       const radius = globe === null ? partedRadius : globe.reach / reachShare;
+      // Two globes apart, the hint that they can be turned begins, and
+      // starts again each time they part; once the reader has turned them,
+      // never.
+      if (other === null || aside < 1) {
+        state.hint = null;
+      } else if (state.hint === null && !state.hasTurned) {
+        state.hint = { startedAt: performance.now() };
+      }
+      const hint =
+        state.hint === null || state.hasTurned
+          ? null
+          : isStill
+            ? { across: 0.5, press: 0, alpha: 1, turn: 0 }
+            : turnHintAt(performance.now() - state.hint.startedAt);
       // The film's turn brings what the camera faces to the front; the
-      // reader's comes after it.
-      const orientation = multiply(state.turn, turnToFace(view.facing));
+      // reader's comes after it, and the hint's, as a drag across turns it.
+      const orientation = multiply(
+        multiply(
+          axisAngle(
+            [0, 1, 0],
+            (hint?.turn ?? 0) * TURN_HINT.travelPx * DRAG_RADIANS_PER_PX,
+          ),
+          state.turn,
+        ),
+        turnToFace(view.facing),
+      );
       // Looking down on the cloud lowers what it faces, the equator's front:
       // the picture is lifted as much, so the arc stays in the middle. Behind
       // an open plane, it rises above it. All of it in view, it is centred.
@@ -3681,6 +3756,25 @@ export function StoryScene(props: StorySceneProps): ReactNode {
           });
         }
       }
+      // Between the two globes, the hand that shows they can be turned.
+      if (hint !== null && hint.alpha > 0) {
+        const left = project([0, 0, 0]);
+        const right = projectOther([0, 0, 0]);
+        const { travelPx, arcPx, sizePx, pressed } = TURN_HINT;
+        const size = sizePx * (1 - (1 - pressed) * hint.press);
+        drawShapes(
+          context,
+          handPaths,
+          HAND_ICON.size,
+          HAND_COLOUR,
+          {
+            x: (left.x + right.x) / 2 + (hint.across - 0.5) * travelPx,
+            y: (left.y + right.y) / 2 - Math.sin(Math.PI * hint.across) * arcPx,
+          },
+          size,
+          hint.alpha,
+        );
+      }
       drawPlane(planeView, reaching, lifted);
       // The way on's shape, over the haze.
       if (way.at !== null && plane !== null && plane !== undefined) {
@@ -3795,7 +3889,22 @@ export function StoryScene(props: StorySceneProps): ReactNode {
         state.returning !== null ||
         state.drag !== null ||
         state.spin.speed > 0.00002 ||
-        isGliding()
+        isGliding() ||
+        isHinting()
+      );
+    }
+
+    /**
+     * Whether the hint that the globes can be turned is moving with the
+     * film held: playing, the film draws each frame itself.
+     */
+    function isHinting(): boolean {
+      return (
+        state.hint !== null &&
+        !state.hasTurned &&
+        !isStill &&
+        !state.props.isPlaying &&
+        turnHintAt(performance.now() - state.hint.startedAt) !== null
       );
     }
 
@@ -3959,6 +4068,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
         Math.hypot(point.x - drag.startX, point.y - drag.startY) > CLICK_SLOP_PX
       ) {
         drag.hasMoved = true;
+        state.hasTurned = true;
         state.props.onLookAround();
       }
       if (!drag.hasMoved) {
@@ -4021,7 +4131,12 @@ export function StoryScene(props: StorySceneProps): ReactNode {
       endDrag(false);
     }
 
-    state.refresh = draw;
+    state.refresh = () => {
+      draw();
+      if (isMoving()) {
+        requestTick();
+      }
+    };
     state.returnToFilm = returnToFilm;
     const observer = new ResizeObserver(resize);
     observer.observe(canvas);
