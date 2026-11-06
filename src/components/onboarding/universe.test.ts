@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import { ROLES } from '@/components/playground/story-shapes';
+import { LOGO } from '@/lib/logo';
 
 import {
   createStars,
-  LOGO,
   PARTED_LOOK,
   SETTLE_SECONDS,
   STAR_STRIDE,

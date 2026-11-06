@@ -31,18 +31,19 @@ skips the entrance, as does a reader who asked for reduced motion.
 
 A short film, played on a 3D graph the reader can turn, pause, and scrub,
 that explains Intuition's data model before anyone opens a terminal. Its
-seven chapters build on one another, following one story about Elon Musk,
+eight chapters build on one another, following one story about Elon Musk,
 SpaceX, and a claim he made:
 
-| Chapter        | What it shows                                                                 |
-| -------------- | ----------------------------------------------------------------------------- |
-| Atoms          | Anything can be an atom: a person, an organization, a relationship.           |
-| Triples        | Three atoms connected form a claim; linked claims form a graph.               |
-| Nested triples | A whole triple can be the subject or the object of another.                   |
-| Vaults         | Every triple has a vault for it and one against it; positions give it weight. |
-| Lists          | Triples that share a predicate and an object form a list, ranked by weight.   |
-| Perspectives   | The same atoms, seen differently depending on whose triples you trust.        |
-| Enrichment     | One atom, however it's read: data from anywhere enriches it, builders choose. |
+| Chapter        | What it shows                                                                         |
+| -------------- | ------------------------------------------------------------------------------------- |
+| Atoms          | Anything can be an atom: a person, an organization, a relationship.                   |
+| Triples        | Three atoms connected form a claim; linked claims form a graph.                       |
+| Nested triples | A whole triple can be the subject or the object of another.                           |
+| Vaults         | Every atom and triple has a vault; deposits for or against a triple give it weight.   |
+| Fees           | A deposit pays small fees: to the protocol, the triple's vault and its terms' vaults. |
+| Lists          | Triples that share a predicate and an object form a list, ranked by weight.           |
+| Perspectives   | The same atoms, seen differently depending on whose triples you trust.                |
+| Enrichment     | One atom, however it's read: data from anywhere enriches it, builders choose.         |
 
 Three ideas from the original brief are not covered yet, and are candidates
 for the next chapters:

@@ -462,9 +462,9 @@ describe('vaults', () => {
     );
   });
 
-  it('then shows each position: 400, 200 and 20 against, 200, 150 and 80 for', () => {
+  it('then shows each position: 400, 200 and 20 against, 200, 100 and 80 for', () => {
     expect(describeScene(settled('positions'))).toBe(
-      'A triple: Elon Musk believes (SpaceX will be worth (orders of magnitude more than current Earth economy)). 6 people have a position in the vault of SpaceX will be worth (orders of magnitude more than current Earth economy): 3 against it, with 400, 200 and 20 (620 in all), and 3 for it, with 200, 150 and 80 (430 in all).',
+      'A triple: Elon Musk believes (SpaceX will be worth (orders of magnitude more than current Earth economy)). 6 people have a position in the vault of SpaceX will be worth (orders of magnitude more than current Earth economy): 3 against it, with 400, 200 and 20 (620 in all), and 3 for it, with 200, 100 and 80 (380 in all).',
     );
   });
 
@@ -491,6 +491,96 @@ describe('vaults', () => {
   });
 });
 
+describe('fees', () => {
+  it('follows the vaults, and comes before the lists: the depositor left alone, their deposit, then its fees', () => {
+    expect(
+      ['depositor', 'deposit', 'fees'].map(
+        (id) => chapterAt(beat(id).start).title,
+      ),
+    ).toEqual(['Fees', 'Fees', 'Fees']);
+    expect(
+      ['depositor', 'deposit', 'fees', 'list-back'].map((id) => beat(id).index),
+    ).toEqual([1, 2, 3, 4].map((step) => beat('positions').index + step));
+  });
+
+  it('shares the 2.64 in fees out: 1.24 to the protocol, 0.5 to the vault, 0.3 to each term’s', () => {
+    const { from, to } = sceneAt(beat('fees').start).plane;
+    const shared = to?.deposit?.shared;
+
+    expect(from).toEqual(settled('deposit').plane.to);
+    expect(to?.deposit).toMatchObject({ ...from?.deposit });
+    expect(shared?.protocol.label).toBe('protocol');
+    expect(
+      [shared?.protocol.value, shared?.entry, shared?.perTerm].map((value) =>
+        value?.toLocaleString('en-US', { maximumFractionDigits: 2 }),
+      ),
+    ).toEqual(['1.24', '0.5', '0.3']);
+    expect(
+      (shared?.protocol.value ?? 0) +
+        (shared?.entry ?? 0) +
+        (shared?.perTerm ?? 0) * 3,
+    ).toBeCloseTo(to?.deposit?.fees.value ?? 0, 9);
+    expect(describeScene(settled('fees'))).toBe(
+      'The fees of 2.64 TRUST: 1.24 to the protocol, 0.5 stays in the triple’s vault, and 0.3 each goes to SpaceX, will be worth and the inner triple. The inner triple’s atoms get nothing.',
+    );
+  });
+
+  it('follows their 100 up their line: 0.5 to the builder, 99.5 on, 2.64 in fees, 96.86 their position', () => {
+    const { from, to } = sceneAt(beat('deposit').start).plane;
+
+    expect(from).toEqual(settled('depositor').plane.to);
+    expect(to).toMatchObject({
+      ...from,
+      deposit: {
+        sent: { value: 100 },
+        builderFee: { label: 'builder fee' },
+        fees: { label: 'fees' },
+        position: { label: 'position' },
+      },
+    });
+    const deposit = to?.deposit;
+    expect(
+      [
+        deposit?.sent.value,
+        deposit?.builderFee.value,
+        deposit?.deposit.value,
+        deposit?.fees.value,
+        deposit?.position.value,
+      ].map((value) =>
+        value?.toLocaleString('en-US', { maximumFractionDigits: 2 }),
+      ),
+    ).toEqual(['100', '0.5', '99.5', '2.64', '96.86']);
+    expect(
+      (deposit?.builderFee.value ?? 0) + (deposit?.deposit.value ?? 0),
+    ).toBeCloseTo(100, 9);
+    expect(
+      (deposit?.fees.value ?? 0) + (deposit?.position.value ?? 0),
+    ).toBeCloseTo(deposit?.deposit.value ?? 0, 9);
+    expect(describeScene(settled('deposit'))).toBe(
+      'One person deposits on the side for the triple, SpaceX will be worth orders of magnitude more than the current Earth economy. Of 100 TRUST sent, 0.5 goes to the builder and 99.5 enters MultiVault. 2.64 of that goes to fees, and the 96.86 left is the position, all of it in the triple’s vault.',
+    );
+  });
+
+  it('leaves the person who deposited 100 for the triple alone with it, the triple raised to the top in the middle', () => {
+    const positions = settled('positions');
+    const depositor = sceneAt(beat('depositor').start);
+
+    expect(depositor.plane.from).toEqual(positions.plane.to);
+    expect(depositor.plane.to).toMatchObject({
+      term: positions.plane.to?.term,
+      vaults: positions.plane.to?.vaults,
+      alone: { side: 'for', index: 1 },
+      isFocusCentred: true,
+      isRaised: true,
+    });
+    expect(positions.plane.to?.vaults?.for[1]).toBe(100);
+    expect(describeScene(settled('depositor'))).toBe(
+      'A triple: SpaceX will be worth (orders of magnitude more than current Earth economy). And one person, who deposited 100 into its vault, on the side for it.',
+    );
+    expect(settled('depositor').cloud).toBe(0);
+  });
+});
+
 describe('lists', () => {
   it('closes the plane, and brings the cloud back into focus on xAI best AI company', () => {
     const back = settled('list-back');
@@ -503,7 +593,7 @@ describe('lists', () => {
     );
     // As it closes, it keeps its size.
     expect(sceneAt(beat('list-back').start + 200).plane.fit).toEqual(
-      settled('positions').plane.fit,
+      settled('depositor').plane.fit,
     );
   });
 
@@ -544,6 +634,20 @@ describe('lists', () => {
     expect(flowAt('list-back', 0)).toBe(flowAt('look-closer', 0));
     expect(flowAt('list-back', 0.5)).toBeGreaterThan(flowAt('list-back', 0));
     expect(flowAt('ranked', 1)).toBeGreaterThan(flowAt('list', 0));
+  });
+
+  it('holds the dots still on what a deposit holds back while its fees are followed on, the rest flowing', () => {
+    const at = (id: string, share: number) => {
+      const { start, motionMs } = beat(id);
+
+      return sceneAt(start + motionMs * share);
+    };
+
+    expect(at('fees', 1).heldFlow).toBe(at('fees', 0).heldFlow);
+    expect(at('fees', 1).flow).toBeGreaterThan(at('fees', 0).flow);
+    expect(at('deposit', 1).heldFlow).toBeGreaterThan(
+      at('deposit', 0).heldFlow,
+    );
   });
 });
 
@@ -912,6 +1016,9 @@ describe('stepping by chapter', () => {
       stepFrom(beat('look-closer').start + 100, 1, 'start', 'chapter'),
     ).toBe(beat('vaults').start);
     expect(stepFrom(beat('vaults').start + 100, 1, 'start', 'chapter')).toBe(
+      beat('depositor').start,
+    );
+    expect(stepFrom(beat('depositor').start + 100, 1, 'start', 'chapter')).toBe(
       beat('list-back').start,
     );
     expect(stepFrom(beat('list-back').start + 100, 1, 'start', 'chapter')).toBe(

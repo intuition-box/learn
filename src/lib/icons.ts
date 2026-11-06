@@ -34,6 +34,9 @@ export const USER_ICON: Icon = {
   ],
 };
 
+/** Where a person's shoulders end, down `USER_ICON`, in its units: the bottom of what shows. */
+export const USER_ICON_FOOT = 22;
+
 /**
  * A triple: its subject, a circle; its object, a square; its predicate, a
  * triangle over them. In one colour, the subject lightest.
@@ -92,11 +95,13 @@ export interface VaultIcon extends Icon {
 /**
  * Which of a vault's faces it uses, by what it holds deposits in: its lid
  * is the subject, its left face the stake against and its right face the
- * stake for. An atom, a subject, uses its lid alone; a triple, all three.
+ * stake for. An atom, a subject, uses its lid alone; a triple, its two
+ * sides alone, for it is no subject: its lid is disabled, as an atom's
+ * sides are.
  */
 export const VAULT_FACES = {
   atom: ['subject'],
-  triple: ['subject', 'against', 'for'],
+  triple: ['against', 'for'],
 } as const satisfies Record<string, readonly VaultFace[]>;
 
 /** What a vault holds deposits in: an atom, or a whole triple. */
@@ -127,7 +132,7 @@ const VAULT_UNUSED = { colour: [0, 0, 0], opacity: 0.4 } as const;
  * The rule every vault is drawn by, always: a face it uses in its own
  * colour, solid (`VAULT_COLOURS`); a face it does not, pure black at 40%.
  * So an atom's vault is a black lid over grey sides, and a triple's a
- * black lid, an orange side against and a blue side for.
+ * grey lid over an orange side against and a blue side for.
  */
 export function vaultFace(
   of: VaultOf,
@@ -192,6 +197,79 @@ export const VAULT_ICON: VaultIcon = {
   },
   base: { x: 12, y: 21.56 },
 };
+
+/**
+ * A fee's icon: a line meets it at the edge of its pie, never across it, as
+ * a line meets a vault at its corners.
+ */
+export interface FeeIcon extends Icon {
+  /**
+   * Where a line meets it, in the icon's units: from below, at the bottom
+   * of the pie; on up, at its top, left of the slice; and off to either
+   * side, at its edge, level with the icon's middle.
+   */
+  ports: Readonly<Record<'below' | 'above' | 'right' | 'left', IconPoint>>;
+  /** The pie's middle and radius, in the icon's units: a line keeps out of it. */
+  pie: IconPoint & { radius: number };
+}
+
+/**
+ * A fee: a pie with a slice taken out of it, the slice pulled away from the
+ * rest, a gap between them. The pie is light, at 30%, and the slice solid,
+ * both in `FEE_COLOUR`. A sixth of the pie, from straight up to 30 degrees
+ * past it, moved out along its middle.
+ */
+export const FEE_ICON: FeeIcon = {
+  size: 24,
+  pie: { x: 12, y: 13, radius: 9 },
+  ports: {
+    below: { x: 12, y: 22 },
+    above: { x: 12, y: 4 },
+    right: { x: 12 + Math.sqrt(9 ** 2 - 1), y: 12 },
+    left: { x: 12 - Math.sqrt(9 ** 2 - 1), y: 12 },
+  },
+  paths: [
+    {
+      d: 'M 12 13 L 12 4 A 9 9 0 1 0 19.794 8.5 Z',
+      opacity: 0.3,
+    },
+    {
+      d: 'M 13.2 10.922 L 13.2 1.922 A 9 9 0 0 1 20.994 6.422 Z',
+      opacity: 1,
+    },
+  ],
+};
+
+/** A fee's colour: pure black, as a vault's lid. */
+export const FEE_COLOUR: Rgb = [0, 0, 0];
+
+/** An app's icon: a line meets it from above, at the top of its bar. */
+export interface AppIcon extends Icon {
+  /** Where a line meets it from above, in the icon's units: the middle of its bar's top. */
+  ports: Readonly<Record<'above', IconPoint>>;
+}
+
+/**
+ * A builder's app, where a builder's fee goes, whoever built it: a window,
+ * its body light, at 30%, under its bar, solid, both in `APP_COLOUR`.
+ */
+export const APP_ICON: AppIcon = {
+  size: 24,
+  ports: { above: { x: 12, y: 4 } },
+  paths: [
+    {
+      d: 'M22 8V17C22 18.657 20.657 20 19 20H5C3.343 20 2 18.657 2 17V8H22Z',
+      opacity: 0.3,
+    },
+    {
+      d: 'M19 4C20.657 4 22 5.343 22 7V8H2V7C2 5.343 3.343 4 5 4H19Z',
+      opacity: 1,
+    },
+  ],
+};
+
+/** An app's colour: pure black, as a fee. */
+export const APP_COLOUR: Rgb = [0, 0, 0];
 
 /** An icon with an open ring in it, where whoever draws it sets something. */
 export interface RingedIcon extends Icon {

@@ -25,11 +25,13 @@ import {
   HANGING_RISE,
   type PlaneBranch,
   type PlaneClaim,
+  type PlaneDeposit,
   type PlaneList,
   type PlaneTerm,
-  type PlaneTriple,
   type PlaneVaults,
+  amountOf,
   planeSentence,
+  tripleIn,
 } from './story-plane';
 
 /**
@@ -206,6 +208,7 @@ export const CHAPTERS = [
   { id: 'triples', title: 'Triples' },
   { id: 'nested', title: 'Nested triples' },
   { id: 'vaults', title: 'Vaults' },
+  { id: 'fees', title: 'Fees' },
   { id: 'lists', title: 'Lists' },
   { id: 'perspectives', title: 'Perspectives' },
   { id: 'enrichment', title: 'Enrichment' },
@@ -260,6 +263,8 @@ export interface PlaneState extends PlaneClaim {
    * with the cloud risen above it, and the room under it otherwise empty.
    */
   isLowered?: boolean;
+  /** Whether the claim stands at the very top, the room under it free. */
+  isRaised?: boolean;
 }
 
 interface StageState {
@@ -791,11 +796,100 @@ const SOURCE: PlaneBranch = {
 const POSITIONS: PlaneVaults = {
   frame: 'worth',
   against: [400, 200, 20],
-  for: [200, 150, 80],
+  for: [200, 100, 80],
 };
 
 /** Who believes it, set back while the vault of what he believes shows. */
 const SET_BACK: readonly AtomId[] = ['elonMusk', 'believes'];
+
+/**
+ * The person who deposited 100 for the triple, left alone with it: all else
+ * gone, the triple raised to the very top in the middle, and they where they
+ * stood.
+ */
+const ALONE: PlaneState = {
+  term: BELIEF,
+  focus: 'worth',
+  frame: 'identity',
+  isFrameHidden: true,
+  vaults: { ...POSITIONS, isWeighed: true, isTotalled: true },
+  faded: SET_BACK,
+  alone: { side: 'for', index: 1 },
+  isFocusCentred: true,
+  isRaised: true,
+};
+
+/** Basis points in a whole: 1 is 0.01%. */
+const WHOLE = 10_000;
+
+/**
+ * What an app's builder takes from a deposit sent through it, before
+ * `MultiVault`: a share of all the user sends, in basis points, and a flat
+ * fee in TRUST. Optional, and the builder's to set.
+ */
+const BUILDER_FEE = { rate: 40, flat: 0.1 } as const;
+
+/**
+ * `MultiVault`'s fees on a deposit in a triple, in basis points of it, read
+ * from mainnet: the protocol fee, the entry fee and the atom deposit
+ * fraction, all taken at once. Governance can change them.
+ */
+const VAULT_FEES = { protocol: 125, entry: 50, atomFraction: 90 } as const;
+
+/**
+ * The 100 the person left alone deposited, sent through an app: the
+ * builder's fee first, then `MultiVault`'s, and the position the rest buys.
+ */
+const SPLIT = (() => {
+  const sent = 100;
+  const builderFee = (sent * BUILDER_FEE.rate) / WHOLE + BUILDER_FEE.flat;
+  const deposit = sent - builderFee;
+  const share = (rate: number): number => (deposit * rate) / WHOLE;
+  const protocol = share(VAULT_FEES.protocol);
+  const entry = share(VAULT_FEES.entry);
+  const atomFraction = share(VAULT_FEES.atomFraction);
+  const fees = protocol + entry + atomFraction;
+
+  return {
+    sent,
+    builderFee,
+    deposit,
+    fees,
+    position: deposit - fees,
+    protocol,
+    entry,
+    // The atom deposit fraction, shared by the triple's three terms.
+    perTerm: atomFraction / 3,
+  };
+})();
+
+/** Their deposit, each amount and what it is. */
+const DEPOSIT: PlaneDeposit = {
+  sent: { value: SPLIT.sent, label: 'sent' },
+  builderFee: { value: SPLIT.builderFee, label: 'builder fee' },
+  deposit: { value: SPLIT.deposit },
+  fees: { value: SPLIT.fees, label: 'fees' },
+  position: { value: SPLIT.position, label: 'position' },
+};
+
+/** Their deposit, followed up their line. */
+const DEPOSITING: PlaneState = { ...ALONE, deposit: DEPOSIT };
+
+/**
+ * Its fees shared out: to the protocol, into the triple's vault, and into
+ * the vault of each of its three terms.
+ */
+const SHARING: PlaneState = {
+  ...ALONE,
+  deposit: {
+    ...DEPOSIT,
+    shared: {
+      protocol: { value: SPLIT.protocol, label: 'protocol' },
+      entry: SPLIT.entry,
+      perTerm: SPLIT.perTerm,
+    },
+  },
+};
 
 /**
  * The best AI company, by everyone who says so: a list of three triples,
@@ -1242,13 +1336,62 @@ const BEAT_SPECS: readonly BeatSpec[] = [
     },
   },
   {
+    id: 'depositor',
+    chapter: 'fees',
+    caption: [
+      'Every deposit pays fees on its way into a vault.\nFollow one: the 100 this person deposited for the triple.',
+    ],
+    alt: 'A triple: SpaceX will be worth (orders of magnitude more than current Earth economy). And one person, who deposited 100 into its vault, on the side for it.',
+    // All else goes, the lines drawing back: Elon Musk and believes, and
+    // the other people with a position, their totals with them. The person
+    // in the middle of the side for it stays, with the 100 they deposited,
+    // and their line up to the vault, the vault and the triple; and as the
+    // rest goes, what stays moves to the middle, the triple to the very top,
+    // and the 100 down their line, near them, where it stays as the deposit
+    // is followed.
+    motionMs: 2400,
+    stage: { ...UP_CLOSE, cloud: { shown: 0 }, plane: ALONE },
+  },
+  {
+    id: 'deposit',
+    chapter: 'fees',
+    caption: [
+      'A deposit is not all position. A builder’s app can take a small fee first, then the protocol takes its own.\nThe rest buys the depositor’s shares, all of it in the vault of the triple.',
+    ],
+    alt: `One person deposits on the side for the triple, SpaceX will be worth orders of magnitude more than the current Earth economy. Of ${amountOf(SPLIT.sent)} TRUST sent, ${amountOf(SPLIT.builderFee)} goes to the builder and ${amountOf(SPLIT.deposit)} enters MultiVault. ${amountOf(SPLIT.fees)} of that goes to fees, and the ${amountOf(SPLIT.position)} left is the position, all of it in the triple’s vault.`,
+    // At once, up the line, the builder's fee comes in where it is taken,
+    // its line out to its amount; then the line on down to the builder's
+    // app, and the app; then what goes on; then the fees, where the line
+    // turns for the vault, the same way, their line out along the row to
+    // where they will be shared out from; and last the position, on the
+    // way into the vault. Each turn as long as the last.
+    motionMs: 5600,
+    stage: { ...UP_CLOSE, cloud: { shown: 0 }, plane: DEPOSITING },
+  },
+  {
+    id: 'fees',
+    chapter: 'fees',
+    caption: [
+      'The fees go to the protocol, to the triple’s vault, and to its three terms.\nThey lift those vaults’ shares and stop there: the atoms nested inside a term get nothing.',
+    ],
+    alt: `The fees of ${amountOf(SPLIT.fees)} TRUST: ${amountOf(SPLIT.protocol)} to the protocol, ${amountOf(SPLIT.entry)} stays in the triple’s vault, and ${amountOf(SPLIT.perTerm)} each goes to SpaceX, will be worth and the inner triple. The inner triple’s atoms get nothing.`,
+    // All of the deposit is held back but its fees' amount, where it
+    // stands on the row, between will be worth's vault and the triple's
+    // own. Then the vaults of SpaceX, will be worth and the inner triple
+    // hang under them, beside the triple's own; the lines grow from the fee
+    // to each vault, and from its amount down to the protocol's; and each
+    // share shows.
+    motionMs: 4800,
+    stage: { ...UP_CLOSE, cloud: { shown: 0 }, plane: SHARING },
+  },
+  {
     id: 'list-back',
     chapter: 'lists',
     caption: ['Back in the graph, one triple says xAI is the best AI company.'],
-    // The plane closes: the triple, its vaults and the people go, and
-    // Elon Musk and SpaceX go back to their places in the cloud, as the
-    // cloud comes back. Then it comes into focus as the camera turns to xAI
-    // best AI company, where the chapter of triples left it.
+    // The plane closes: the person left on it goes, and Elon Musk and
+    // SpaceX go back to their places in the cloud, as the cloud comes back.
+    // Then it comes into focus as the camera turns to xAI best AI company,
+    // where the chapter of triples left it.
     motionMs: 4400,
     stage: {
       ...WHOLE_GRAPH,
@@ -1614,20 +1757,36 @@ export const BEATS: readonly Beat[] = BEAT_SPECS.reduce<Beat[]>(
 /** The whole film, in milliseconds. */
 export const DURATION = BEATS.at(-1)?.end ?? 0;
 
-/**
- * How far the cloud's dots have flowed at `time`: as far as the film has
- * played, less the beats that hold them still behind a plane, where its
- * lines are a reminder. Behind a list they flow on: its lines are the
- * cloud's own, out on the plane.
- */
-function cloudFlowAt(time: number): number {
+/** How far dots have flowed at `time`: as far as the film has played, less the beats that hold them still. */
+function flowAt(time: number, isHeld: (beat: Beat) => boolean): number {
   return BEATS.reduce(
     (flowed, beat) =>
-      beat.stage.isCloudStill === true
+      isHeld(beat)
         ? flowed
         : flowed +
           Math.min(Math.max(time - beat.start, 0), beat.end - beat.start),
     0,
+  );
+}
+
+/**
+ * How far the cloud's dots have flowed at `time`: held still behind a
+ * plane, where its lines are a reminder. Behind a list they flow on: its
+ * lines are the cloud's own, out on the plane.
+ */
+function cloudFlowAt(time: number): number {
+  return flowAt(time, (beat) => beat.stage.isCloudStill === true);
+}
+
+/**
+ * How far the dots on what a deposit holds back have flowed at `time`:
+ * held still while its fees are followed on, as if frozen in time, the
+ * fees' own lines flowing on.
+ */
+function heldFlowAt(time: number): number {
+  return flowAt(
+    time,
+    (beat) => beat.stage.plane?.deposit?.shared !== undefined,
   );
 }
 
@@ -1829,6 +1988,11 @@ export interface Scene {
    * focus: behind a plane, its lines are a reminder, and stay still.
    */
   cloudFlow: number;
+  /**
+   * The same for what a deposit holds back as its fees are followed on:
+   * held still while they are (see `heldFlowAt`).
+   */
+  heldFlow: number;
   /**
    * How far each of the last chapter's parts has come, 0 to 1: see
    * `ENRICHMENT_PARTS`. `null` before the last chapter.
@@ -2041,6 +2205,7 @@ export function sceneAt(time: number, isStill = false): Scene {
     ),
     flow: isStill ? 0 : time,
     cloudFlow: isStill ? 0 : cloudFlowAt(time),
+    heldFlow: isStill ? 0 : heldFlowAt(time),
     setBack,
     other: otherAt(previous, target, progress, atoms, triples, setBack),
     enrichment: enrichmentAt(previous, target, progress),
@@ -2348,18 +2513,6 @@ function listed(values: readonly (number | string)[]): string {
   return values.length < 2
     ? values.join('')
     : `${values.slice(0, -1).join(', ')} and ${values.at(-1) ?? ''}`;
-}
-
-/** The triple in `term` with this id, if there is one. */
-function tripleIn(term: PlaneTerm, id: string): PlaneTriple | undefined {
-  if (!('triple' in term)) {
-    return undefined;
-  }
-  const { triple } = term;
-
-  return triple.id === id
-    ? triple
-    : (tripleIn(triple.subject, id) ?? tripleIn(triple.object, id));
 }
 
 /**

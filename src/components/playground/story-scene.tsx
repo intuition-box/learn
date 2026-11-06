@@ -1,9 +1,14 @@
 import { type ReactNode, useEffect, useRef } from 'react';
 
 import {
+  APP_COLOUR,
+  APP_ICON,
+  FEE_COLOUR,
+  FEE_ICON,
   type Icon,
   MEDAL_ICON,
   USER_ICON,
+  USER_ICON_FOOT,
   VAULT_COLOURS,
   VAULT_ICON,
   VAULT_SIZE,
@@ -11,6 +16,7 @@ import {
   depositorColour,
   vaultFace,
 } from '@/lib/icons';
+import { LOGO, LOGO_COLOUR, LOGO_REACH } from '@/lib/logo';
 import {
   arcPoint,
   axisAngle,
@@ -57,8 +63,14 @@ import {
   WHOLE_SHARE,
 } from './story-model';
 import {
+  type BlendedDepositFee,
   type BlendedPicker,
+  amountOf,
   type BlendedPlane,
+  PILL_HEIGHT,
+  SPLIT_ROOM,
+  STILL_LINE,
+  type OnLine,
   PLANE,
   type PlaneEnd,
   type PlanePoint,
@@ -127,6 +139,8 @@ const PLANE_ZOOM = { max: 1.4, min: 0.82 } as const;
 const PLANE_LOWER = 0.1;
 /** The room the plane keeps from the edges, in CSS pixels. */
 const PLANE_MARGIN_PX = 20;
+/** Raised to the very top, the room it keeps there: enough for a frame's line. */
+const RAISED_MARGIN_PX = 1;
 /** How far in from each edge, in CSS pixels, the scene fades out. */
 const EDGE_FADE_PX = 28;
 /** Below this canvas width, in CSS pixels, names are set a size smaller. */
@@ -260,7 +274,7 @@ const WAY_SCALE = 32 / 22;
 const GLOBE_MENU_ROOM = PLANE.picker.height + GLOBE_MENU.gap;
 
 /** A position on its line: a small pill of the page's colour, ringed with a hairline. */
-const WEIGHT = { height: 18, padding: 6, fontSize: 11 } as const;
+const WEIGHT = { height: PILL_HEIGHT, padding: 6, fontSize: 11 } as const;
 
 export interface StorySceneProps {
   scene: Scene;
@@ -406,6 +420,16 @@ interface PlaneView {
   zoom: number;
   /** Where the plane's middle, on the line its shapes are on, is on the canvas. */
   origin: ScreenPoint;
+  /** How far it is raised to the very top, 0 to 1: its top edge no longer fades. */
+  raised: number;
+  /**
+   * Where its middle would stand neither centred nor raised, and lowered as
+   * it is raised, so the room under it is used too: the people who stay
+   * still on the screen are drawn from there, and sink as the claim rises.
+   */
+  still: ScreenPoint;
+  /** Where its middle would stand neither centred nor raised: what keeps to its row is drawn from there. */
+  row: ScreenPoint;
 }
 
 function mix(a: Rgb, b: Rgb, t: number): Rgb {
@@ -494,6 +518,80 @@ function roundAbout(
 }
 
 /** The length of each straight part of a line through `points`. */
+/**
+ * The parts of a line through `points` outside every circle in `circles`:
+ * a line keeps out of what stands on it, and meets it at its edge.
+ */
+function outsideOf(
+  points: readonly ScreenPoint[],
+  circles: readonly (ScreenPoint & { radius: number })[],
+): ScreenPoint[][] {
+  if (circles.length === 0) {
+    return [[...points]];
+  }
+  const parts: ScreenPoint[][] = [];
+  let current: ScreenPoint[] = [];
+  // Whether the line is outside every circle where the last stretch ended.
+  let isOpen = false;
+  for (const [index, from] of points.slice(0, -1).entries()) {
+    const to = points[index + 1] ?? from;
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    const at = (u: number): ScreenPoint => ({
+      x: from.x + dx * u,
+      y: from.y + dy * u,
+    });
+    // Where the stretch runs inside each circle, as shares of it.
+    const cuts = circles
+      .flatMap(({ x, y, radius }): [number, number][] => {
+        const a = dx * dx + dy * dy;
+        const b = 2 * ((from.x - x) * dx + (from.y - y) * dy);
+        const c = (from.x - x) ** 2 + (from.y - y) ** 2 - radius ** 2;
+        const reach = b * b - 4 * a * c;
+        if (a === 0 || reach <= 0) {
+          return [];
+        }
+        const enter = (-b - Math.sqrt(reach)) / (2 * a);
+        const leave = (-b + Math.sqrt(reach)) / (2 * a);
+
+        return leave <= 0 || enter >= 1
+          ? []
+          : [[Math.max(enter, 0), Math.min(leave, 1)]];
+      })
+      .toSorted(([a], [b]) => a - b);
+    let u = 0;
+    const outside: [number, number][] = [];
+    for (const [enter, leave] of cuts) {
+      if (enter > u) {
+        outside.push([u, enter]);
+      }
+      u = Math.max(u, leave);
+    }
+    if (u < 1) {
+      outside.push([u, 1]);
+    }
+    for (const [start, end] of outside) {
+      if (start === 0 && isOpen) {
+        current.push(at(end));
+      } else {
+        if (current.length >= 2) {
+          parts.push(current);
+        }
+        current = [at(start), at(end)];
+      }
+      isOpen = end === 1;
+    }
+    if (outside.length === 0) {
+      isOpen = false;
+    }
+  }
+  if (current.length >= 2) {
+    parts.push(current);
+  }
+
+  return parts;
+}
+
 function segmentLengths(points: readonly ScreenPoint[]): number[] {
   return points.slice(1).map((point, index) => {
     const from = points[index] ?? point;
@@ -651,6 +749,8 @@ export function StoryScene(props: StorySceneProps): ReactNode {
         opacity: path.opacity,
       }));
     const personPaths = pathsOf(USER_ICON);
+    const feePaths = pathsOf(FEE_ICON);
+    const appPaths = pathsOf(APP_ICON);
     const vaultPaths = VAULT_ICON.paths.map((path) => ({
       path: new Path2D(path.d),
       face: path.face,
@@ -711,20 +811,21 @@ export function StoryScene(props: StorySceneProps): ReactNode {
       width: number,
       height: number,
       amount = 1,
+      topAmount = amount,
     ): void {
       if (amount <= 0) {
         return;
       }
       target.globalCompositeOperation = 'destination-out';
       // Each gradient runs from an edge inward: left, right, top, bottom.
-      for (const [fromX, fromY, toX, toY] of [
-        [0, 0, EDGE_FADE_PX, 0],
-        [width, 0, width - EDGE_FADE_PX, 0],
-        [0, 0, 0, EDGE_FADE_PX],
-        [0, height, 0, height - EDGE_FADE_PX],
+      for (const [fromX, fromY, toX, toY, edge] of [
+        [0, 0, EDGE_FADE_PX, 0, amount],
+        [width, 0, width - EDGE_FADE_PX, 0, amount],
+        [0, 0, 0, EDGE_FADE_PX, topAmount],
+        [0, height, 0, height - EDGE_FADE_PX, amount],
       ] as const) {
         const fade = target.createLinearGradient(fromX, fromY, toX, toY);
-        fade.addColorStop(0, `rgba(0, 0, 0, ${amount})`);
+        fade.addColorStop(0, `rgba(0, 0, 0, ${edge})`);
         fade.addColorStop(1, 'rgba(0, 0, 0, 0)');
         target.fillStyle = fade;
         // The band along that edge, the whole length of the canvas.
@@ -923,16 +1024,60 @@ export function StoryScene(props: StorySceneProps): ReactNode {
         (width - PLANE_MARGIN_PX * 2) / size.width,
         (height - PLANE_MARGIN_PX * 2) / (size.bottom - size.top),
       );
-      const zoom = Math.max(wanted, PLANE_ZOOM.min);
+      const fitted = Math.max(wanted, PLANE_ZOOM.min);
+      // Where it is going: closing, it stays where it was, raised, centred
+      // or lowered, and goes there as all on it fades.
+      const staying = to ?? from;
       // Toward the focus where the claim cannot fit, or where the beat
       // centres it on any screen.
       const centred = (claim: PlaneState | null): number =>
         claim?.isFocusCentred === true ? 1 : 0;
       const lowered = (claim: PlaneState | null): number =>
         claim?.isLowered === true ? 1 : 0;
-      const turn = Math.max(
-        Math.min(Math.max((zoom / wanted - 1) / 0.3, 0), 1),
-        lerp(centred(from), centred(to), blended.settle),
+      const raised = (claim: PlaneState | null): number =>
+        claim?.isRaised === true ? 1 : 0;
+      const zoomTurn = Math.min(Math.max((fitted / wanted - 1) / 0.3, 0), 1);
+      // The top of what shows, in the plane: a hidden frame keeps its room,
+      // but none of it shows.
+      const shown = blended.frames.filter((frame) => frame.presence > 0);
+      const shownTop =
+        shown.length > 0
+          ? Math.min(...shown.map((frame) => frame.top))
+          : blended.top;
+      // Where a person's shoulders end, in the plane, under their line.
+      const foot =
+        blended.bottom - PLANE.atomSize * (1 - USER_ICON_FOOT / USER_ICON.size);
+      // Raised, with one person's line held still under it, the claim and
+      // the line fill the height between them: the claim at the very top,
+      // the person's foot at the bottom, and their line rising to where it
+      // turns, `SPLIT_ROOM` under the vaults, for the fees shared out along
+      // it. Where the screen is too short for all of it, all of it is drawn
+      // smaller, so it fits, as the claim rises; the same in every beat it
+      // stays raised, and on a tall screen, no smaller at all.
+      const stillLine = blended.vaultLines.find((line) => line.isStill);
+      const [lineEnd] = stillLine?.points ?? [];
+      const [vault] = blended.vaults;
+      const vaultBottom =
+        vault === undefined
+          ? undefined
+          : vault.y +
+            ((VAULT_ICON.base.y -
+              (VAULT_ICON.box.y + VAULT_ICON.box.height / 2)) *
+              VAULT_SIZE) /
+              VAULT_ICON.size;
+      const stillFit =
+        lineEnd === undefined || vaultBottom === undefined
+          ? fitted
+          : (height - GLOBE_MENU.under - RAISED_MARGIN_PX) /
+            (vaultBottom -
+              shownTop +
+              SPLIT_ROOM +
+              STILL_LINE.rise +
+              (foot - lineEnd.y));
+      const zoom = lerp(
+        fitted,
+        Math.min(fitted, stillFit),
+        lerp(raised(from), raised(staying), blended.settle),
       );
       const centreOne = (id: string): number => {
         const frame = blended.frames.find((candidate) => candidate.id === id);
@@ -950,20 +1095,42 @@ export function StoryScene(props: StorySceneProps): ReactNode {
             : (centreOne(focus[0]) + centreOne(focus[1])) / 2;
       const fromFocus = centreOf(from?.focus ?? to?.focus);
       const toFocus = centreOf(to?.focus ?? from?.focus);
-      const focus = (fromFocus + (toFocus - fromFocus) * blended.settle) * turn;
-
-      const placed = {
-        x: width / 2 - focus * zoom,
-        // The whole claim in the middle, up and down: one that grows a
-        // branch above it moves down to make room. One line, under the
-        // cloud risen above it, stands a little lower, where it would
-        // leave the room under it empty.
-        y:
+      // The top of what shows, against the canvas's top, the margin round
+      // the plane used too.
+      const top = RAISED_MARGIN_PX - shownTop * zoom;
+      // Where the film puts the plane, `settle` of the way from where the
+      // beat found it. The whole claim in the middle, up and down: one that
+      // grows a branch above it moves down to make room. One line, under the
+      // cloud risen above it, stands a little lower, where it would leave
+      // the room under it empty. One raised stands at the very top, the room
+      // under it free.
+      const placeAt = (settle: number): ScreenPoint & { raising: number } => {
+        const turn = Math.max(
+          zoomTurn,
+          lerp(centred(from), centred(staying), settle),
+        );
+        const focus = (fromFocus + (toFocus - fromFocus) * settle) * turn;
+        const middle =
           height / 2 -
           ((blended.top + blended.bottom) / 2) * zoom +
-          lerp(lowered(from), lowered(to), blended.settle) *
-            PLANE_LOWER *
-            height,
+          lerp(lowered(from), lowered(staying), settle) * PLANE_LOWER * height;
+        const raising = lerp(raised(from), raised(staying), settle);
+
+        return {
+          x: width / 2 - focus * zoom,
+          y: lerp(middle, top, raising),
+          raising,
+        };
+      };
+      const placed = placeAt(blended.settle);
+      // Where it stood as the beat began: what stays still on the screen as
+      // the plane moves round it stays there.
+      // Where it would stand neither centred on its focus nor raised: what
+      // stays still on the screen as the plane moves round it stays there,
+      // from beat to beat.
+      const unmoved = {
+        x: width / 2 - toFocus * zoomTurn * zoom,
+        y: height / 2 - ((blended.top + blended.bottom) / 2) * zoom,
       };
       state.planeBox = {
         left: placed.x + blended.left * zoom,
@@ -972,11 +1139,24 @@ export function StoryScene(props: StorySceneProps): ReactNode {
         bottom: placed.y + blended.bottom * zoom,
       };
 
+      // As the claim rises to the very top, what stays still sinks, the foot
+      // of the person at its bottom as far from the bottom as the two globes
+      // stand in the chapter of perspectives.
+      const sink =
+        Math.max(height - GLOBE_MENU.under - (unmoved.y + foot * zoom), 0) *
+        placed.raising;
+
       return {
         blended,
         zoom,
         // Where the film puts it, and then where the reader moved it.
         origin: { x: placed.x + state.pan.x, y: placed.y + state.pan.y },
+        raised: placed.raising,
+        still: {
+          x: unmoved.x + state.pan.x,
+          y: unmoved.y + sink + state.pan.y,
+        },
+        row: { x: unmoved.x + state.pan.x, y: unmoved.y + state.pan.y },
       };
     }
 
@@ -1063,8 +1243,10 @@ export function StoryScene(props: StorySceneProps): ReactNode {
     }
 
     /**
-     * A person's position, `value`, in a small pill centred on `at`, scaled
-     * with the plane as names are.
+     * An amount, `value`, in a small pill on `at`, scaled with the plane as
+     * names are: a person's position, or a deposit's amount, with what it
+     * is, `label`, after it, quieter. Centred on `at`; or, where a line ends
+     * at it, starting there.
      */
     function drawWeight(
       target: CanvasRenderingContext2D,
@@ -1072,18 +1254,28 @@ export function StoryScene(props: StorySceneProps): ReactNode {
       at: ScreenPoint,
       scale: number,
       alpha: number,
+      label?: string,
+      align: 'centre' | 'start' | 'end' = 'centre',
     ): void {
       target.save();
       target.translate(at.x, at.y);
       target.scale(scale, scale);
       target.globalAlpha = alpha;
-      target.font = `600 ${WEIGHT.fontSize}px ${fontFamily}`;
-      target.textAlign = 'center';
+      target.textAlign = 'left';
       target.textBaseline = 'middle';
-      const width = target.measureText(value).width + WEIGHT.padding * 2;
+      const said = `600 ${WEIGHT.fontSize}px ${fontFamily}`;
+      const named = `500 ${WEIGHT.fontSize}px ${fontFamily}`;
+      target.font = said;
+      const valueWidth = target.measureText(value).width;
+      target.font = named;
+      const labelWidth =
+        label === undefined ? 0 : target.measureText(` ${label}`).width;
+      const width = valueWidth + labelWidth + WEIGHT.padding * 2;
+      const left =
+        align === 'start' ? 0 : align === 'end' ? -width : -width / 2;
       target.beginPath();
       target.roundRect(
-        -width / 2,
+        left,
         -WEIGHT.height / 2,
         width,
         WEIGHT.height,
@@ -1094,8 +1286,111 @@ export function StoryScene(props: StorySceneProps): ReactNode {
       target.lineWidth = 1 / scale;
       target.strokeStyle = rgba(ring);
       target.stroke();
+      target.font = said;
       target.fillStyle = rgba(ink);
-      target.fillText(value, 0, 0.5);
+      target.fillText(value, left + WEIGHT.padding, 0.5);
+      if (label !== undefined) {
+        target.font = named;
+        target.fillStyle = rgba(grey);
+        target.fillText(` ${label}`, left + WEIGHT.padding + valueWidth, 0.5);
+      }
+      target.restore();
+    }
+
+    /** How wide a pill for `value` and its `label` is, at the plane's own scale. */
+    function weightWidth(value: string, label?: string): number {
+      if (plane === null || plane === undefined) {
+        return 0;
+      }
+      plane.save();
+      plane.font = `600 ${WEIGHT.fontSize}px ${fontFamily}`;
+      const valueWidth = plane.measureText(value).width;
+      plane.font = `500 ${WEIGHT.fontSize}px ${fontFamily}`;
+      const labelWidth =
+        label === undefined ? 0 : plane.measureText(` ${label}`).width;
+      plane.restore();
+
+      return valueWidth + labelWidth + WEIGHT.padding * 2;
+    }
+
+    /**
+     * An icon of one colour, `size` across, its middle on `at`: each of its
+     * shapes at its own strength (`paths`, from an icon `units` across).
+     */
+    function drawShapes(
+      target: CanvasRenderingContext2D,
+      paths: readonly { path: Path2D; opacity: number }[],
+      units: number,
+      colour: Rgb,
+      at: ScreenPoint,
+      size: number,
+      alpha: number,
+    ): void {
+      target.save();
+      target.translate(at.x - size / 2, at.y - size / 2);
+      target.scale(size / units, size / units);
+      target.fillStyle = rgba(colour);
+      for (const { path, opacity } of paths) {
+        target.globalAlpha = alpha * opacity;
+        target.fill(path);
+      }
+      target.restore();
+    }
+
+    /**
+     * A fee's icon, `size` across, its middle on `at`: its pie light, its
+     * slice solid (`FEE_ICON`), in `FEE_COLOUR`.
+     */
+    function drawFee(
+      target: CanvasRenderingContext2D,
+      at: ScreenPoint,
+      size: number,
+      alpha: number,
+    ): void {
+      drawShapes(target, feePaths, FEE_ICON.size, FEE_COLOUR, at, size, alpha);
+    }
+
+    /**
+     * A builder's app, `size` across, its middle on `at`: its body light,
+     * its bar solid (`APP_ICON`), in `APP_COLOUR`.
+     */
+    function drawApp(
+      target: CanvasRenderingContext2D,
+      at: ScreenPoint,
+      size: number,
+      alpha: number,
+    ): void {
+      drawShapes(target, appPaths, APP_ICON.size, APP_COLOUR, at, size, alpha);
+    }
+
+    /**
+     * The Intuition logo, `size` across, its centre on `at`: its ring and
+     * the arcs round it (`LOGO`), in `LOGO_COLOUR`.
+     */
+    function drawLogo(
+      target: CanvasRenderingContext2D,
+      at: ScreenPoint,
+      size: number,
+      alpha: number,
+    ): void {
+      const scale = size / LOGO.size;
+      target.save();
+      target.globalAlpha = alpha;
+      target.strokeStyle = rgba(LOGO_COLOUR);
+      for (const band of LOGO.bands) {
+        // Counterclockwise from the right, y up, as the logo's angles run.
+        target.beginPath();
+        target.lineWidth = band.halfWidth * 2 * scale;
+        target.arc(
+          at.x,
+          at.y,
+          band.radius * scale,
+          (-band.start * Math.PI) / 180,
+          (-(band.start + band.span) * Math.PI) / 180,
+          true,
+        );
+        target.stroke();
+      }
       target.restore();
     }
 
@@ -1231,6 +1526,8 @@ export function StoryScene(props: StorySceneProps): ReactNode {
       plane.globalAlpha = 1;
       plane.setTransform(ratio, 0, 0, ratio, 0, 0);
 
+      // One going as a person is left alone keeps to its row on the
+      // screen: along it with the claim, but not up with it.
       const placed = blended.atoms.map((atom) => {
         const out = lifted.get(atom.id);
 
@@ -1239,7 +1536,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
           out,
           placement: out ?? {
             x: origin.x + atom.x * zoom,
-            y: origin.y + atom.y * zoom,
+            y: (atom.keepsRow === true ? view.row.y : origin.y) + atom.y * zoom,
             size: PLANE.atomSize * zoom * (0.55 + 0.45 * atom.presence),
             badgeScale: zoom,
           },
@@ -1324,24 +1621,114 @@ export function StoryScene(props: StorySceneProps): ReactNode {
         x: origin.x + point.x * zoom,
         y: origin.y + point.y * zoom,
       });
-      for (const line of blended.vaultLines) {
+      // One who stays still on the screen as the plane moves round them, and
+      // their line's end with them: it rises straight from them to the row
+      // where it turns for the vault, wherever that is now.
+      const onStill = (point: PlanePoint): ScreenPoint => ({
+        x: view.still.x + point.x * zoom,
+        y: view.still.y + point.y * zoom,
+      });
+      const pointsOf = (line: (typeof blended.vaultLines)[number]) => {
+        // Going with its person, as they are, where they stood.
+        if (line.isGoing === true) {
+          return line.points.map(onStill);
+        }
         const points = line.points.map(onCanvas);
-        drawLine(plane, {
-          id: line.id,
-          points,
-          units: segmentLengths(points).reduce((sum, part) => sum + part, 0),
-          progress: line.presence,
-          alpha: 1,
-          flow: state.props.scene.flow,
-          colour: line.side === null ? grey : SIDE_COLOURS[line.side],
-        });
+        const [end, turn] = line.points;
+        if (line.isStill !== true || end === undefined || turn === undefined) {
+          return points;
+        }
+        const from = onStill(end);
+        // Raised, it turns for the vault just above what stands on it, each
+        // as far from the next (`STILL_LINE`).
+        const turnY = lerp(
+          onCanvas(turn).y,
+          from.y - STILL_LINE.rise * zoom,
+          view.raised,
+        );
+
+        return [from, { x: from.x, y: turnY }, ...points.slice(2)];
+      };
+      const weightOf = (line: (typeof blended.vaultLines)[number]) => {
+        const [from, turn] = pointsOf(line);
+        if (line.weight === undefined) {
+          return origin;
+        }
+        if (line.isGoing === true) {
+          return onStill(line.weight);
+        }
+        if (line.isStill !== true || from === undefined || turn === undefined) {
+          return onCanvas(line.weight);
+        }
+        const weightAt = line.weightAt ?? PLANE.vaults.weightAt;
+
+        return {
+          x: lerp(turn.x, from.x, weightAt),
+          y: lerp(turn.y, from.y, weightAt),
+        };
+      };
+      // A deposit followed up its line: where each fee and amount stands on
+      // the line as it is drawn, and how much of a fee's pie, round its
+      // middle, a line keeps out of, so it meets the fee at its edge.
+      const onLine = (at: OnLine): ScreenPoint | undefined => {
+        const line = blended.vaultLines.find(({ id }) => id === at.line);
+        const points = line === undefined ? [] : pointsOf(line);
+        const from = points[at.stretch];
+        const to = points[at.stretch + 1];
+
+        return from === undefined || to === undefined
+          ? undefined
+          : {
+              x: lerp(from.x, to.x, at.along),
+              y: lerp(from.y, to.y, at.along),
+            };
+      };
+      const feeSize = (icon: number): number =>
+        VAULT_SIZE * zoom * (0.55 + 0.45 * icon);
+      const pies = blended.depositFees.flatMap((fee) => {
+        const at = onLine(fee.at);
+        if (at === undefined || fee.icon <= 0) {
+          return [];
+        }
+        const scale = feeSize(fee.icon) / FEE_ICON.size;
+
+        return [
+          {
+            x: at.x + (FEE_ICON.pie.x - FEE_ICON.size / 2) * scale,
+            y: at.y + (FEE_ICON.pie.y - FEE_ICON.size / 2) * scale,
+            radius: FEE_ICON.pie.radius * scale,
+          },
+        ];
+      });
+      for (const line of blended.vaultLines) {
+        const points = pointsOf(line);
+        // Round a fee on it, the line keeps out of its pie.
+        const parts = line.presence < 1 ? [points] : outsideOf(points, pies);
+        for (const [index, part] of parts.entries()) {
+          drawLine(plane, {
+            id: index === 0 ? line.id : `${line.id}:${index}`,
+            points: part,
+            units: segmentLengths(part).reduce(
+              (sum, length) => sum + length,
+              0,
+            ),
+            progress: line.presence,
+            alpha: line.strength,
+            // Held back, light, its dots still, as if frozen in time.
+            flow:
+              line.isHeld === true
+                ? state.props.scene.heldFlow
+                : state.props.scene.flow,
+            colour: line.side === null ? grey : SIDE_COLOURS[line.side],
+          });
+        }
       }
       for (const line of blended.vaultLines) {
         if (line.weight !== undefined && line.weighed > 0) {
           drawWeight(
             plane,
             String(line.weight.value),
-            onCanvas(line.weight),
+            weightOf(line),
             zoom,
             line.weighed,
           );
@@ -1350,7 +1737,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
           drawWeight(
             plane,
             String(line.total.value),
-            onCanvas(line.total),
+            line.isGoing === true ? onStill(line.total) : onCanvas(line.total),
             zoom,
             line.totalled,
           );
@@ -1371,12 +1758,301 @@ export function StoryScene(props: StorySceneProps): ReactNode {
         if (person.presence > 0) {
           drawPerson(
             plane,
-            onCanvas(person),
+            person.isStill === true ? onStill(person) : onCanvas(person),
             PLANE.atomSize * zoom * (0.55 + 0.45 * person.presence),
-            person.presence,
+            person.presence * person.strength,
             depositorColour(person.side),
           );
         }
+      }
+      // Where a fee's amount stands, its middle, and half its width: off
+      // the end of its line out, to the right of the line or to the left;
+      // or out along its row, where its fees are shared out from (`rowAt`).
+      const feeAmountAt = (fee: BlendedDepositFee, at: ScreenPoint) => {
+        const half =
+          (weightWidth(amountOf(fee.amount.value), fee.amount.label) * zoom) /
+          2;
+        const out =
+          at.x +
+          (fee.isLeft === true ? -1 : 1) * (PLANE.deposit.branch * zoom + half);
+
+        return {
+          x: fee.rowAt === undefined ? out : onCanvas({ x: fee.rowAt, y: 0 }).x,
+          y: at.y,
+          half,
+        };
+      };
+      // A deposit's fees, on its line, each with a line from its pie's edge
+      // out to its amount, on whichever side it stands; and its amounts on
+      // the line. The fees'
+      // amounts are drawn last, over the lines their fees are shared out on.
+      const feeAmounts: {
+        fee: BlendedDepositFee;
+        at: ScreenPoint;
+        alpha: number;
+      }[] = [];
+      for (const fee of blended.depositFees) {
+        const at = onLine(fee.at);
+        if (at === undefined) {
+          continue;
+        }
+        const scale = feeSize(1) / FEE_ICON.size;
+        const amount = feeAmountAt(fee, at);
+        // Held back, its lines' dots still, as if frozen in time.
+        const feeFlow =
+          fee.isHeld === true
+            ? state.props.scene.heldFlow
+            : state.props.scene.flow;
+        const side = fee.isLeft === true ? -1 : 1;
+        const port =
+          fee.isLeft === true ? FEE_ICON.ports.left : FEE_ICON.ports.right;
+        const start = {
+          x: at.x + (port.x - FEE_ICON.size / 2) * scale,
+          y: at.y,
+        };
+        const end = { x: amount.x - side * amount.half, y: at.y };
+        if (fee.branch > 0) {
+          drawLine(plane, {
+            id: fee.id,
+            points: [start, end],
+            units: Math.abs(end.x - start.x),
+            progress: fee.branch,
+            alpha: fee.strength,
+            flow: feeFlow,
+            colour: grey,
+          });
+        }
+        if (fee.icon > 0) {
+          drawFee(plane, at, feeSize(fee.icon), fee.icon * fee.strength);
+        }
+        // The builder's app it goes to, under its amount, a line down to
+        // it: level with the protocol's logo, under the protocol's share.
+        if (fee.app !== undefined) {
+          const appSize = VAULT_SIZE * zoom;
+          const appAt = {
+            x: amount.x,
+            y:
+              at.y +
+              (PILL_HEIGHT / 2 + PLANE.deposit.gap + VAULT_SIZE / 2) * zoom,
+          };
+          const from = { x: amount.x, y: at.y + (PILL_HEIGHT / 2) * zoom };
+          const to = {
+            x: amount.x,
+            y:
+              appAt.y +
+              ((APP_ICON.ports.above.y - APP_ICON.size / 2) * appSize) /
+                APP_ICON.size,
+          };
+          if (fee.appLine > 0) {
+            drawLine(plane, {
+              id: `${fee.id}:app`,
+              points: [from, to],
+              units: to.y - from.y,
+              progress: fee.appLine,
+              alpha: fee.strength,
+              flow: feeFlow,
+              colour: grey,
+            });
+          }
+          if (fee.appIcon > 0) {
+            drawApp(
+              plane,
+              appAt,
+              appSize * (0.55 + 0.45 * fee.appIcon),
+              fee.appIcon * fee.strength,
+            );
+          }
+        }
+        if (fee.shown > 0) {
+          feeAmounts.push({
+            fee,
+            at: amount,
+            alpha: fee.shown * fee.strength,
+          });
+        }
+      }
+      for (const amount of blended.depositAmounts) {
+        const at = onLine(amount.at);
+        if (at !== undefined && amount.shown > 0) {
+          drawWeight(
+            plane,
+            amountOf(amount.amount.value),
+            at,
+            zoom,
+            amount.shown,
+            amount.amount.label,
+          );
+        }
+      }
+
+      // Its fees shared out, from the fee they are: from its pie's left
+      // edge, along its row and up into each vault, at its base, a share on
+      // each; and from their amount, moved along the row, down to the
+      // protocol's. A term's vault hangs under it, its own line up to it.
+      // The lines run at one speed.
+      const fees = blended.depositFees.find(
+        ({ id }) => id === blended.sharedFrom,
+      );
+      const feesOn = fees === undefined ? undefined : onLine(fees.at);
+      if (fees !== undefined && feesOn !== undefined) {
+        const feeScale = feeSize(1) / FEE_ICON.size;
+        const root = {
+          x: feesOn.x + (FEE_ICON.ports.left.x - FEE_ICON.size / 2) * feeScale,
+          y: feesOn.y,
+        };
+        const vaultScale = (VAULT_SIZE * zoom) / VAULT_ICON.size;
+        const { box } = VAULT_ICON;
+        const portOf = (
+          middle: ScreenPoint,
+          point: { x: number; y: number },
+          scale = vaultScale,
+        ): ScreenPoint => ({
+          x: middle.x + (point.x - (box.x + box.width / 2)) * scale,
+          y: middle.y + (point.y - (box.y + box.height / 2)) * scale,
+        });
+        const runs = blended.feeShares.map((share) => {
+          const base = portOf(onCanvas(share), VAULT_ICON.base);
+          const corner = { x: base.x, y: root.y };
+
+          return { share, points: [root, corner, base], corner, base };
+        });
+        // The protocol's share hangs under the fees' amount, level with the
+        // builder's fee; the line runs on down to the protocol, the
+        // Intuition logo, as far under its share as what stands on the
+        // person's line stands apart.
+        const { protocolFee } = blended;
+        const feesAmount = feeAmountAt(fees, feesOn);
+        const level =
+          protocolFee === null ? undefined : onLine(protocolFee.level);
+        const pill = (PILL_HEIGHT / 2) * zoom;
+        const logoSize = VAULT_SIZE * zoom;
+        const logoReach = (LOGO_REACH * logoSize) / LOGO.size;
+        const protocol =
+          level === undefined
+            ? undefined
+            : (() => {
+                const share = { x: feesAmount.x, y: level.y };
+                // Its middle as far under the share as an app's under the
+                // builder's fee, so the two stand level.
+                const logo = {
+                  x: feesAmount.x,
+                  y:
+                    share.y +
+                    pill +
+                    (PLANE.deposit.gap + VAULT_SIZE / 2) * zoom,
+                };
+
+                return {
+                  share,
+                  logo,
+                  from: { x: feesAmount.x, y: feesOn.y + pill },
+                  to: { x: feesAmount.x, y: logo.y - logoReach },
+                };
+              })();
+        const protocolLength =
+          protocol === undefined ? 0 : protocol.to.y - protocol.from.y;
+        const lengths = [
+          ...runs.map(({ points }) =>
+            segmentLengths(points).reduce((sum, part) => sum + part, 0),
+          ),
+          protocolLength,
+        ];
+        const longest = Math.max(...lengths);
+        const ran = (grown: number, length: number): number =>
+          length <= 0 ? grown : Math.min((grown * longest) / length, 1);
+        for (const [index, { share, points }] of runs.entries()) {
+          if (share.grown > 0) {
+            drawLine(plane, {
+              id: `${share.id}:share`,
+              points,
+              units: lengths[index] ?? 0,
+              progress: ran(share.grown, lengths[index] ?? 0),
+              alpha: 1,
+              flow: state.props.scene.flow,
+              colour: grey,
+            });
+          }
+        }
+        if (protocolFee !== null && protocol !== undefined) {
+          if (protocolFee.grown > 0) {
+            drawLine(plane, {
+              id: 'protocol:share',
+              points: [protocol.from, protocol.to],
+              units: protocolLength,
+              progress: ran(protocolFee.grown, protocolLength),
+              alpha: 1,
+              flow: state.props.scene.flow,
+              colour: grey,
+            });
+          }
+          if (protocolFee.presence > 0) {
+            drawLogo(
+              plane,
+              protocol.logo,
+              logoSize * (0.55 + 0.45 * protocolFee.presence),
+              protocolFee.presence,
+            );
+          }
+        }
+        // A term's vault, new, and its own line up to the term.
+        for (const { share } of runs) {
+          if (share.reach !== undefined && share.presence > 0) {
+            const middle = onCanvas(share);
+            const lid = portOf(middle, VAULT_ICON.ports.subject);
+            const reach = onCanvas(share.reach);
+            drawLine(plane, {
+              id: `${share.id}:own`,
+              points: [lid, reach],
+              units: lid.y - reach.y,
+              progress: 1,
+              alpha: share.presence,
+              flow: state.props.scene.flow,
+              colour: grey,
+            });
+            drawVault(
+              plane,
+              middle,
+              VAULT_SIZE * zoom * (0.55 + 0.45 * share.presence),
+              share.of,
+              share.presence,
+            );
+          }
+        }
+        for (const { share, corner, base } of runs) {
+          if (share.shown > 0) {
+            drawWeight(
+              plane,
+              `+${amountOf(share.gain)}`,
+              { x: base.x, y: lerp(corner.y, base.y, 0.5) },
+              zoom,
+              share.shown,
+            );
+          }
+        }
+        if (
+          protocolFee !== null &&
+          protocol !== undefined &&
+          protocolFee.shown > 0
+        ) {
+          drawWeight(
+            plane,
+            amountOf(protocolFee.value),
+            protocol.share,
+            zoom,
+            protocolFee.shown,
+            protocolFee.label,
+          );
+        }
+      }
+      for (const { fee, at, alpha } of feeAmounts) {
+        drawWeight(
+          plane,
+          amountOf(fee.amount.value),
+          at,
+          zoom,
+          alpha,
+          fee.amount.label,
+        );
       }
 
       // An atom the cloud has keeps its shape from there: it is the same
@@ -1446,7 +2122,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
       }
       plane.globalAlpha = 1;
       plane.setTransform(ratio, 0, 0, ratio, 0, 0);
-      fadeEdges(plane, width, height);
+      fadeEdges(plane, width, height, 1, 1 - view.raised);
       // The menu of perspectives over the fade: it is the page's, not the
       // picture's, and stays whole near an edge.
       if (blended.picker !== null) {
@@ -2145,7 +2821,11 @@ export function StoryScene(props: StorySceneProps): ReactNode {
         }
       >();
       if (planeView !== null) {
-        for (const atom of planeView.blended.atoms) {
+        // One going where it is, as a person is left alone, does not go back
+        // into the cloud: the plane alone draws it.
+        for (const atom of planeView.blended.atoms.filter(
+          (candidate) => candidate.keepsRow !== true,
+        )) {
           const medal = medalOf(atom.rank, atom.ranked);
           onPlane.set(atom.id, {
             x: planeView.origin.x + atom.x * planeView.zoom,

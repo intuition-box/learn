@@ -15,6 +15,7 @@ import {
   type PlaneTerm,
   type PlaneVaults,
   planeSentence,
+  STILL_LINE,
 } from './story-plane';
 
 const LABELS: Partial<Record<AtomId, string>> = {
@@ -669,6 +670,475 @@ describe("a triple's vaults", () => {
     // Nothing else moves.
     expect(weighing(0.5).atoms).toEqual(weighing(0).atoms);
     expect(weighing(0.5).people).toEqual(weighing(0).people);
+  });
+});
+
+describe('one person left alone with the triple', () => {
+  const measureText = (text: string): number => text.length * 7;
+  const POSITIONED: PlaneClaim = {
+    term: DEEPEST,
+    frame: 'object',
+    isFrameHidden: true,
+    vaults: {
+      frame: 'worth',
+      against: [400, 200, 20],
+      for: [200, 100, 80],
+      isWeighed: true,
+      isTotalled: true,
+    },
+    faded: ['elonMusk', 'believes'],
+  };
+  const ALONE: PlaneClaim = {
+    ...POSITIONED,
+    alone: { side: 'for', index: 1 },
+  };
+  const clearing = (t: number) =>
+    planeAt(POSITIONED, ALONE, t, measureText, labelOf, ALONE);
+  const present = (plane: ReturnType<typeof clearing>) => ({
+    atoms: plane.atoms.filter((atom) => atom.presence > 0).map((a) => a.id),
+    frames: plane.frames.filter((frame) => frame.presence > 0).map((f) => f.id),
+    links: plane.links.filter((link) => link.presence > 0).map((l) => l.id),
+    lines: plane.vaultLines
+      .filter((line) => line.presence > 0)
+      .map((line) => line.id),
+    vaults: plane.vaults.filter((v) => v.presence > 0).map((v) => v.id),
+    people: plane.people.filter((p) => p.presence > 0).map((p) => p.id),
+  });
+
+  it('keeps the person, their line up to the vault, the vault, its line on to the triple, and the triple', () => {
+    expect(present(clearing(1))).toEqual({
+      atoms: [
+        'spacex',
+        'willBeWorth',
+        'ordersOfMagnitude',
+        'moreThan',
+        'currentEarthEconomy',
+      ],
+      frames: ['worth', 'more'],
+      links: ['worth:0', 'worth:1', 'more:0', 'more:1'],
+      lines: ['worth:vaults', 'worth:for:1'],
+      vaults: ['worth:vault'],
+      people: ['worth:for:1'],
+    });
+    // The person, and their line, stay still on the screen.
+    const settled = clearing(1);
+    expect(
+      settled.people.find((person) => person.id === 'worth:for:1')?.isStill,
+    ).toBe(true);
+    expect(
+      settled.vaultLines.find((line) => line.id === 'worth:for:1')?.isStill,
+    ).toBe(true);
+  });
+
+  it('takes all else away, the lines drawing back with their positions and totals, him and believes set back as they go', () => {
+    const halfway = clearing(0.2);
+    const going = halfway.vaultLines.filter(
+      (line) => line.id !== 'worth:vaults' && line.id !== 'worth:for:1',
+    );
+
+    expect(going.every((line) => line.presence < 1)).toBe(true);
+    expect(going.every((line) => line.weighed === line.presence)).toBe(true);
+    expect(halfway.atoms.find((atom) => atom.id === 'elonMusk')).toMatchObject({
+      faded: 1,
+    });
+    expect(
+      halfway.atoms.find((atom) => atom.id === 'elonMusk')?.presence,
+    ).toBeGreaterThan(0);
+    // The person's own position stays on their line.
+    expect(
+      halfway.vaultLines.find((line) => line.id === 'worth:for:1'),
+    ).toMatchObject({ presence: 1, weighed: 1 });
+    // What goes goes where it stands on the screen: the people and their
+    // lines still, him and believes along their row with the claim, not up.
+    expect(
+      halfway.people
+        .filter((person) => person.id !== 'worth:for:1')
+        .every((person) => person.isStill === true),
+    ).toBe(true);
+    expect(going.every((line) => line.isGoing === true)).toBe(true);
+    expect(
+      halfway.atoms
+        .filter((atom) => atom.id === 'elonMusk' || atom.id === 'believes')
+        .every((atom) => atom.keepsRow === true),
+    ).toBe(true);
+    expect(
+      halfway.atoms
+        .filter((atom) => atom.id !== 'elonMusk' && atom.id !== 'believes')
+        .every((atom) => atom.keepsRow === undefined),
+    ).toBe(true);
+  });
+
+  it('moves what they sent down their line as the rest goes, to where it stands as the deposit is followed', () => {
+    const at = (t: number) =>
+      clearing(t).vaultLines.find((each) => each.id === 'worth:for:1')
+        ?.weightAt;
+
+    expect(at(0)).toBe(PLANE.vaults.weightAt);
+    expect(at(0.4)).toBeGreaterThan(PLANE.vaults.weightAt);
+    expect(at(0.4)).toBeLessThan(1 - STILL_LINE.sent);
+    expect(at(0.8)).toBeCloseTo(1 - STILL_LINE.sent, 9);
+  });
+
+  it('takes the lines beside the one left alone off where they ran together with theirs at once, the total going as every number does', () => {
+    const start = clearing(0.01);
+    const beside = start.vaultLines.filter(
+      (line) => line.side === 'for' && line.id !== 'worth:for:1',
+    );
+    const across = start.vaultLines.filter((line) => line.side === 'against');
+
+    // Only from each person to where the side's lines meet.
+    expect(beside.map((line) => line.points.length)).toEqual([2, 2]);
+    expect(beside.every((line) => line.presence > 0.9)).toBe(true);
+    // The side's total fades with the rest.
+    expect(
+      beside.find((line) => line.id === 'worth:for:0')?.totalled,
+    ).toBeGreaterThan(0.9);
+    // The other side draws back whole, its total with it.
+    expect(across.every((line) => line.points.length === 3)).toBe(true);
+    expect(
+      across.find((line) => line.id === 'worth:against:0')?.totalled,
+    ).toBeGreaterThan(0.9);
+  });
+
+  it('keeps the plane’s room, so it holds still while the rest goes', () => {
+    expect([clearing(1).top, clearing(1).bottom]).toEqual([
+      clearing(0).top,
+      clearing(0).bottom,
+    ]);
+    expect(clearing(1).fit).toEqual(clearing(0).fit);
+  });
+});
+
+describe('a deposit followed up the line of the person left alone', () => {
+  const measureText = (text: string): number => text.length * 7;
+  const ALONE: PlaneClaim = {
+    term: DEEPEST,
+    frame: 'object',
+    isFrameHidden: true,
+    vaults: {
+      frame: 'worth',
+      against: [400, 200, 20],
+      for: [200, 100, 80],
+      isWeighed: true,
+      isTotalled: true,
+    },
+    faded: ['elonMusk', 'believes'],
+    alone: { side: 'for', index: 1 },
+  };
+  const DEPOSITING: PlaneClaim = {
+    ...ALONE,
+    deposit: {
+      sent: { value: 100, label: 'sent' },
+      builderFee: { value: 0.5, label: 'builder fee' },
+      deposit: { value: 99.5 },
+      fees: { value: 2.64, label: 'fees' },
+      position: { value: 96.86, label: 'position' },
+    },
+  };
+  const following = (t: number) =>
+    planeAt(ALONE, DEPOSITING, t, measureText, labelOf, DEPOSITING);
+  const line = 'worth:for:1';
+
+  it('takes the builder’s fee halfway up their line, the fees where it turns for the vault, and shows what goes on between and the position after', () => {
+    const { depositFees, depositAmounts } = following(1);
+
+    expect(
+      depositFees.map(({ id, at, amount }) => ({
+        id,
+        at,
+        value: amount.value,
+      })),
+    ).toEqual([
+      {
+        id: `${line}:builder`,
+        at: { line, stretch: 0, along: STILL_LINE.builder },
+        value: 0.5,
+      },
+      { id: `${line}:fees`, at: { line, stretch: 0, along: 1 }, value: 2.64 },
+    ]);
+    // Both off to the left of the line, where the fees go.
+    expect(depositFees.every((fee) => fee.isLeft === true)).toBe(true);
+    expect(
+      depositAmounts.map(({ id, at, amount }) => ({
+        id,
+        at,
+        value: amount.value,
+      })),
+    ).toEqual([
+      {
+        id: `${line}:deposit`,
+        at: { line, stretch: 0, along: STILL_LINE.deposit },
+        value: 99.5,
+      },
+      {
+        id: `${line}:position`,
+        at: { line, stretch: 1, along: 0.5 },
+        value: 96.86,
+      },
+    ]);
+  });
+
+  it('keeps what they sent where it already stands, below the builder’s fee', () => {
+    const at = (t: number) =>
+      following(t).vaultLines.find((each) => each.id === line)?.weightAt;
+
+    expect(at(0)).toBeCloseTo(1 - STILL_LINE.sent, 9);
+    expect(at(0.5)).toBeCloseTo(1 - STILL_LINE.sent, 9);
+    // Their position, 100, stays on the line.
+    expect(
+      following(1).vaultLines.find((each) => each.id === line)?.weighed,
+    ).toBe(1);
+  });
+
+  it('brings each in, in turn, as the money rises: a fee’s icon, then its line out, then its amount', () => {
+    // At once, with no wait: the builder's fee's icon already coming in.
+    expect(following(0).depositFees.every((fee) => fee.icon === 0)).toBe(true);
+    expect(
+      following(0.02).depositFees.find((fee) => fee.id === `${line}:builder`)
+        ?.icon,
+    ).toBeGreaterThan(0);
+    // In turn: the builder's fee, the app it goes to, what goes on, the
+    // fees, the position.
+    const order: string[] = [];
+    for (let step = 0; step <= 200; step++) {
+      const plane = following(step / 200);
+      for (const id of [
+        ...plane.depositFees
+          .filter((fee) => fee.icon > 0)
+          .map((fee) => `${fee.id}:icon`),
+        ...plane.depositFees
+          .filter((fee) => fee.branch > 0)
+          .map((fee) => `${fee.id}:line`),
+        ...plane.depositFees
+          .filter((fee) => fee.shown > 0)
+          .map((fee) => fee.id),
+        ...plane.depositFees
+          .filter((fee) => fee.appLine > 0)
+          .map((fee) => `${fee.id}:app:line`),
+        ...plane.depositFees
+          .filter((fee) => fee.appIcon > 0)
+          .map((fee) => `${fee.id}:app`),
+        ...plane.depositAmounts
+          .filter((amount) => amount.shown > 0)
+          .map((amount) => amount.id),
+      ]) {
+        if (!order.includes(id)) {
+          order.push(id);
+        }
+      }
+    }
+    expect(order).toEqual([
+      `${line}:builder:icon`,
+      `${line}:builder:line`,
+      `${line}:builder`,
+      `${line}:builder:app:line`,
+      `${line}:builder:app`,
+      `${line}:deposit`,
+      `${line}:fees:icon`,
+      `${line}:fees:line`,
+      `${line}:fees`,
+      `${line}:position`,
+    ]);
+    const end = following(1);
+    expect(
+      end.depositFees.every(
+        (fee) => fee.icon === 1 && fee.branch === 1 && fee.shown === 1,
+      ),
+    ).toBe(true);
+    // Only the builder's fee goes on to an app.
+    expect(
+      end.depositFees.map(({ id, appLine, appIcon }) => ({
+        id,
+        appLine,
+        appIcon,
+      })),
+    ).toEqual([
+      { id: `${line}:builder`, appLine: 1, appIcon: 1 },
+      { id: `${line}:fees`, appLine: 0, appIcon: 0 },
+    ]);
+    expect(end.depositAmounts.every((amount) => amount.shown === 1)).toBe(true);
+  });
+
+  describe('then its fees, shared out', () => {
+    const SHARING: PlaneClaim = {
+      ...DEPOSITING,
+      deposit: {
+        ...(DEPOSITING.deposit ?? {
+          sent: { value: 0 },
+          builderFee: { value: 0 },
+          deposit: { value: 0 },
+          fees: { value: 0 },
+          position: { value: 0 },
+        }),
+        shared: {
+          protocol: { value: 1.24, label: 'protocol' },
+          entry: 0.5,
+          perTerm: 0.3,
+        },
+      },
+    };
+    const sharing = (t: number) =>
+      planeAt(DEPOSITING, SHARING, t, measureText, labelOf, SHARING);
+
+    it('keeps the person, their line and the fees, holds back the rest of the deposit, and lets the position go', () => {
+      const end = sharing(1);
+      const { held } = PLANE.deposit;
+
+      expect(
+        end.people.map(({ id, presence, strength }) => ({
+          id,
+          presence,
+          strength,
+        })),
+      ).toEqual([{ id: line, presence: 1, strength: expect.closeTo(held, 9) }]);
+      expect(end.vaultLines.find((each) => each.id === line)).toMatchObject({
+        presence: 1,
+        weighed: expect.closeTo(held, 9),
+        strength: expect.closeTo(held, 9),
+      });
+      // The triple's own line, from its vault, stays as strong.
+      expect(
+        end.vaultLines.find((each) => each.id === 'worth:vaults')?.strength,
+      ).toBe(1);
+      expect(
+        end.depositFees.map(({ id, icon, branch, shown, strength }) => ({
+          id,
+          icon,
+          branch,
+          shown,
+          strength,
+        })),
+      ).toEqual([
+        {
+          id: `${line}:builder`,
+          icon: 1,
+          branch: 1,
+          shown: 1,
+          strength: expect.closeTo(held, 9),
+        },
+        { id: `${line}:fees`, icon: 1, branch: 1, shown: 1, strength: 1 },
+      ]);
+      expect(
+        end.depositAmounts.map(({ id, shown }) => ({ id, shown })),
+      ).toEqual([
+        { id: `${line}:deposit`, shown: expect.closeTo(held, 9) },
+        { id: `${line}:position`, shown: 0 },
+      ]);
+      // The fees go on from their own fee.
+      expect(end.sharedFrom).toBe(`${line}:fees`);
+    });
+
+    it('hangs the vaults of the triple’s terms beside its own, and shares the fees into each', () => {
+      const shares = sharing(1).feeShares;
+      const vault = sharing(1).vaults[0];
+      const atomAt = (id: AtomId) =>
+        sharing(1).atoms.find((atom) => atom.id === id)?.x;
+      const inner = sharing(1).frames.find((frame) => frame.id === 'more');
+
+      expect(shares.map(({ of, x, y, gain }) => ({ of, x, y, gain }))).toEqual([
+        { of: 'triple', x: vault?.x, y: vault?.y, gain: 0.5 },
+        { of: 'atom', x: atomAt('spacex'), y: vault?.y, gain: 0.3 },
+        { of: 'atom', x: atomAt('willBeWorth'), y: vault?.y, gain: 0.3 },
+        {
+          of: 'triple',
+          x: (inner?.x ?? 0) + (inner?.width ?? 0) / 2,
+          y: vault?.y,
+          gain: 0.3,
+        },
+      ]);
+      // The triple's own vault hangs there already; each term's its own line
+      // up to the term.
+      expect(shares[0]?.reach).toBeUndefined();
+      expect(shares[1]?.reach).toEqual({
+        x: atomAt('spacex'),
+        y: PLANE.atomSize / 2,
+      });
+      expect(shares[3]?.reach?.y).toBe(inner?.bottom);
+      // The protocol’s share level with the builder’s fee.
+      expect(sharing(1).protocolFee).toMatchObject({
+        value: 1.24,
+        label: 'protocol',
+        level: { line, stretch: 0, along: STILL_LINE.builder },
+      });
+    });
+
+    it('stands the fees’ amount where they are shared out from, in the widest gap between the vaults, from the moment they are taken', () => {
+      const fee = (plane: ReturnType<typeof sharing>, id: string) =>
+        plane.depositFees.find((each) => each.id === `${line}:${id}`);
+      const vault = sharing(1).vaults[0];
+      const worth = sharing(1).atoms.find((atom) => atom.id === 'willBeWorth');
+      const middle = ((worth?.x ?? 0) + (vault?.x ?? 0)) / 2;
+
+      // Between will be worth’s vault and the triple’s own, as the deposit
+      // is followed and as its fees are shared out: it never moves.
+      expect(fee(following(1), 'fees')?.rowAt).toBeCloseTo(middle, 9);
+      expect(fee(sharing(0), 'fees')?.rowAt).toBeCloseTo(middle, 9);
+      expect(fee(sharing(1), 'fees')?.rowAt).toBeCloseTo(middle, 9);
+      // The builder’s stays out on its line.
+      expect(fee(sharing(1), 'builder')?.rowAt).toBeUndefined();
+    });
+
+    it('goes as the plane closes, what was held back no stronger than it was', () => {
+      const closing = (t: number) =>
+        planeAt(SHARING, null, t, measureText, labelOf, SHARING);
+      const { held } = PLANE.deposit;
+      const start = closing(0);
+
+      expect(
+        start.depositAmounts.find((amount) => amount.id === `${line}:deposit`)
+          ?.shown,
+      ).toBeCloseTo(held, 9);
+      expect(start.vaultLines.find((each) => each.id === line)).toMatchObject({
+        weighed: expect.closeTo(held, 9),
+        strength: expect.closeTo(held, 9),
+      });
+      expect(start.people.find((each) => each.id === line)?.strength).toBe(
+        held,
+      );
+      expect(
+        start.depositFees.find((fee) => fee.id === `${line}:builder`)?.strength,
+      ).toBe(held);
+      // And all of it gone by the end.
+      expect(
+        closing(1).depositAmounts.every((amount) => amount.shown === 0),
+      ).toBe(true);
+    });
+
+    it('holds the deposit back, then brings the vaults, then grows the lines, then shows each share', () => {
+      const builder = (t: number) =>
+        sharing(t).depositFees.find((fee) => fee.id === `${line}:builder`);
+
+      expect(builder(0)?.strength).toBe(1);
+      expect(builder(0.3)?.strength).toBeCloseTo(PLANE.deposit.held, 9);
+      expect(
+        sharing(0.3).feeShares.every((share) => share.presence === 0),
+      ).toBe(true);
+      expect(
+        sharing(0.45).feeShares.every((share) => share.presence === 1),
+      ).toBe(true);
+      // The protocol’s logo arrives with the vaults.
+      expect(sharing(0.3).protocolFee?.presence).toBe(0);
+      expect(sharing(0.45).protocolFee?.presence).toBe(1);
+      expect(sharing(0.45).feeShares.every((share) => share.grown === 0)).toBe(
+        true,
+      );
+      expect(sharing(0.85).feeShares.every((share) => share.grown === 1)).toBe(
+        true,
+      );
+      expect(sharing(0.85).protocolFee).toMatchObject({ grown: 1, shown: 0 });
+      expect(sharing(1).feeShares.every((share) => share.shown === 1)).toBe(
+        true,
+      );
+      expect(sharing(1).protocolFee?.shown).toBe(1);
+    });
+  });
+
+  it('keeps the plane as the person was left alone with the triple', () => {
+    expect([following(1).top, following(1).bottom]).toEqual([
+      following(0).top,
+      following(0).bottom,
+    ]);
+    expect(following(1).people.map((person) => person.id)).toEqual([line]);
   });
 });
 
