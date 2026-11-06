@@ -36,6 +36,8 @@ import {
   bodyLineY,
   CARD,
   cardHeight,
+  cardInset,
+  cardTitle,
   CLOSING,
   closingAt,
   type EnrichmentLayout,
@@ -47,6 +49,7 @@ import {
   infoboxRowY,
   lineBack,
   PAGE_FIELDS,
+  separatorRoom,
   WIKI,
 } from './story-enrichment';
 import {
@@ -2353,8 +2356,14 @@ export function StoryScene(props: StorySceneProps): ReactNode {
       const rows = opened.reduce((sum, open) => sum + open, 0);
       const left = card.x - cardWidth / 2;
       const facing = left + cardWidth;
+      const title = cardTitle(badge.height);
       const rowY = (index: number): number =>
-        top + badge.height + row * index + row / 2;
+        top +
+        title +
+        cardInset(row) +
+        row * index +
+        row / 2 +
+        (index >= GRAPH_FIELDS.length ? separatorRoom(row) : 0);
 
       if (shown > 0) {
         drawWikiPage(target, layout, rise, shown, data);
@@ -2444,15 +2453,21 @@ export function StoryScene(props: StorySceneProps): ReactNode {
         target.save();
         target.clip();
         target.fillStyle = rgba(page, arrivedOf(named));
-        target.fillText(
-          ATOMS.elonMusk.label,
-          card.x,
-          top + badge.height / 2 + 0.5,
-        );
+        target.fillText(ATOMS.elonMusk.label, card.x, top + title / 2 + 0.5);
         target.fillStyle = rgba(page, 0.14 * Math.min(rows, 1));
         target.fillRect(
           left + CARD.padding,
-          top + badge.height,
+          top + title,
+          cardWidth - CARD.padding * 2,
+          1,
+        );
+        // And one between what the graph says of him and what the page
+        // does, as the page's first row opens.
+        const pageStart = GRAPH_FIELDS.length;
+        target.fillStyle = rgba(page, 0.14 * (opened[pageStart] ?? 0));
+        target.fillRect(
+          left + CARD.padding,
+          top + title + cardInset(row) + row * pageStart + cardInset(row),
           cardWidth - CARD.padding * 2,
           1,
         );

@@ -4,6 +4,7 @@ import {
   CARD,
   CARD_ROWS,
   cardHeight,
+  cardTitle,
   CLOSING,
   closingAt,
   type Circle,
@@ -270,7 +271,7 @@ describe('closing', () => {
 
 describe('cardHeight', () => {
   it('is the name alone without rows, and grows a row for each', () => {
-    expect(cardHeight(22, 0, CARD.row)).toBe(22);
+    expect(cardHeight(22, 0, CARD.row)).toBe(cardTitle(22));
     expect(cardHeight(22, 2, 20) - cardHeight(22, 1, 20)).toBe(20);
     expect(CARD_ROWS).toBe(GRAPH_FIELDS.length + PAGE_FIELDS.length);
   });

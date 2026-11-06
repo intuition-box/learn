@@ -223,11 +223,50 @@ export const CARD = {
 export const CARD_ROWS = GRAPH_FIELDS.length + PAGE_FIELDS.length;
 
 /**
+ * How far in from the card's edges, and from each rule, its text keeps: the
+ * card's padding, the same all round.
+ */
+function textGap(height: number): number {
+  return Math.max((height - CARD.fontSize) / 2, 0);
+}
+
+/**
+ * The room to add between a rule, or the card's edge, and the nearest row,
+ * for rows `row` tall: what the row leaves round its text, made up to the
+ * card's padding.
+ */
+export function cardInset(row: number): number {
+  return Math.max(CARD.padding - textGap(row), 0);
+}
+
+/** How tall the card's name is, `header` tall as a badge, padded as the card is. */
+export function cardTitle(header: number): number {
+  return header + 2 * Math.max(CARD.padding - textGap(header), 0);
+}
+
+/**
+ * The room the rule between the graph's rows and the page's takes, for rows
+ * `row` tall: the card's padding on each side of it.
+ */
+export function separatorRoom(row: number): number {
+  return 2 * cardInset(row);
+}
+
+/**
  * How tall the card is under a name `header` tall, with `rows` rows open,
- * each `row` tall.
+ * each `row` tall: its name, then the rows, padded as the card is under the
+ * name's rule, round the page's rule, and at the bottom.
  */
 export function cardHeight(header: number, rows: number, row: number): number {
-  return header + rows * row + CARD.padding * 0.75 * Math.min(rows, 1);
+  const isOpen = Math.min(rows, 1);
+  const pageOpened = Math.min(Math.max(rows - GRAPH_FIELDS.length, 0), 1);
+
+  return (
+    cardTitle(header) +
+    2 * cardInset(row) * isOpen +
+    rows * row +
+    separatorRoom(row) * pageOpened
+  );
 }
 
 /** How large Elon Musk is once out of the graph, as on the plane. */
@@ -423,7 +462,10 @@ export function enrichmentLayout(
  * least.
  */
 function rowFor(room: number, header: number): number {
-  const rows = (room - cardHeight(header, 1, 0)) / CARD_ROWS;
+  // The card grows by a row for each of its rows, less the padding round
+  // its two rules and its ends, which shrinks as the rows grow: two rows'
+  // worth fewer, from its height with rows of nothing.
+  const rows = (room - cardHeight(header, CARD_ROWS, 0)) / (CARD_ROWS - 2);
 
   return Math.min(Math.max(rows, CARD.minRow), CARD.row);
 }
