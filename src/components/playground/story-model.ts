@@ -100,6 +100,44 @@ export const ATOMS = {
   civilization: { label: 'civilization shall' },
   startBuilding: { label: 'start building' },
   futureOfInformation: { label: 'the future of information' },
+  // The two perspectives' further claims, only on the two globes.
+  democrats: { label: 'Democrats' },
+  callFor: { label: 'call for' },
+  pauseOnAdvancedAi: { label: 'a pause on advanced AI' },
+  banOnSuperintelligence: { label: 'a ban on superintelligence' },
+  reposted: { label: 'reposted' },
+  democracy: { label: 'democracy' },
+  spreads: { label: 'spreads' },
+  misinformation: { label: 'misinformation' },
+  deepfakes: { label: 'Deepfakes' },
+  undermine: { label: 'undermine' },
+  elections: { label: 'elections' },
+  dataCenters: { label: 'Data centers' },
+  strain: { label: 'strain' },
+  powerGrid: { label: 'the power grid' },
+  superintelligence: { label: 'Superintelligence' },
+  poses: { label: 'poses' },
+  existentialRisk: { label: 'an existential risk' },
+  lessThanTheHype: { label: 'less than the hype' },
+  willCure: { label: 'will cure' },
+  diseases: { label: 'diseases' },
+  creates: { label: 'creates' },
+  newJobs: { label: 'new jobs' },
+  speedsUp: { label: 'speeds up' },
+  science: { label: 'science' },
+  alphafold: { label: 'AlphaFold' },
+  solved: { label: 'solved' },
+  proteinFolding: { label: 'protein folding' },
+  aiTutors: { label: 'AI tutors' },
+  teach: { label: 'teach' },
+  everyChild: { label: 'every child' },
+  selfDrivingCars: { label: 'Self-driving cars' },
+  save: { label: 'save' },
+  lives: { label: 'lives' },
+  researches: { label: 'researches' },
+  aiSafety: { label: 'AI safety' },
+  unlocks: { label: 'unlocks' },
+  newMedicines: { label: 'new medicines' },
 } as const satisfies Record<string, { label: string }>;
 
 export type AtomId = keyof typeof ATOMS;
@@ -198,6 +236,94 @@ export const TRIPLES = {
     subject: 'civilization',
     predicate: 'startBuilding',
     object: 'futureOfInformation',
+  },
+  // The pessimists' further claims, on their globe.
+  democratsCallForPause: {
+    subject: 'democrats',
+    predicate: 'callFor',
+    object: 'pauseOnAdvancedAi',
+  },
+  democratsCallForBan: {
+    subject: 'democrats',
+    predicate: 'callFor',
+    object: 'banOnSuperintelligence',
+  },
+  elonRepostedPause: {
+    subject: 'elonMusk',
+    predicate: 'reposted',
+    object: 'callFor',
+    objectTriple: 'Democrats call for a pause on advanced AI',
+  },
+  aiThreatensDemocracy: {
+    subject: 'ai',
+    predicate: 'threatens',
+    object: 'democracy',
+  },
+  aiSpreadsMisinformation: {
+    subject: 'ai',
+    predicate: 'spreads',
+    object: 'misinformation',
+  },
+  deepfakesUndermineElections: {
+    subject: 'deepfakes',
+    predicate: 'undermine',
+    object: 'elections',
+  },
+  dataCentersStrainGrid: {
+    subject: 'dataCenters',
+    predicate: 'strain',
+    object: 'powerGrid',
+  },
+  superintelligencePosesRisk: {
+    subject: 'superintelligence',
+    predicate: 'poses',
+    object: 'existentialRisk',
+  },
+  aiWorthLessThanHype: {
+    subject: 'ai',
+    predicate: 'willBeWorth',
+    object: 'lessThanTheHype',
+  },
+  // The optimists' further claims, on theirs.
+  aiWillCureDiseases: {
+    subject: 'ai',
+    predicate: 'willCure',
+    object: 'diseases',
+  },
+  aiCreatesNewJobs: {
+    subject: 'ai',
+    predicate: 'creates',
+    object: 'newJobs',
+  },
+  aiSpeedsUpScience: {
+    subject: 'ai',
+    predicate: 'speedsUp',
+    object: 'science',
+  },
+  alphafoldSolvedFolding: {
+    subject: 'alphafold',
+    predicate: 'solved',
+    object: 'proteinFolding',
+  },
+  tutorsTeachEveryChild: {
+    subject: 'aiTutors',
+    predicate: 'teach',
+    object: 'everyChild',
+  },
+  carsSaveLives: {
+    subject: 'selfDrivingCars',
+    predicate: 'save',
+    object: 'lives',
+  },
+  anthropicResearchesSafety: {
+    subject: 'anthropic',
+    predicate: 'researches',
+    object: 'aiSafety',
+  },
+  proteinFoldingUnlocksMedicines: {
+    subject: 'proteinFolding',
+    predicate: 'unlocks',
+    object: 'newMedicines',
   },
 } as const satisfies Record<string, TripleAtoms>;
 
@@ -422,9 +548,9 @@ const WHOLE_GRAPH: Pick<StageState, 'atoms' | 'triples'> = {
   atoms: {
     elonMusk: { at: onEquator(-1), role: 'identity' },
     founderOf: { at: FRONT, role: 'predicate' },
-    spacex: { at: onEquator(1), role: 'subjectAndObject' },
+    spacex: { at: onEquator(1), role: 'bridge' },
     owns: { at: onEquator(2), role: 'predicate' },
-    xai: { at: onEquator(3), role: 'subjectAndObject' },
+    xai: { at: onEquator(3), role: 'bridge' },
     best: { at: onEquator(4), role: 'predicate' },
     aiCompany: { at: onEquator(5), role: 'object' },
   },
@@ -459,7 +585,7 @@ const STORY_GRAPH: Pick<StageState, 'atoms' | 'triples'> = {
     willBeWorth: { at: onSphere(1.5, 0.48), role: 'predicate' },
     ordersOfMagnitude: { at: onSphere(0.55, 1), role: 'identity' },
     moreThan: { at: onSphere(2.1, 1.02), role: 'predicate' },
-    currentEarthEconomy: { at: onSphere(3.64, 0.9), role: 'subjectAndObject' },
+    currentEarthEconomy: { at: onSphere(3.64, 0.9), role: 'bridge' },
     estimatedAt: { at: onSphere(4.6, 0.55), role: 'predicate' },
     hundredTrillion: { at: onSphere(5.3, 0.3), role: 'object' },
     sourcedBy: { at: onSphere(-1.6, 0.6), role: 'predicate' },
@@ -534,9 +660,103 @@ const ANOTHER_PERSPECTIVE: OtherState = {
     'aiIsOutOfControl',
     'aiRemovesJobs',
     'aiThreatensPeace',
+    'democratsCallForPause',
+    'democratsCallForBan',
+    'elonRepostedPause',
+    'aiThreatensDemocracy',
+    'aiSpreadsMisinformation',
+    'deepfakesUndermineElections',
+    'dataCentersStrainGrid',
+    'superintelligencePosesRisk',
+    'aiWorthLessThanHype',
   ],
   viewers: ['AI Optimists', 'AI Pessimists'],
 };
+
+/**
+ * The optimists' further claims, on the cloud beside the copy: what AI will
+ * do for people, and what it has done.
+ */
+const OPTIMISTS_TRIPLES: readonly TripleId[] = [
+  'aiWillCureDiseases',
+  'aiCreatesNewJobs',
+  'aiSpeedsUpScience',
+  'alphafoldSolvedFolding',
+  'tutorsTeachEveryChild',
+  'carsSaveLives',
+  'anthropicResearchesSafety',
+  'proteinFoldingUnlocksMedicines',
+];
+
+/**
+ * Where the two perspectives' further claims stand, only while the two
+ * globes do: in the room the story's atoms leave, on the front's lower half
+ * and round its sides, and on the back, which shows as a globe is turned.
+ * Placed by simulating the scene's names, so that every one of them shows
+ * where it faces the reader, and every name already there still does. Each
+ * in the role its claim gives it; the pessimists' objects stay objects, red.
+ */
+const PERSPECTIVES_ATOMS: Partial<Record<AtomId, AtomState>> = {
+  democrats: { at: onSphere(-6.973, 0.376), role: 'identity' },
+  callFor: { at: onSphere(-6.073, 0.512), role: 'predicate' },
+  pauseOnAdvancedAi: { at: onSphere(-4.551, 0.36), role: 'object' },
+  banOnSuperintelligence: { at: onSphere(7.628, 0.876), role: 'object' },
+  reposted: { at: onSphere(-3.38, 0.925), role: 'predicate' },
+  democracy: { at: onSphere(-0.98, -0.38), role: 'object' },
+  spreads: { at: onSphere(0.94, -0.28), role: 'predicate' },
+  misinformation: { at: onSphere(0.43, -0.95), role: 'object' },
+  deepfakes: { at: onSphere(-5.179, -0.413), role: 'identity' },
+  undermine: { at: onSphere(-6.281, -0.614), role: 'predicate' },
+  elections: { at: onSphere(-4.806, -0.718), role: 'object' },
+  dataCenters: { at: onSphere(-7.467, -0.183), role: 'identity' },
+  strain: { at: onSphere(-6.361, -0.096), role: 'predicate' },
+  powerGrid: { at: onSphere(-7.781, -0.047), role: 'object' },
+  superintelligence: { at: onSphere(-4.779, -0.049), role: 'identity' },
+  poses: { at: onSphere(-5.556, 0.168), role: 'predicate' },
+  existentialRisk: { at: onSphere(-3.837, 0.143), role: 'object' },
+  lessThanTheHype: { at: onSphere(2.98, 0.39), role: 'object' },
+  willCure: { at: onSphere(-6.295, 0.948), role: 'predicate' },
+  diseases: { at: onSphere(-4.998, 0.773), role: 'object' },
+  creates: { at: onSphere(6.6, 0.616), role: 'predicate' },
+  newJobs: { at: onSphere(7.672, 0.406), role: 'object' },
+  speedsUp: { at: onSphere(-3.825, 0.553), role: 'predicate' },
+  science: { at: onSphere(-5.283, 0.545), role: 'object' },
+  alphafold: { at: onSphere(6.001, -0.64), role: 'identity' },
+  solved: { at: onSphere(6.969, -0.934), role: 'predicate' },
+  proteinFolding: { at: onSphere(6.08, -1.43), role: 'bridge' },
+  aiTutors: { at: onSphere(-4.557, -0.312), role: 'identity' },
+  teach: { at: onSphere(-5.694, -0.196), role: 'predicate' },
+  everyChild: { at: onSphere(-4.42, -0.506), role: 'object' },
+  selfDrivingCars: { at: onSphere(-6.575, -0.378), role: 'identity' },
+  save: { at: onSphere(7.516, -0.699), role: 'predicate' },
+  lives: { at: onSphere(-6.645, -0.961), role: 'object' },
+  researches: { at: onSphere(4.24, -0.69), role: 'predicate' },
+  aiSafety: { at: onSphere(4.6, -1.09), role: 'object' },
+  unlocks: { at: onSphere(2.48, -1.02), role: 'predicate' },
+  newMedicines: { at: onSphere(3.3, -0.8), role: 'object' },
+};
+
+/** The pessimists' further atoms: set back on the cloud, which is the optimists'. */
+const PESSIMISTS_ATOM_IDS: readonly AtomId[] = [
+  'democrats',
+  'callFor',
+  'pauseOnAdvancedAi',
+  'banOnSuperintelligence',
+  'reposted',
+  'democracy',
+  'spreads',
+  'misinformation',
+  'deepfakes',
+  'undermine',
+  'elections',
+  'dataCenters',
+  'strain',
+  'powerGrid',
+  'superintelligence',
+  'poses',
+  'existentialRisk',
+  'lessThanTheHype',
+];
 
 /**
  * The one graph, all of it in view: every atom and triple of the story, and
@@ -701,7 +921,7 @@ function crowdOf(count: number, seed: number): CrowdAtom[] {
     'identity',
     'predicate',
     'object',
-    'subjectAndObject',
+    'bridge',
   ];
   const crowd: CrowdAtom[] = [];
   for (let tries = 0; crowd.length < count && tries < count * 200; tries++) {
@@ -1081,7 +1301,7 @@ const BEAT_SPECS: readonly BeatSpec[] = [
       ' of one triple and the ',
       { role: 'identity', text: 'subject' },
       ' of the next, so it is drawn as both: a ',
-      { role: 'subjectAndObject', text: 'hexagon' },
+      { role: 'bridge', text: 'bridge object' },
       '.',
     ],
     // The cloud turns and pulls back as owns and xAI arrive. Then the line
@@ -1101,7 +1321,7 @@ const BEAT_SPECS: readonly BeatSpec[] = [
         founderOf: { at: FRONT, role: 'predicate' },
         spacex: {
           at: onEquator(1),
-          role: 'subjectAndObject',
+          role: 'bridge',
           during: [0.45, 0.62],
         },
         owns: {
@@ -1128,7 +1348,7 @@ const BEAT_SPECS: readonly BeatSpec[] = [
     chapter: 'triples',
     caption: [
       'xAI now plays both roles too, so it becomes a ',
-      { role: 'subjectAndObject', text: 'hexagon' },
+      { role: 'bridge', text: 'bridge object' },
       '.\nLinked like this, triples form a graph: one web of knowledge that grows with every triple.',
     ],
     // As best and AI company arrive, the camera pulls back and rises a
@@ -1146,11 +1366,11 @@ const BEAT_SPECS: readonly BeatSpec[] = [
       atoms: {
         elonMusk: { at: onEquator(-1), role: 'identity' },
         founderOf: { at: FRONT, role: 'predicate' },
-        spacex: { at: onEquator(1), role: 'subjectAndObject' },
+        spacex: { at: onEquator(1), role: 'bridge' },
         owns: { at: onEquator(2), role: 'predicate' },
         xai: {
           at: onEquator(3),
-          role: 'subjectAndObject',
+          role: 'bridge',
           during: [0.48, 0.64],
         },
         best: {
@@ -1242,7 +1462,7 @@ const BEAT_SPECS: readonly BeatSpec[] = [
       ' of one triple and the ',
       { role: 'identity', text: 'subject' },
       ' of another, it becomes a ',
-      { role: 'subjectAndObject', text: 'hexagon' },
+      { role: 'bridge', text: 'bridge object' },
       '.',
     ],
     // The whole claim moves down to make room, and across, to centre the
@@ -1578,16 +1798,38 @@ const BEAT_SPECS: readonly BeatSpec[] = [
     caption: [
       'The same atoms can be seen another way, and everyone who reads them has a perspective of their own:\nwho they follow, the atoms they stake on, and the triples they create.',
     ],
-    alt: 'Two perspectives of the same atoms, side by side: AI Optimists’, the graph so far; and AI Pessimists’, which trusts none of their triples, and says AI is dangerous, is out of control, will remove jobs, and threatens peace.',
+    alt: 'Two perspectives of the same atoms, side by side. AI Optimists’: the graph so far, and that AI will cure diseases, creates new jobs and speeds up science, AlphaFold solved protein folding, AI tutors teach every child, self-driving cars save lives, Anthropic researches AI safety, and protein folding unlocks new medicines. AI Pessimists’, which trusts none of their triples: AI is dangerous, is out of control, will remove jobs, threatens peace and democracy, spreads misinformation, and will be worth less than the hype; Democrats call for a pause on advanced AI and a ban on superintelligence, and Elon Musk reposted the call for a pause; deepfakes undermine elections, data centers strain the power grid, and superintelligence poses an existential risk.',
     // The cloud moves aside as a copy of it splits off to the other side.
     // On the copy alone, the triples it does not trust draw back, the atoms
-    // they joined set back with them. Then its own triples grow, between
-    // the same atoms, where they stand on both, which come forward with them.
-    // The camera turns as the two part.
+    // they joined set back with them. Then the atoms of both perspectives'
+    // further claims arrive, on both, in the room the story leaves, and each
+    // globe's own triples grow, between the same atoms, which come forward
+    // with them: AI on the cloud too, the optimists'. The camera turns as
+    // the two part.
     motionMs: 7000,
     stage: {
       ...ONE_GRAPH,
       camera: { ...PERSPECTIVES_VIEW, during: [0, 0.3] },
+      atoms: {
+        ...ONE_GRAPH.atoms,
+        ...Object.fromEntries(
+          Object.entries(PERSPECTIVES_ATOMS).map(([id, atom]) => [
+            id,
+            { ...atom, during: [0.5, 0.62] },
+          ]),
+        ),
+      },
+      setBack: [
+        ...NON_BELIEVERS_IDS.filter((id) => id !== 'ai'),
+        ...PESSIMISTS_ATOM_IDS,
+      ],
+      setBackDuring: [0.62, 0.9],
+      triples: {
+        ...ONE_GRAPH.triples,
+        ...Object.fromEntries(
+          OPTIMISTS_TRIPLES.map((id) => [id, { during: [0.62, 0.9] }]),
+        ),
+      },
       other: ANOTHER_PERSPECTIVE,
     },
   },
@@ -2397,7 +2639,7 @@ function otherAt(
       return 'predicate';
     }
     if (roles.includes('subject')) {
-      return roles.includes('object') ? 'subjectAndObject' : 'identity';
+      return roles.includes('object') ? 'bridge' : 'identity';
     }
 
     return roles.includes('object') ? 'object' : undefined;

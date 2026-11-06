@@ -182,7 +182,7 @@ describe('a branch', () => {
       nameSide: 'right',
     });
     expect(economy?.nameSide).toBeUndefined();
-    expect(economy?.role).toBe('subjectAndObject');
+    expect(economy?.role).toBe('bridge');
     expect(layout.links.slice(-2)).toEqual([
       {
         id: 'estimate:0',
@@ -226,7 +226,7 @@ describe('a branch', () => {
     // Then the current Earth economy takes both roles.
     expect(atom(at(0.85), 'currentEarthEconomy')).toMatchObject({
       fromRole: 'object',
-      role: 'subjectAndObject',
+      role: 'bridge',
       roleProgress: 0,
     });
     expect(atom(at(1), 'currentEarthEconomy')?.roleProgress).toBe(1);
@@ -503,7 +503,7 @@ describe("a triple's vaults", () => {
     expect(middle(halfway)).toBeLessThan(middle(hanging(0.35)));
     expect(atom(hanging(0.35), 'tweet')?.presence).toBe(0);
     expect(atom(hanging(0.35), 'currentEarthEconomy')).toMatchObject({
-      fromRole: 'subjectAndObject',
+      fromRole: 'bridge',
       role: 'object',
       roleProgress: 1,
     });

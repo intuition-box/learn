@@ -34,7 +34,7 @@ const HEIGHTS: Record<Role, number> = {
   identity: 105,
   predicate: 100,
   object: 100,
-  subjectAndObject: 100,
+  bridge: 100,
 };
 const ROW_GAPS = [-5, 10, 10] as const;
 const GRID_GAP = 10;

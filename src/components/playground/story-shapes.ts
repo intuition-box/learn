@@ -14,12 +14,12 @@
 
 import type { Role } from './story-model';
 
-/** The roles, in the order the subject, the predicate, the object, then both. */
+/** The roles, in the order the subject, the predicate, the object, then the bridge: an object that is a subject too. */
 export const ROLES = [
   'identity',
   'predicate',
   'object',
-  'subjectAndObject',
+  'bridge',
 ] as const satisfies readonly Role[];
 
 /** One colour per role, as sRGB channels from 0 to 255. */
@@ -28,7 +28,7 @@ export const ROLE_COLOURS = {
   predicate: [47, 224, 139],
   object: [255, 79, 94],
   /** The palette's pink: the identity's blue and the object's red, blended. */
-  subjectAndObject: [255, 95, 210],
+  bridge: [255, 95, 210],
 } as const;
 
 /**
@@ -77,7 +77,7 @@ export function shapeSize(role: Role): { width: number; height: number } {
   const corners = {
     predicate: TRIANGLE,
     object: SQUARE,
-    subjectAndObject: HEXAGON,
+    bridge: HEXAGON,
   } as const;
   const reach = (axis: 0 | 1) =>
     role === 'identity'
@@ -125,7 +125,7 @@ const RADII: Record<Role, readonly number[]> = {
   identity: ANGLES.map(() => CIRCLE_RADIUS),
   predicate: ANGLES.map((angle) => polygonRadius(TRIANGLE, angle)),
   object: ANGLES.map((angle) => polygonRadius(SQUARE, angle)),
-  subjectAndObject: ANGLES.map((angle) => polygonRadius(HEXAGON, angle)),
+  bridge: ANGLES.map((angle) => polygonRadius(HEXAGON, angle)),
 };
 
 /**

@@ -838,7 +838,7 @@ export function layoutPlane(
         return [];
       }
       if (atom.role === 'object') {
-        atom.role = 'subjectAndObject';
+        atom.role = 'bridge';
       }
 
       return [{ branch, from: subject, x: atom.x, lowest: atom.y - step }];

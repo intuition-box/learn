@@ -225,7 +225,7 @@ describe('an object as a subject', () => {
 
     expect(atom(scene, 'spacex').role).toMatchObject({
       from: 'object',
-      to: 'subjectAndObject',
+      to: 'bridge',
     });
     expect(atom(scene, 'owns').role.to).toBe('predicate');
     expect(atom(scene, 'xai').role.to).toBe('object');
@@ -266,7 +266,7 @@ describe('a graph', () => {
 
     expect(atom(scene, 'xai').role).toMatchObject({
       from: 'object',
-      to: 'subjectAndObject',
+      to: 'bridge',
     });
     expect(atom(scene, 'best').role.to).toBe('predicate');
     expect(atom(scene, 'aiCompany').role.to).toBe('object');
@@ -732,9 +732,11 @@ describe('perspectives', () => {
     expect(onCopy(0.56, 'anthropicBestAiCompany')).toBe(0);
     expect(at(0.56).other?.setBack.get('spacex')).toBe(1);
     expect(onCopy(0.6, 'aiThreatensPeace')).toBe(0);
-    // As its own triples grow, the atoms they join come forward on it.
+    // As its own triples grow, the atoms they join come forward on it; and
+    // AI on the cloud too, as the optimists' claims about it grow there.
     expect(at(0.9).other?.setBack.get('ai')).toBe(0);
-    expect(at(0.9).setBack.get('ai')).toBe(1);
+    expect(at(0.6).setBack.get('ai')).toBe(1);
+    expect(at(0.9).setBack.get('ai') ?? 0).toBe(0);
     for (const id of [
       'aiIsDangerous',
       'aiIsOutOfControl',
@@ -743,6 +745,65 @@ describe('perspectives', () => {
     ]) {
       expect(onCopy(0.9, id)).toBe(1);
     }
+  });
+
+  it('fills both globes with further claims, each globe’s own, the other’s set back on it, the pessimists’ objects red', () => {
+    const scene = settled('another-perspective');
+    const onCloud = (id: string) =>
+      scene.triples.find((triple) => triple.id === id)?.progress;
+    const onCopy = (id: string) =>
+      scene.other?.triples.find((triple) => triple.id === id)?.progress;
+    const roleOnCopy = (id: string) =>
+      scene.other?.atoms.find((atom) => atom.id === id)?.role.to;
+
+    for (const id of [
+      'aiWillCureDiseases',
+      'aiCreatesNewJobs',
+      'aiSpeedsUpScience',
+      'alphafoldSolvedFolding',
+      'tutorsTeachEveryChild',
+      'carsSaveLives',
+      'anthropicResearchesSafety',
+      'proteinFoldingUnlocksMedicines',
+    ]) {
+      expect(onCloud(id)).toBe(1);
+      expect(onCopy(id)).toBe(0);
+    }
+    for (const id of [
+      'democratsCallForPause',
+      'democratsCallForBan',
+      'elonRepostedPause',
+      'aiThreatensDemocracy',
+      'aiSpreadsMisinformation',
+      'deepfakesUndermineElections',
+      'dataCentersStrainGrid',
+      'superintelligencePosesRisk',
+      'aiWorthLessThanHype',
+    ]) {
+      expect(onCopy(id)).toBe(1);
+      expect(onCloud(id)).toBeUndefined();
+    }
+    // Each set back on the other's globe.
+    expect(scene.setBack.get('democrats')).toBe(1);
+    expect(scene.other?.setBack.get('alphafold')).toBe(1);
+    // The pessimists' objects stay objects, red squares.
+    for (const id of [
+      'pauseOnAdvancedAi',
+      'banOnSuperintelligence',
+      'democracy',
+      'misinformation',
+      'elections',
+      'powerGrid',
+      'existentialRisk',
+      'lessThanTheHype',
+    ]) {
+      expect(roleOnCopy(id)).toBe('object');
+    }
+    // As the globes become one again, the further claims go.
+    expect(
+      settled('one-atom').atoms.find((atom) => atom.id === 'democrats')
+        ?.presence,
+    ).toBe(0);
   });
 
   it('keeps every triple on the cloud: the other perspective is the copy’s alone, and sets back the atoms in none of the triples it trusts', () => {
@@ -764,20 +825,17 @@ describe('perspectives', () => {
     // atom in the same shape on both, set back on the copy.
     const economy = (atoms: readonly Scene['atoms'][number][] | undefined) =>
       atoms?.find((atom) => atom.id === 'currentEarthEconomy')?.role.to;
-    expect(economy(scene.atoms)).toBe('subjectAndObject');
-    expect(economy(scene.other?.atoms)).toBe('subjectAndObject');
+    expect(economy(scene.atoms)).toBe('bridge');
+    expect(economy(scene.other?.atoms)).toBe('bridge');
     // Is, the predicate of two of its triples, AI is dangerous and out of
     // control: one atom.
     expect(scene.other?.setBack.get('is')).toBe(0);
-    for (const id of [
-      'elonMusk',
-      'spacex',
-      'xai',
-      'believes',
-      'anthropic',
-    ] as const) {
+    for (const id of ['spacex', 'xai', 'believes', 'anthropic'] as const) {
       expect(scene.other?.setBack.get(id)).toBe(1);
     }
+    // Elon Musk, who reposted the call for a pause, stands out on the copy
+    // too: one atom, in both perspectives.
+    expect(scene.other?.setBack.get('elonMusk')).toBe(0);
     expect(scene.other?.setBack.get('currentEarthEconomy')).toBe(1);
     // Whose perspectives the two are, above them.
     expect(scene.other?.viewers).toEqual(['AI Optimists', 'AI Pessimists']);
@@ -791,9 +849,20 @@ describe('enrichment', () => {
 
     return sceneAt(start + motionMs * share);
   };
+  // The whole graph: all of it there, but for the two globes' further
+  // claims, gone as they became one again.
   const isWholeGraph = (scene: Scene): boolean =>
-    scene.atoms.every((drawn) => drawn.presence === 1) &&
-    scene.triples.every((triple) => triple.progress === 1);
+    scene.atoms.every(
+      (drawn) =>
+        drawn.presence === 1 || (drawn.presence === 0 && isGlobes(drawn.id)),
+    ) &&
+    scene.triples.every(
+      (triple) =>
+        triple.progress === 1 || (triple.progress === 0 && isGlobes(triple.id)),
+    );
+  const isGlobes = (id: string): boolean =>
+    !settled('one-graph').atoms.some((atom) => atom.id === id) &&
+    !settled('one-graph').triples.some((triple) => triple.id === id);
   const none = {
     out: 0,
     graph: 0,

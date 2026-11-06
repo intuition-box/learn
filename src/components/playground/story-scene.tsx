@@ -128,6 +128,11 @@ const CLICK_SLOP_PX = 4;
  */
 const DEPTH_OF_FIELD = { blurPx: 4, fade: 0.4, risePx: 106 } as const;
 /**
+ * How out of focus the far side of a globe is, in CSS pixels of blur: its
+ * atoms and lines stand back, so the side that faces the reader reads.
+ */
+const FAR_SIDE_BLUR_PX = 16;
+/**
  * The plane's zoom: the closest it comes when a claim is small, and the
  * least at which its words still read. Below that, on a narrow screen, it
  * stays at the least and follows the newest triple.
@@ -720,6 +725,7 @@ function pointAlong(
 export function StoryScene(props: StorySceneProps): ReactNode {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const planeRef = useRef<HTMLCanvasElement>(null);
+  const farRef = useRef<HTMLCanvasElement>(null);
   const wayRef = useRef<HTMLDivElement>(null);
   const hazeRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<HTMLDivElement>(null);
@@ -770,13 +776,18 @@ export function StoryScene(props: StorySceneProps): ReactNode {
     const context = canvas?.getContext('2d');
     const planeCanvas = planeRef.current;
     const plane = planeCanvas?.getContext('2d');
+    const farCanvas = farRef.current;
+    const far = farCanvas?.getContext('2d');
     if (
       canvas === null ||
       context === null ||
       context === undefined ||
       planeCanvas === null ||
       plane === null ||
-      plane === undefined
+      plane === undefined ||
+      farCanvas === null ||
+      far === null ||
+      far === undefined
     ) {
       return;
     }
@@ -2836,7 +2847,14 @@ export function StoryScene(props: StorySceneProps): ReactNode {
     }
 
     function draw(): void {
-      if (canvas === null || context === null || context === undefined) {
+      if (
+        canvas === null ||
+        context === null ||
+        context === undefined ||
+        farCanvas === null ||
+        far === null ||
+        far === undefined
+      ) {
         return;
       }
       // Out of focus behind an open plane, and gone when a beat takes it
@@ -2847,6 +2865,10 @@ export function StoryScene(props: StorySceneProps): ReactNode {
           ? `blur(${(depth * DEPTH_OF_FIELD.blurPx).toFixed(2)}px)`
           : '';
       canvas.style.opacity = String((1 - depth * DEPTH_OF_FIELD.fade) * cloud);
+      // The far side of the cloud, on its own canvas under it, further out
+      // of focus.
+      farCanvas.style.filter = `blur(${(FAR_SIDE_BLUR_PX + depth * DEPTH_OF_FIELD.blurPx).toFixed(2)}px)`;
+      farCanvas.style.opacity = canvas.style.opacity;
 
       // Everything is laid out in the scene's own box; the canvas may
       // reach below it, into the caption's room, where the film may draw.
@@ -2859,6 +2881,8 @@ export function StoryScene(props: StorySceneProps): ReactNode {
       const ratio = Math.min(window.devicePixelRatio, 2);
       context.setTransform(ratio, 0, 0, ratio, 0, 0);
       context.clearRect(0, 0, width, drawnHeight);
+      far.setTransform(ratio, 0, 0, ratio, 0, 0);
+      far.clearRect(0, 0, width, drawnHeight);
 
       const { camera, atoms, triples, cloudFlow } = state.props.scene;
       const planeView = viewPlane(width, height);
@@ -3325,14 +3349,25 @@ export function StoryScene(props: StorySceneProps): ReactNode {
           const comeOut = isWhole
             ? Math.min(outSubject.amount, outPredicate.amount, outObject.amount)
             : 0;
-          drawLine(context, {
-            id: triple.id,
-            points,
-            units,
-            progress: triple.progress,
-            alpha: nearness * (1 - comeOut) * opacity,
-            flow: cloudFlow,
-          });
+          // Its part on the far side of the cloud on the far canvas, out of
+          // focus; its part on the near side sharp.
+          const isNear = projected.map(({ z }) => (z >= 0 ? 1 : 0));
+          for (const [target, fade] of [
+            [context, isNear],
+            [far, isNear.map((near) => 1 - near)],
+          ] as const) {
+            if (fade.some((shown) => shown > 0)) {
+              drawLine(target, {
+                id: triple.id,
+                points,
+                units,
+                progress: triple.progress,
+                alpha: nearness * (1 - comeOut) * opacity,
+                flow: cloudFlow,
+                fade,
+              });
+            }
+          }
           if (isWhole) {
             reaching.push({
               id: triple.id,
@@ -3376,13 +3411,14 @@ export function StoryScene(props: StorySceneProps): ReactNode {
               }))
             : [];
         for (const { atom, at } of crowd) {
-          context.globalAlpha =
+          const target = at.z < 0 ? far : context;
+          target.globalAlpha =
             opacity *
             SET_BACK.shape *
             crowdShown *
             (0.2 + 0.8 * frontness(at.z));
           drawShape(
-            context,
+            target,
             at.x,
             at.y,
             ATOM_SHARE * radius * at.scale * (0.55 + 0.45 * crowdShown),
@@ -3412,9 +3448,12 @@ export function StoryScene(props: StorySceneProps): ReactNode {
             wayShape = { x: at.x, y: at.y, size, role: atom.role, alpha };
             continue;
           }
-          context.globalAlpha = alpha;
-          drawShape(context, at.x, at.y, size, atom.role);
+          // On the far side of the cloud, out of focus.
+          const target = at.z < 0 ? far : context;
+          target.globalAlpha = alpha;
+          drawShape(target, at.x, at.y, size, atom.role);
         }
+        far.globalAlpha = 1;
 
         // Their names, in ink badges under them, after the shape arrives, and
         // only on the half of the cloud that faces the viewer. Nearest first:
@@ -3730,6 +3769,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
 
       // All of it in view, nothing runs past an edge to fade.
       fadeEdges(context, width, drawnHeight, 1 - whole);
+      fadeEdges(far, width, drawnHeight, 1 - whole);
       // Above each globe, whose perspective it is, closed, coming as the two
       // split: over the fade, as the page's, not the picture's.
       if (other !== null) {
@@ -4020,7 +4060,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
 
     function resize(): void {
       const ratio = Math.min(window.devicePixelRatio, 2);
-      for (const target of [canvas, planeCanvas]) {
+      for (const target of [canvas, planeCanvas, farCanvas]) {
         if (target !== null) {
           target.width = Math.round(target.clientWidth * ratio);
           target.height = Math.round(target.clientHeight * ratio);
@@ -4189,6 +4229,12 @@ export function StoryScene(props: StorySceneProps): ReactNode {
       ref={sceneRef}
       className="relative aspect-[4/5] w-full [--below:0px] md:aspect-auto md:min-h-0 md:flex-1"
     >
+      {/* The far side of the cloud, under it, out of focus. */}
+      <canvas
+        ref={farRef}
+        aria-hidden
+        className="pointer-events-none absolute top-0 left-0 h-[calc(100%+var(--below))] w-full rounded-lg"
+      />
       <canvas
         ref={canvasRef}
         role="img"

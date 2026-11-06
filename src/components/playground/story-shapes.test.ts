@@ -23,12 +23,7 @@ describe('morphOutline', () => {
   });
 
   it('stands every shape level: as far above its middle as below', () => {
-    for (const role of [
-      'identity',
-      'predicate',
-      'object',
-      'subjectAndObject',
-    ] as const) {
+    for (const role of ['identity', 'predicate', 'object', 'bridge'] as const) {
       const ys = morphOutline(role, role, 1).map(([, y]) => y);
 
       expect(Math.min(...ys) + Math.max(...ys)).toBeCloseTo(0, 2);
@@ -56,7 +51,7 @@ describe('morphOutline', () => {
   });
 
   it('draws the hexagon with its points left and right, where the lines meet it', () => {
-    const hexagon = morphOutline('subjectAndObject', 'subjectAndObject', 1);
+    const hexagon = morphOutline('bridge', 'bridge', 1);
     const at = (degrees: number): number =>
       radius(hexagon[((degrees + 90) / 3) % hexagon.length] ?? [0, 0]);
 
@@ -69,12 +64,7 @@ describe('morphOutline', () => {
 });
 
 describe('roundedOutline', () => {
-  const ROLES = [
-    'identity',
-    'predicate',
-    'object',
-    'subjectAndObject',
-  ] as const;
+  const ROLES = ['identity', 'predicate', 'object', 'bridge'] as const;
 
   it('rounds every shape at rest as a convex outline, one arc a point', () => {
     for (const role of ROLES) {
