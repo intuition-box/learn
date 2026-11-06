@@ -444,8 +444,8 @@ interface Ending {
   /** How large the way on's name is: 1 as any name, growing to `WAY_SCALE`. */
   grow: number;
   /**
-   * Where the way on is, for the scene to draw its shape over the haze and
-   * the page its name: the cloud draws neither.
+   * Where the way on is, for the page to place its name, the button: the
+   * cloud draws its shape, under the haze, and not its name.
    */
   placeButton: (way: WayPlace) => void;
 }
@@ -3447,7 +3447,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
           .filter((atom) => atom.presence > 0 && !lifted.has(atom.id))
           .map((atom) => ({ atom, at: project(atom.at) }))
           .sort((a, b) => a.at.z - b.at.z);
-        // The way on's shape the scene draws over the haze.
+        // Where the way on's shape is, for its name, the page's button.
         let wayShape: Omit<WayPlace, 'name'> | null = null;
         let wayName: WayPlace['name'] = null;
         for (const { atom, at } of shown) {
@@ -3461,7 +3461,6 @@ export function StoryScene(props: StorySceneProps): ReactNode {
             ATOM_SHARE * radius * at.scale * (0.55 + 0.45 * atom.presence);
           if (ending !== undefined && atom.id === ending.button) {
             wayShape = { x: at.x, y: at.y, size, role: atom.role, alpha };
-            continue;
           }
           // On the far side of the cloud, out of focus.
           const target = at.z < 0 ? far : context;
@@ -3770,7 +3769,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
             },
       );
       placeWay(way.at?.name ?? null, wayGrow, badge);
-      placeHaze(way.at, homeReach, (wayGrow - 1) / (WAY_SCALE - 1));
+      placeHaze(way.at, (wayGrow - 1) / (WAY_SCALE - 1));
       // The copy over the cloud as it splits off, the two one at first.
       if (other !== null) {
         drawSphere(
@@ -3831,12 +3830,6 @@ export function StoryScene(props: StorySceneProps): ReactNode {
         );
       }
       drawPlane(planeView, reaching, lifted);
-      // The way on's shape, over the haze.
-      if (way.at !== null && plane !== null && plane !== undefined) {
-        plane.globalAlpha = way.at.alpha;
-        drawShape(plane, way.at.x, way.at.y, way.at.size, way.at.role);
-        plane.globalAlpha = 1;
-      }
       if (
         enriched !== null &&
         musk !== undefined &&
@@ -3911,16 +3904,12 @@ export function StoryScene(props: StorySceneProps): ReactNode {
     }
 
     /**
-     * The haze over the cloud behind the way on at `at`, as it grows: clear
-     * round it, rising to the page's white at 40% and a 2px blur at `reach`
-     * from it and beyond, so the way on stands forward and the cloud stays
+     * The haze over the whole cloud while the way on at `at` shows: the
+     * page's white at 40% and a 2px blur, its predicate and the triple's
+     * bonds too, so only the button stands forward and the cloud stays
      * there; as strong as `amount`.
      */
-    function placeHaze(
-      at: ScreenPoint | null,
-      reach: number,
-      amount: number,
-    ): void {
+    function placeHaze(at: ScreenPoint | null, amount: number): void {
       const haze = hazeRef.current;
       if (haze === null) {
         return;
@@ -3929,10 +3918,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
         haze.style.opacity = '0';
         return;
       }
-      const mask = `radial-gradient(circle at ${at.x}px ${at.y}px, transparent 0, black ${reach}px)`;
       haze.style.opacity = String(amount);
-      haze.style.maskImage = mask;
-      haze.style.setProperty('-webkit-mask-image', mask);
     }
 
     function isGliding(): boolean {
@@ -4258,8 +4244,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
       />
       {/*
        * The haze over the cloud behind the way on, as the film ends: the
-       * page's white and a blur, clear round the way on, placed as the
-       * scene draws.
+       * page's white and a blur over all of it, the button alone in front.
        */}
       <div
         ref={hazeRef}
