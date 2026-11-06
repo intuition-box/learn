@@ -1,11 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import {
-  type Landing,
-  LANDING_KEY,
-  landingGateScript,
-  rememberLanding,
-} from './landing';
+import { LANDING_KEY, landingGateScript, rememberLanding } from './landing';
 
 interface Visit {
   pathname?: string;
@@ -123,6 +118,27 @@ describe('landingGateScript', () => {
     expect(open({ stored: 'nowhere' })).toBeNull();
     expect(open({ stored: 'constructor' })).toBeNull();
     expect(open({ stored: '__proto__' })).toBeNull();
+    // A first visit, as far as the universe goes.
+    expect(visit({ stored: 'constructor' }).entrance).toBe('welcome');
+    expect(visit({ stored: '__proto__' }).entrance).toBe('welcome');
+  });
+
+  it('shows the film straight away to one who has played past the universe', () => {
+    expect(visit({ stored: 'film' })).toEqual({
+      replacedWith: null,
+      entrance: undefined,
+    });
+  });
+
+  it('shows the film without the universe to one who chose the docs and comes back to it', () => {
+    expect(visit({ stored: 'docs', navigation: 'reload' })).toEqual({
+      replacedWith: null,
+      entrance: undefined,
+    });
+    expect(
+      visit({ stored: 'docs', referrer: 'https://learn.intuition.box/docs' })
+        .entrance,
+    ).toBeUndefined();
   });
 
   it('leaves the film when storage is blocked', () => {
@@ -160,12 +176,13 @@ describe('rememberLanding', () => {
       },
     });
 
-    for (const landing of ['docs'] as const satisfies Landing[]) {
-      rememberLanding(landing);
-      expect(open({ stored: stored.get(LANDING_KEY) ?? null })).toBe(
-        `/${landing}`,
-      );
-    }
+    rememberLanding('docs');
+    expect(open({ stored: stored.get(LANDING_KEY) ?? null })).toBe('/docs');
+    rememberLanding('film');
+    expect(visit({ stored: stored.get(LANDING_KEY) ?? null })).toEqual({
+      replacedWith: null,
+      entrance: undefined,
+    });
   });
 
   it('does not throw when storage is blocked', () => {

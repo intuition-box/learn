@@ -4,6 +4,7 @@ import { type ReactNode, useEffect, useRef, useSyncExternalStore } from 'react';
 
 import { outlinePath } from '@/components/playground/story-shapes';
 
+import { rememberLanding } from './landing';
 import { createUniverse, type Universe } from './universe';
 
 /**
@@ -108,6 +109,8 @@ export function Entrance({
   }, []);
 
   function handlePlay(): void {
+    // Played past, the universe is not shown again: next time, the film.
+    rememberLanding('film');
     universeRef.current?.part();
     open();
     timerRef.current = window.setTimeout(() => {
