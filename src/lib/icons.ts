@@ -272,12 +272,12 @@ export const APP_ICON: AppIcon = {
 export const APP_COLOUR: Rgb = [0, 0, 0];
 
 /**
- * A hand, pointing up and to the left, and an arrow over its closed
- * fingers, pointing right: the gesture of a drag across, as a hint shows
- * it. The hand light, at 30%, the arrow solid, both in `HAND_COLOUR`. The
+ * A swipe: a hand, pointing up and to the left, and an arrow over its
+ * closed fingers, pointing right, the gesture of a drag across, as a hint
+ * shows it. The hand light, at 30%, the arrow solid, both in `SWIPE_COLOUR`. The
  * hand and the arrow are Saulo's, the hand traced and tilted 20 degrees.
  */
-export const HAND_ICON: Icon = {
+export const SWIPE_ICON: Icon = {
   size: 24,
   paths: [
     {
@@ -291,8 +291,8 @@ export const HAND_ICON: Icon = {
   ],
 };
 
-/** A hand's colour: pure black, as a fee. */
-export const HAND_COLOUR: Rgb = [0, 0, 0];
+/** A swipe's colour: pure black, as a fee. */
+export const SWIPE_COLOUR: Rgb = [0, 0, 0];
 
 /** An icon with an open ring in it, where whoever draws it sets something. */
 export interface RingedIcon extends Icon {

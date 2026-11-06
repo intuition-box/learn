@@ -6,8 +6,8 @@ import {
   depositorColour,
   FEE_COLOUR,
   FEE_ICON,
-  HAND_COLOUR,
-  HAND_ICON,
+  SWIPE_COLOUR,
+  SWIPE_ICON,
   USER_ICON,
   USER_ICON_FOOT,
   VAULT_COLOURS,
@@ -88,9 +88,9 @@ describe('an app', () => {
   });
 });
 
-describe('a hand', () => {
+describe('a swipe', () => {
   it('is a hand, light, under an arrow, solid, in black', () => {
-    expect(HAND_ICON.paths.map((path) => path.opacity)).toEqual([0.3, 1]);
-    expect(HAND_COLOUR).toEqual([0, 0, 0]);
+    expect(SWIPE_ICON.paths.map((path) => path.opacity)).toEqual([0.3, 1]);
+    expect(SWIPE_COLOUR).toEqual([0, 0, 0]);
   });
 });

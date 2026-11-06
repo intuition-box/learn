@@ -5,8 +5,8 @@ import {
   APP_ICON,
   FEE_COLOUR,
   FEE_ICON,
-  HAND_COLOUR,
-  HAND_ICON,
+  SWIPE_COLOUR,
+  SWIPE_ICON,
   type Icon,
   MEDAL_ICON,
   USER_ICON,
@@ -802,7 +802,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
     const personPaths = pathsOf(USER_ICON);
     const feePaths = pathsOf(FEE_ICON);
     const appPaths = pathsOf(APP_ICON);
-    const handPaths = pathsOf(HAND_ICON);
+    const swipePaths = pathsOf(SWIPE_ICON);
     const vaultPaths = VAULT_ICON.paths.map((path) => ({
       path: new Path2D(path.d),
       face: path.face,
@@ -3764,9 +3764,9 @@ export function StoryScene(props: StorySceneProps): ReactNode {
         const size = sizePx * (1 - (1 - pressed) * hint.press);
         drawShapes(
           context,
-          handPaths,
-          HAND_ICON.size,
-          HAND_COLOUR,
+          swipePaths,
+          SWIPE_ICON.size,
+          SWIPE_COLOUR,
           {
             x: (left.x + right.x) / 2 + (hint.across - 0.5) * travelPx,
             y: (left.y + right.y) / 2 - Math.sin(Math.PI * hint.across) * arcPx,
