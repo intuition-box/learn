@@ -85,7 +85,7 @@ import { ROLE_COLOURS, traceShape } from './story-shapes';
 const EYE_DISTANCE = 3.2;
 /** An atom's size as a share of the cloud's radius, before perspective. */
 const ATOM_SHARE = 0.064;
-/** Points along each part of a triple's line, which curves round the cloud. */
+/** Points along each of a triple's bonds, which curve round the cloud. */
 const ARC_STEPS = 16;
 /**
  * How far a round line's handles reach along each side of the box between
@@ -178,7 +178,7 @@ const BADGE_SPACING_PX = 6;
 /** How far apart up the cloud, as a share of its radius, two rows of atoms are. */
 const ROW_APART = 0.1;
 /**
- * A triple's hairline, under its dots: its width in CSS pixels, and how
+ * A bond's hairline, under its dots: its width in CSS pixels, and how
  * dark, as a share of the ink. Faint: the dots carry the line.
  */
 const LINE = { width: 1, alpha: 0.16 } as const;
@@ -1513,7 +1513,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
      * as the cloud is drawn, only flat. First, the lines that run from the
      * atoms it shares with the cloud back into it, sharp near the plane and
      * fading as they go; then each triple inside the claim, in a rounded
-     * frame tinted the role it fills; each triple's line, drawn as it
+     * frame tinted the role it fills; each triple's bonds, drawn as it
      * arrives, to the frame where its object is a whole triple; and the
      * atoms. One the
      * cloud already has is the same atom, on its way out of the cloud, or
@@ -1606,7 +1606,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
         };
       });
 
-      // Each triple's line, subject to predicate to object: from an atom's
+      // Each triple's bonds, subject to predicate to object: from an atom's
       // middle, or a frame's edge where the whole triple is what it joins.
       // A new one grows from its start once what it joins is in place; one
       // that no longer joins the same draws back toward its start.
@@ -1642,15 +1642,15 @@ export function StoryScene(props: StorySceneProps): ReactNode {
         };
       };
       plane.lineCap = 'round';
-      for (const link of blended.links) {
-        const from = endAt(link.from, 'from');
-        const to = endAt(link.to, 'to');
+      for (const bond of blended.bonds) {
+        const from = endAt(bond.from, 'from');
+        const to = endAt(bond.to, 'to');
         drawLine(plane, {
-          id: link.id,
+          id: bond.id,
           points: [from, to],
           units: Math.hypot(to.x - from.x, to.y - from.y),
-          progress: link.presence,
-          alpha: lerp(1, PLANE.faded, link.faded),
+          progress: bond.presence,
+          alpha: lerp(1, PLANE.faded, bond.faded),
           flow: state.props.scene.flow,
         });
       }
@@ -3225,7 +3225,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
           lerp(1, QUIET, ending?.quiet.get(id) ?? 0);
         const isSetBack = (id: AtomId): boolean =>
           (setBack.get(id) ?? 0) >= 0.5;
-        // Each triple's line, under the atoms, drawn as far as it has got. An
+        // Each triple's bonds, under the atoms, drawn as far as they have got. An
         // atom on its way out of the cloud takes its end of the line with it,
         // and the plane draws that end again, sharp: a reminder of where it
         // came from, so it holds still.

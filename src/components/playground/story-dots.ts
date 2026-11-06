@@ -1,5 +1,5 @@
 /**
- * The texture of a triple's line: fine dots of ink flowing along a faint
+ * The texture of a triple's bonds: fine dots of ink flowing along a faint
  * hairline, from the subject to the object, as in a particle vortex. Each
  * dot is a little different, in speed, size, darkness and how far off the
  * line it sits, so the line reads as grain rather than a dash pattern.

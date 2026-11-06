@@ -1764,7 +1764,7 @@ const BEAT_SPECS: readonly BeatSpec[] = [
     // into focus as the camera pulls back to show all of it. Then the atoms
     // the plane held arrive in their places on it, and with them, set back,
     // the atoms only the non-believers' triples use; and the plane's
-    // triples' lines grow.
+    // triples' bonds grow.
     motionMs: 5200,
     stage: {
       ...STORY_GRAPH,

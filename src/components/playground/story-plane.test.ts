@@ -133,9 +133,9 @@ describe('layoutPlane', () => {
   });
 
   it('draws each triple from its subject to its object, ending at the frame of a triple in the object place', () => {
-    const { links } = layoutPlane(DEEPEST, measure);
+    const { bonds } = layoutPlane(DEEPEST, measure);
 
-    expect(links).toEqual([
+    expect(bonds).toEqual([
       { id: 'belief:0', from: { atom: 'elonMusk' }, to: { atom: 'believes' } },
       { id: 'belief:1', from: { atom: 'believes' }, to: { frame: 'worth' } },
       { id: 'worth:0', from: { atom: 'spacex' }, to: { atom: 'willBeWorth' } },
@@ -183,7 +183,7 @@ describe('a branch', () => {
     });
     expect(economy?.nameSide).toBeUndefined();
     expect(economy?.role).toBe('bridge');
-    expect(layout.links.slice(-2)).toEqual([
+    expect(layout.bonds.slice(-2)).toEqual([
       {
         id: 'estimate:0',
         from: { atom: 'currentEarthEconomy' },
@@ -213,16 +213,16 @@ describe('a branch', () => {
       );
     const atom = (plane: ReturnType<typeof at>, id: AtomId) =>
       plane.atoms.find((a) => a.id === id);
-    const link = (plane: ReturnType<typeof at>, id: string) =>
-      plane.links.find((l) => l.id === id);
+    const bond = (plane: ReturnType<typeof at>, id: string) =>
+      plane.bonds.find((l) => l.id === id);
 
     // The room above grows first.
     expect(at(0.3).top).toBeLessThan(at(0).top);
     expect(atom(at(0.3), 'estimatedAt')?.presence).toBe(0);
     // Then the atoms, then the lines up to them.
     expect(atom(at(0.6), 'hundredTrillion')?.presence).toBe(1);
-    expect(link(at(0.6), 'estimate:0')?.presence).toBe(0);
-    expect(link(at(0.85), 'estimate:1')?.presence).toBe(1);
+    expect(bond(at(0.6), 'estimate:0')?.presence).toBe(0);
+    expect(bond(at(0.85), 'estimate:1')?.presence).toBe(1);
     // Then the current Earth economy takes both roles.
     expect(atom(at(0.85), 'currentEarthEconomy')).toMatchObject({
       fromRole: 'object',
@@ -266,7 +266,7 @@ describe('a branch from a whole claim', () => {
     expect(frame).toMatchObject({ role: 'object', x: 0, width: framed.width });
     expect(predicate?.x).toBeCloseTo((frame?.width ?? 0) / 2, 9);
     expect(predicate?.y).toBeLessThan(frame?.top ?? 0);
-    expect(framed.links.find((link) => link.id === 'source:0')?.from).toEqual({
+    expect(framed.bonds.find((bond) => bond.id === 'source:0')?.from).toEqual({
       frame: 'belief',
       isTop: true,
     });
@@ -335,11 +335,11 @@ describe('a branch from a whole claim', () => {
 
     expect(frame(at(0.3))?.presence).toBe(0);
     expect(frame(at(0.5))?.presence).toBe(1);
-    expect(at(0.5).links.find((link) => link.id === 'source:0')?.presence).toBe(
+    expect(at(0.5).bonds.find((bond) => bond.id === 'source:0')?.presence).toBe(
       0,
     );
     expect(
-      at(0.92).links.find((link) => link.id === 'source:1')?.presence,
+      at(0.92).bonds.find((bond) => bond.id === 'source:1')?.presence,
     ).toBe(1);
   });
 });
@@ -589,8 +589,8 @@ describe("a triple's vaults", () => {
       planeAt(SOURCED, INNER, t, measureText, labelOf, INNER);
     const atom = (plane: ReturnType<typeof settingBack>, id: AtomId) =>
       plane.atoms.find((candidate) => candidate.id === id);
-    const link = (plane: ReturnType<typeof settingBack>, id: string) =>
-      plane.links.find((candidate) => candidate.id === id);
+    const bond = (plane: ReturnType<typeof settingBack>, id: string) =>
+      plane.bonds.find((candidate) => candidate.id === id);
     const frame = (plane: ReturnType<typeof settingBack>, id: string) =>
       plane.frames.find((candidate) => candidate.id === id);
 
@@ -634,10 +634,10 @@ describe("a triple's vaults", () => {
       expect(atom(settingBack(0.17), 'believes')?.faded).toBeGreaterThan(0);
       expect(atom(settingBack(0.35), 'believes')?.faded).toBe(1);
       expect(atom(settingBack(0.35), 'elonMusk')?.faded).toBe(1);
-      expect(link(settingBack(1), 'belief:0')?.faded).toBe(1);
-      expect(link(settingBack(1), 'belief:1')?.faded).toBe(1);
+      expect(bond(settingBack(1), 'belief:0')?.faded).toBe(1);
+      expect(bond(settingBack(1), 'belief:1')?.faded).toBe(1);
       expect(atom(settingBack(1), 'spacex')?.faded).toBe(0);
-      expect(link(settingBack(1), 'worth:0')?.faded).toBe(0);
+      expect(bond(settingBack(1), 'worth:0')?.faded).toBe(0);
     });
 
     it('brings them back as the plane closes', () => {
@@ -697,7 +697,7 @@ describe('one person left alone with the triple', () => {
   const present = (plane: ReturnType<typeof clearing>) => ({
     atoms: plane.atoms.filter((atom) => atom.presence > 0).map((a) => a.id),
     frames: plane.frames.filter((frame) => frame.presence > 0).map((f) => f.id),
-    links: plane.links.filter((link) => link.presence > 0).map((l) => l.id),
+    bonds: plane.bonds.filter((bond) => bond.presence > 0).map((l) => l.id),
     lines: plane.vaultLines
       .filter((line) => line.presence > 0)
       .map((line) => line.id),
@@ -715,7 +715,7 @@ describe('one person left alone with the triple', () => {
         'currentEarthEconomy',
       ],
       frames: ['worth', 'more'],
-      links: ['worth:0', 'worth:1', 'more:0', 'more:1'],
+      bonds: ['worth:0', 'worth:1', 'more:0', 'more:1'],
       lines: ['worth:vaults', 'worth:for:1'],
       vaults: ['worth:vault'],
       people: ['worth:for:1'],
@@ -1176,7 +1176,7 @@ describe('a list', () => {
     expect(atom(layout, 'aiCompany')).toMatchObject({ role: 'object', y: 0 });
     // Its lines are the triples' own, out of the cloud: it adds only each
     // one's weight, on the line from its member to the predicate.
-    expect(layout.links).toEqual([]);
+    expect(layout.bonds).toEqual([]);
     expect(
       layout.weights.map(({ from, to, value }) => [from, to, value]),
     ).toEqual([
@@ -1404,8 +1404,8 @@ describe('planeAt', () => {
     plane.words.find((candidate) => candidate.id === id);
   const frame = (plane: ReturnType<typeof at>, id: string) =>
     plane.frames.find((candidate) => candidate.id === id);
-  const link = (plane: ReturnType<typeof at>, id: string) =>
-    plane.links.find((candidate) => candidate.id === id);
+  const bond = (plane: ReturnType<typeof at>, id: string) =>
+    plane.bonds.find((candidate) => candidate.id === id);
 
   it('grows new lines one after another, from the subject on, as one stroke', () => {
     // The words made atoms, the triples inside the frame get their lines:
@@ -1413,12 +1413,12 @@ describe('planeAt', () => {
     // than to the current Earth economy.
     const isNew = new Set(
       at(DIVIDED, MADE, 0)
-        .links.filter((line) => line.presence === 0)
+        .bonds.filter((line) => line.presence === 0)
         .map((line) => line.id),
     );
     const grown = (t: number): number[] =>
       at(DIVIDED, MADE, t)
-        .links.filter((line) => isNew.has(line.id))
+        .bonds.filter((line) => isNew.has(line.id))
         .map((line) => line.presence);
 
     expect(isNew.size).toBeGreaterThan(1);
@@ -1457,14 +1457,14 @@ describe('planeAt', () => {
     expect(frame(shown, 'worth')?.presence).toBe(1);
     expect(frame(shown, 'more')).toBeUndefined();
     expect(words(shown, 'spacex')?.alpha).toBe(1);
-    expect(link(shown, 'belief:0')?.presence).toBe(0);
+    expect(bond(shown, 'belief:0')?.presence).toBe(0);
     // Then the lines: to believes, and from it to the frame. None to a word.
-    expect(link(joined, 'belief:0')?.presence).toBe(1);
-    expect(link(joined, 'belief:1')).toMatchObject({
+    expect(bond(joined, 'belief:0')?.presence).toBe(1);
+    expect(bond(joined, 'belief:1')).toMatchObject({
       to: { frame: 'worth' },
       presence: 1,
     });
-    expect(joined.links).toHaveLength(2);
+    expect(joined.bonds).toHaveLength(2);
   });
 
   it('breaks the words in the frame apart, then frames the claim inside it', () => {
@@ -1499,7 +1499,7 @@ describe('planeAt', () => {
       'elonMusk',
       'believes',
     ]);
-    expect(framed.links.map((line) => [line.id, line.presence])).toEqual([
+    expect(framed.bonds.map((line) => [line.id, line.presence])).toEqual([
       ['belief:0', 1],
       ['belief:1', 1],
     ]);
@@ -1532,15 +1532,15 @@ describe('planeAt', () => {
     expect(words(made, 'willBeWorth')?.alpha).toBe(1);
     expect(words(made, 'willBeWorth')?.pill).toBeLessThan(1);
     expect(words(named, 'willBeWorth')).toMatchObject({ alpha: 1, pill: 1 });
-    expect(link(named, 'worth:0')?.presence).toBe(0);
+    expect(bond(named, 'worth:0')?.presence).toBe(0);
     // The line to the frame was there all along, and stays.
-    expect(link(down, 'belief:1')?.presence).toBe(1);
+    expect(bond(down, 'belief:1')?.presence).toBe(1);
     // Then the new lines, to the frame where a whole triple is the object.
-    expect(link(joined, 'worth:1')).toMatchObject({
+    expect(bond(joined, 'worth:1')).toMatchObject({
       to: { frame: 'more' },
       presence: 1,
     });
-    expect(link(joined, 'more:1')?.presence).toBe(1);
+    expect(bond(joined, 'more:1')?.presence).toBe(1);
   });
 
   it('stands every step where the claim it builds to will stand, sized by that claim', () => {
@@ -1571,8 +1571,8 @@ describe('planeAt', () => {
     expect(atom(moving, 'elonMusk')?.x).toBeLessThan(0);
     expect(atom(moving, 'believes')?.presence).toBe(0);
     expect(atom(arriving, 'believes')?.presence).toBeGreaterThan(0);
-    expect(link(arriving, 'belief:0')?.presence).toBe(0);
+    expect(bond(arriving, 'belief:0')?.presence).toBe(0);
     expect(atom(connecting, 'spacex')?.presence).toBe(1);
-    expect(link(connecting, 'belief:0')?.presence).toBeGreaterThan(0);
+    expect(bond(connecting, 'belief:0')?.presence).toBeGreaterThan(0);
   });
 });

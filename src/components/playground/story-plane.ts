@@ -420,10 +420,10 @@ export type PlaneEnd =
     };
 
 /**
- * Part of a triple's line: subject to predicate, or predicate to object. A
- * line leaves a frame from its right edge and reaches one at its left.
+ * A triple's bond: subject to predicate, or predicate to object. A
+ * bond leaves a frame from its right edge and reaches one at its left.
  */
-export interface PlaneLink {
+export interface PlaneBond {
   /** The triple's id, then 0 from the subject or 1 to the object. */
   id: string;
   from: PlaneEnd;
@@ -453,7 +453,7 @@ export interface PlaneLayout {
   atoms: PlaneAtom[];
   /** Outermost first, so inner ones are drawn over them. */
   frames: PlaneFrame[];
-  links: PlaneLink[];
+  bonds: PlaneBond[];
   weights: PlaneWeight[];
   /** The lines down to the people with a position in a triple's vaults, from the frame on. */
   vaultLines: VaultLine[];
@@ -679,7 +679,7 @@ function layTerm(
       parts.slice(1).forEach((part, index) => {
         const from = parts[index];
         if (from !== undefined) {
-          into.links.push({
+          into.bonds.push({
             id: `${term.triple.id}:${index}`,
             from: from.end,
             to: part.end,
@@ -809,7 +809,7 @@ export function layoutPlane(
   const layout: PlaneLayout = {
     atoms: [],
     frames: [],
-    links: [],
+    bonds: [],
     weights: [],
     vaultLines: [],
     vaults: [],
@@ -878,7 +878,7 @@ export function layoutPlane(
         width: Math.max(measure(id) + PLANE.badge.padding * 2, PLANE.atomSize),
       });
     }
-    layout.links.push(
+    layout.bonds.push(
       { id: `${branch.id}:0`, from, to: { atom: branch.predicate } },
       {
         id: `${branch.id}:1`,
@@ -1046,8 +1046,8 @@ export interface BlendedFrame extends PlaneFrame {
   presence: number;
 }
 
-/** Part of a triple's line, drawn from its start as far as `presence`. */
-export interface BlendedLink extends PlaneLink {
+/** A triple's bond, drawn from its start as far as `presence`. */
+export interface BlendedBond extends PlaneBond {
   presence: number;
   /** How far it is set back, with an atom it joins. */
   faded: number;
@@ -1123,7 +1123,7 @@ export interface BlendedPlane {
   atoms: BlendedAtom[];
   /** Outermost first. */
   frames: BlendedFrame[];
-  links: BlendedLink[];
+  bonds: BlendedBond[];
   weights: BlendedWeight[];
   vaultLines: BlendedVaultLine[];
   vaults: BlendedVault[];
@@ -1722,20 +1722,20 @@ function endOf(
 }
 
 /**
- * How far each of `links` has grown, `grow` of the way through their time:
+ * How far each of `bonds` has grown, `grow` of the way through their time:
  * one after another, in the order the layout lists them (each triple from
  * its subject to its predicate to its object, then the triples it holds,
  * then the claims rising from it), each in its share of the time by its
  * length, so the bridge is drawn as one stroke at one speed.
  */
 function growInTurn(
-  links: readonly PlaneLink[],
+  bonds: readonly PlaneBond[],
   layout: PlaneLayout,
   grow: number,
 ): number[] {
-  const lengths = links.map((link) => {
-    const from = endOf(layout, link.from, 'from');
-    const to = endOf(layout, link.to, 'to');
+  const lengths = bonds.map((bond) => {
+    const from = endOf(layout, bond.from, 'from');
+    const to = endOf(layout, bond.to, 'to');
 
     return Math.hypot(to.x - from.x, to.y - from.y);
   });
@@ -1834,8 +1834,8 @@ function aloneIn(layout: Placed, claim: PlaneClaim): Placed {
     ...kept,
     atoms: layout.atoms.filter((atom) => atoms.has(atom.id)),
     frames: layout.frames.filter((frame) => triples.has(frame.id)),
-    links: layout.links.filter((link) =>
-      triples.has(link.id.slice(0, link.id.lastIndexOf(':'))),
+    bonds: layout.bonds.filter((bond) =>
+      triples.has(bond.id.slice(0, bond.id.lastIndexOf(':'))),
     ),
     weights: [],
     vaultLines: layout.vaultLines.filter((line) => line.turn === undefined),
@@ -2048,7 +2048,7 @@ function isSameEnd(a: PlaneEnd, b: PlaneEnd): boolean {
     : 'frame' in b && a.frame === b.frame;
 }
 
-function isSameLink(a: PlaneLink, b: PlaneLink): boolean {
+function isSameBond(a: PlaneBond, b: PlaneBond): boolean {
   return a.id === b.id && isSameEnd(a.from, b.from) && isSameEnd(a.to, b.to);
 }
 
@@ -2180,10 +2180,10 @@ export function planeAt(
     'atom' in end && (claim?.faded?.includes(end.atom) ?? false);
   const fadedAtom = (id: AtomId): number =>
     shift(isFaded(from, { atom: id }), isFaded(to, { atom: id }), leave);
-  const fadedLink = (link: PlaneLink): number =>
+  const fadedBond = (bond: PlaneBond): number =>
     shift(
-      isFaded(from, link.from) || isFaded(from, link.to),
-      isFaded(to, link.from) || isFaded(to, link.to),
+      isFaded(from, bond.from) || isFaded(from, bond.to),
+      isFaded(to, bond.from) || isFaded(to, bond.to),
       leave,
     );
   // One that leaves a plane that stays goes as it was, set back or not; as
@@ -2315,36 +2315,36 @@ export function planeAt(
   // draws back as what is there moves; new ones grow once everything is in
   // place, one after another from the subject on, as one stroke.
   const drawnIn = (claim: PlaneClaim | null, layout: PlaneLayout | null) =>
-    (layout?.links ?? []).filter((link) =>
-      [link.from, link.to].every(
+    (layout?.bonds ?? []).filter((bond) =>
+      [bond.from, bond.to].every(
         (end) => !('atom' in end) || isMade(claim, end.atom),
       ),
     );
-  const oldLinks = drawnIn(from, before);
-  const newLinks = drawnIn(to, after);
-  const growing = newLinks.filter(
-    (link) => !oldLinks.some((old) => isSameLink(old, link)),
+  const oldBonds = drawnIn(from, before);
+  const newBonds = drawnIn(to, after);
+  const growing = newBonds.filter(
+    (bond) => !oldBonds.some((old) => isSameBond(old, bond)),
   );
   const grown = after === null ? [] : growInTurn(growing, after, grow);
-  const links: BlendedLink[] = [
-    ...oldLinks.map((link) => {
-      const isKept = newLinks.some((next) => isSameLink(next, link));
+  const bonds: BlendedBond[] = [
+    ...oldBonds.map((bond) => {
+      const isKept = newBonds.some((next) => isSameBond(next, bond));
 
       return {
-        ...link,
+        ...bond,
         presence: isKept ? 1 : 1 - retract,
         faded: isKept
-          ? fadedLink(link)
+          ? fadedBond(bond)
           : fadedLeaving(
-              fadedLink(link),
-              isFaded(from, link.from) || isFaded(from, link.to),
+              fadedBond(bond),
+              isFaded(from, bond.from) || isFaded(from, bond.to),
             ),
       };
     }),
-    ...growing.map((link, index) => ({
-      ...link,
+    ...growing.map((bond, index) => ({
+      ...bond,
       presence: grown[index] ?? grow,
-      faded: fadedLink(link),
+      faded: fadedBond(bond),
     })),
   ];
   // A list's weights, as the list says; the first to go as it closes, as
@@ -2697,7 +2697,7 @@ export function planeAt(
   return {
     atoms,
     frames,
-    links,
+    bonds,
     weights,
     vaultLines,
     vaults,
