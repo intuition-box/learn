@@ -995,7 +995,9 @@ describe('enrichment', () => {
       travelled += step;
       previous = longitude(facing);
     }
-    expect(Math.abs(travelled)).toBeCloseTo(Math.PI, 1);
+    // Round to the other side, which stands two and a half spacings past
+    // straight behind, where the last triple has room: the short way.
+    expect(Math.abs(travelled)).toBeCloseTo(Math.PI - 2.5 * 0.4, 1);
   });
 
   it('ends on the way on, without a caption: civilization shall, start building, the future of information, the predicate standing out', () => {
