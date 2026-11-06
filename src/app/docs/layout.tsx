@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 
+import { OnboardingLink } from '@/components/onboarding/onboarding-link';
 import { docs } from '@/lib/docs';
 
 /*
@@ -12,5 +13,10 @@ export default function DocsLayout({
 }: {
   children: ReactNode;
 }): ReactNode {
-  return <docs.Layout>{children}</docs.Layout>;
+  return (
+    <>
+      <OnboardingLink />
+      <docs.Layout>{children}</docs.Layout>
+    </>
+  );
 }

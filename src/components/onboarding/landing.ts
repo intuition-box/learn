@@ -7,6 +7,9 @@
  * - "Skip to docs", from the film's page, or "Start building", at the
  *   film's end: the docs, next time.
  *
+ * "Try the onboarding", in the docs, forgets it (`OnboardingLink`), so the
+ * universe plays again, as on a first visit.
+ *
  * It is kept in this browser's localStorage, and read by a small script that
  * runs before the film's page paints (`landingGateScript`), so a returning
  * visitor never sees the universe or the film flash by on the way.
@@ -39,6 +42,15 @@ export function rememberLanding(landing: Landing): void {
   }
 }
 
+/** Forgets where the site opened, so the front page plays the universe again. */
+export function forgetLanding(): void {
+  try {
+    window.localStorage.removeItem(LANDING_KEY);
+  } catch {
+    // Storage can be off, and then there was nothing remembered to forget.
+  }
+}
+
 /**
  * The script that runs before the film's page paints. Served as
  * `/landing.js` and loaded, blocking, in the head of every page; it acts
@@ -47,8 +59,7 @@ export function rememberLanding(landing: Landing): void {
  * First it sends a returning visitor who chose the docs on to them, never
  * to the film itself, and only when the site is opened: a link, a
  * bookmark, a typed address. Not on a reload, back or forward, and not on a
- * link from within the site, so "Try the onboarding" in the docs, or the
- * logo, still shows the film. Anything that fails, storage among it, leaves
+ * link from within the site. Anything that fails, storage among it, leaves
  * the film.
  *
  * Staying, on a first visit it marks <html> `data-entrance="welcome"` for
