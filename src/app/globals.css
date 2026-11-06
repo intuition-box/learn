@@ -163,3 +163,45 @@
     @apply rounded-2xl border border-border bg-bg;
   }
 }
+
+/*
+ * The money flow chart, played once: what appears, and the coins that run
+ * its lines. Without motion, everything is simply there and no coin shows.
+ */
+.money-flow-coin {
+  opacity: 0;
+  offset-rotate: 0deg;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .money-flow-in {
+    animation: money-flow-in 300ms ease-out both;
+  }
+
+  .money-flow-coin {
+    animation: money-flow-coin 700ms ease-in-out both;
+  }
+}
+
+@keyframes money-flow-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes money-flow-coin {
+  0% {
+    offset-distance: 0%;
+    opacity: 0;
+  }
+
+  10%,
+  90% {
+    opacity: 1;
+  }
+
+  100% {
+    offset-distance: 100%;
+    opacity: 0;
+  }
+}
