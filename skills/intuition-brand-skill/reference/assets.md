@@ -47,6 +47,12 @@ Pictures of Intuition, each a kit: one picture in every size a place asks for. F
 | https://learn.intuition.box/brand/files/intuition-atoms-light-x-banner-1500x500.svg | 1500 × 500 | Atoms, light, X banner, the bottom left clear for the avatar |
 | https://learn.intuition.box/brand/files/intuition-atoms-light-linkedin-banner-1584x396.svg | 1584 × 396 | Atoms, light, LinkedIn banner, the bottom left clear for the photo |
 | https://learn.intuition.box/brand/files/intuition-atoms-light-discord-banner-960x540.svg | 960 × 540 | Atoms, light, Discord banner |
+| https://learn.intuition.box/brand/files/intuition-observed-desktop-2560x1440.svg | 2560 × 1440 | Observed, desktop wallpaper |
+| https://learn.intuition.box/brand/files/intuition-observed-phone-1179x2556.svg | 1179 × 2556 | Observed, phone wallpaper |
+| https://learn.intuition.box/brand/files/intuition-observed-link-preview-1200x630.svg | 1200 × 630 | Observed, link preview (Open Graph image) |
+| https://learn.intuition.box/brand/files/intuition-observed-x-banner-1500x500.svg | 1500 × 500 | Observed, X banner, the bottom left clear for the avatar |
+| https://learn.intuition.box/brand/files/intuition-observed-linkedin-banner-1584x396.svg | 1584 × 396 | Observed, LinkedIn banner, the bottom left clear for the photo |
+| https://learn.intuition.box/brand/files/intuition-observed-discord-banner-960x540.svg | 960 × 540 | Observed, Discord banner |
 
 ## Social
 

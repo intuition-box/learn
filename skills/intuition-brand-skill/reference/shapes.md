@@ -70,6 +70,7 @@ Fields of claims: atoms in their shapes, joined by faint bonds, few and clear. E
 | Universe | Atoms in their protocol colors scattered on Midnight | Dark surfaces, wallpapers |
 | Universe, light | The same on white | Light surfaces, wallpapers |
 | Atoms | The logo mark's four shapes as solids in their protocol colors, each turned its own way in 3D, among small filled atoms in their colors, a few far ones out of focus, on Midnight or on white. Its triangle is turned 10° in the picture's plane: an exception for this picture only, never a rule to follow | Dark and light surfaces, wallpapers, social images |
+| Observed | The triple is the light: its atoms glow in their protocol colors, and the atoms in the dark around it are solids in Graphite, each face lit by how far it turns to the triple and how near it stands, bright in its colors where it turns to it, near black where it turns away. The big sphere stands behind the triple; each solid casts a soft shadow away from the light. Its ground is Graphite 950, not Midnight: an exception for this picture only, never a rule to follow | Dark surfaces, wallpapers, social images |
 
 Phone versions leave a clear band near the top for the clock.
 

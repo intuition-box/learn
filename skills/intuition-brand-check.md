@@ -127,6 +127,12 @@ Every value in `skills/intuition-brand-skill/` against the brand page (`learn-br
 | ✓ Atoms, light (backgrounds) | intuition-atoms-light-x-banner-1500x500.svg, 1500 × 500 | https://learn.intuition.box/brand/files/intuition-atoms-light-x-banner-1500x500.svg (page) |
 | ✓ Atoms, light (backgrounds) | intuition-atoms-light-linkedin-banner-1584x396.svg, 1584 × 396 | https://learn.intuition.box/brand/files/intuition-atoms-light-linkedin-banner-1584x396.svg (page) |
 | ✓ Atoms, light (backgrounds) | intuition-atoms-light-discord-banner-960x540.svg, 960 × 540 | https://learn.intuition.box/brand/files/intuition-atoms-light-discord-banner-960x540.svg (page) |
+| ✓ Observed (backgrounds) | intuition-observed-desktop-2560x1440.svg, 2560 × 1440 | https://learn.intuition.box/brand/files/intuition-observed-desktop-2560x1440.svg (page) |
+| ✓ Observed (backgrounds) | intuition-observed-phone-1179x2556.svg, 1179 × 2556 | https://learn.intuition.box/brand/files/intuition-observed-phone-1179x2556.svg (page) |
+| ✓ Observed (backgrounds) | intuition-observed-link-preview-1200x630.svg, 1200 × 630 | https://learn.intuition.box/brand/files/intuition-observed-link-preview-1200x630.svg (page) |
+| ✓ Observed (backgrounds) | intuition-observed-x-banner-1500x500.svg, 1500 × 500 | https://learn.intuition.box/brand/files/intuition-observed-x-banner-1500x500.svg (page) |
+| ✓ Observed (backgrounds) | intuition-observed-linkedin-banner-1584x396.svg, 1584 × 396 | https://learn.intuition.box/brand/files/intuition-observed-linkedin-banner-1584x396.svg (page) |
+| ✓ Observed (backgrounds) | intuition-observed-discord-banner-960x540.svg, 960 × 540 | https://learn.intuition.box/brand/files/intuition-observed-discord-banner-960x540.svg (page) |
 | ✓ X avatar (social) | intuition-x-avatar-400x400.svg, 400 × 400 | https://learn.intuition.box/brand/files/intuition-x-avatar-400x400.svg (page) |
 | **Rules (page: Rules)** | | |
 | ✓ Do | Draw a subject as a circle, the organic shape. | "Draw a subject as a circle, the organic shape." (page) |
