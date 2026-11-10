@@ -109,6 +109,39 @@
 }
 
 /*
+ * The site's typefaces (`src/lib/fonts.ts`): Inter for every word and
+ * Ioskeley Mono for code, through the documentation stylesheet's own font
+ * tokens, each with the system's face behind it while it loads. Unlayered,
+ * as the accent is, to outrank the stylesheet's tokens.
+ */
+:root {
+  --wave-docs-font-sans:
+    var(--font-inter), ui-sans-serif, system-ui, -apple-system, 'Segoe UI',
+    Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --wave-docs-font-mono:
+    var(--font-ioskeley-mono), ui-monospace, SFMono-Regular, 'SF Mono', Menlo,
+    Consolas, 'Liberation Mono', monospace;
+}
+
+/* Titles in Instrument Sans: a page's, a section's, a subsection's. */
+@layer base {
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-instrument-sans), var(--wave-docs-font-sans);
+  }
+
+  /* Every mono's zeros slashed: Ioskeley's dotted zero reads as an 8, small. */
+  code,
+  kbd,
+  samp,
+  pre,
+  .font-mono {
+    font-variant-numeric: slashed-zero;
+  }
+}
+
+/*
  * A diagram in the docs, a fence marked `diagram`: drawn in text, so its
  * lines keep their places against each other, and centred as a whole in its
  * box. Wider than the box, it scrolls as any code does.

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 
+import { instrumentSans, inter, ioskeleyMono } from '@/lib/fonts';
 import { SITE_URL } from '@/lib/site';
 
 // The documentation stylesheet is loaded for every page, not only `/docs`:
@@ -27,7 +28,11 @@ export default function RootLayout({
     // No `data-theme` on <html>: the documentation stylesheet is light unless
     // the page asks for dark, and this site does not. The script in the head
     // may add `data-entrance` before React arrives, which is expected.
-    <html lang="en" suppressHydrationWarning>
+    <html
+      lang="en"
+      className={`${inter.variable} ${instrumentSans.variable} ${ioskeleyMono.variable}`}
+      suppressHydrationWarning
+    >
       <head>
         {/*
          * Sends a returning visitor past the film to where they chose last
