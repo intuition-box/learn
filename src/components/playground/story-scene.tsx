@@ -18,7 +18,11 @@ import {
   depositorColor,
   vaultFace,
 } from '@/lib/icons';
-import { LOGO, LOGO_COLOUR, LOGO_REACH } from '@/lib/logo';
+import {
+  INTUITION_LOGO,
+  INTUITION_LOGO_COLOR,
+  INTUITION_LOGO_REACH,
+} from '@/lib/intuition-logo';
 import {
   arcPoint,
   axisAngle,
@@ -1437,7 +1441,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
 
     /**
      * The Intuition logo, `size` across, its centre on `at`: its ring and
-     * the arcs round it (`LOGO`), in `LOGO_COLOUR`.
+     * the arcs round it (`INTUITION_LOGO`), in `INTUITION_LOGO_COLOR`.
      */
     function drawLogo(
       target: CanvasRenderingContext2D,
@@ -1445,12 +1449,12 @@ export function StoryScene(props: StorySceneProps): ReactNode {
       size: number,
       alpha: number,
     ): void {
-      const scale = size / LOGO.size;
+      const scale = size / INTUITION_LOGO.size;
       target.save();
       target.globalAlpha = alpha;
-      target.strokeStyle = rgba(LOGO_COLOUR);
-      for (const band of LOGO.bands) {
-        // Counterclockwise from the right, y up, as the logo's angles run.
+      target.strokeStyle = rgba(INTUITION_LOGO_COLOR);
+      for (const band of INTUITION_LOGO.bands) {
+        // Counterclockwise from the right, y up, as the Intuition logo's angles run.
         target.beginPath();
         target.lineWidth = band.halfWidth * 2 * scale;
         target.arc(
@@ -1998,7 +2002,8 @@ export function StoryScene(props: StorySceneProps): ReactNode {
           protocolFee === null ? undefined : onLine(protocolFee.level);
         const pill = (PILL_HEIGHT / 2) * zoom;
         const logoSize = VAULT_SIZE * zoom;
-        const logoReach = (LOGO_REACH * logoSize) / LOGO.size;
+        const logoReach =
+          (INTUITION_LOGO_REACH * logoSize) / INTUITION_LOGO.size;
         const protocol =
           level === undefined
             ? undefined

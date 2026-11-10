@@ -1,12 +1,12 @@
 /**
  * The Intuition logo as the bands it is drawn with, measured from its SVG
  * (48 units across): a ring, and five arcs round it. Each band is a stretch
- * of a circle round the logo's centre: its radius and half its width, in
- * the logo's units, and where it starts and how far it goes, in degrees
+ * of a circle round the Intuition logo's centre: its radius and half its width, in
+ * the Intuition logo's units, and where it starts and how far it goes, in degrees
  * counterclockwise from the right. The front page's stars form it, and the
  * film draws it for the protocol.
  */
-export const LOGO = {
+export const INTUITION_LOGO = {
   size: 48,
   /** The centre, from the view box's top left, y down. */
   center: [23.75, 24],
@@ -20,10 +20,10 @@ export const LOGO = {
   ],
 } as const;
 
-/** How far the logo reaches from its centre, in its units: its outer bands' outer edge. */
-export const LOGO_REACH = Math.max(
-  ...LOGO.bands.map((band) => band.radius + band.halfWidth),
+/** How far the Intuition logo reaches from its centre, in its units: its outer bands' outer edge. */
+export const INTUITION_LOGO_REACH = Math.max(
+  ...INTUITION_LOGO.bands.map((band) => band.radius + band.halfWidth),
 );
 
-/** The logo's colour in the film: pure black, as a vault's lid and a fee. */
-export const LOGO_COLOUR = [0, 0, 0] as const;
+/** The Intuition logo's color in the film: pure black, as a vault's lid and a fee. */
+export const INTUITION_LOGO_COLOR = [0, 0, 0] as const;

@@ -5,11 +5,11 @@
  *
  * Copied from wave-universe (`~/Dev/wave/wave-universe`) at commit 04beb00,
  * then cut down to this one page: a white sky, stars in the film's role
- * shapes and colours, the logo where the spiral was, and the parting played
+ * shapes and colors, the Intuition logo where the spiral was, and the parting played
  * by "Play" instead of the scroll. A fix made there is carried over by
  * hand.
  *
- * In order: the logo and the stars, each frame's choreography on the CPU,
+ * In order: the Intuition logo and the stars, each frame's choreography on the CPU,
  * the pointer's wake, the GPU (one vertex shader places every star, both to
  * draw it and to push it, so the push always agrees with the stars drawn),
  * and the universe that runs them.
@@ -21,12 +21,12 @@ import {
   ROLES,
   traceShape,
 } from '@/components/playground/story-shapes';
-import { LOGO } from '@/lib/logo';
+import { INTUITION_LOGO } from '@/lib/intuition-logo';
 
 /** What the GPU knows about each star, packed as floats in this order. */
 const STAR_ATTRIBUTES = [
   /**
-   * Where it sits in its band of the logo: how far along, 0 to 1, how far
+   * Where it sits in its band of the Intuition logo: how far along, 0 to 1, how far
    * across, -1 to 1, its depth in world units, and its layer.
    */
   { name: 'aPlace', size: 4 },
@@ -36,8 +36,8 @@ const STAR_ATTRIBUTES = [
    */
   { name: 'aScatter', size: 4 },
   /**
-   * Its size, its role, its band of the logo, or -1 for a star of the sky,
-   * which never joins the logo, and its size once the stars have parted.
+   * Its size, its role, its band of the Intuition logo, or -1 for a star of the sky,
+   * which never joins the Intuition logo, and its size once the stars have parted.
    */
   { name: 'aLook', size: 4 },
 ] as const;
@@ -65,7 +65,7 @@ interface Frame {
   /** How far the stars have parted, 0 to 1, and moved to their places there. */
   scatter: number;
   scatterMove: number;
-  /** How big parted stars are, against the logo's. */
+  /** How big parted stars are, against the Intuition logo's. */
   shrink: number;
   /** The mark's turn: pitch, then yaw, in radians. */
   turn: readonly [number, number];
@@ -110,7 +110,7 @@ const MARK_STARS = 2400;
 const SKY_STARS = 380;
 /** Each role's share of the stars, in `ROLES` order. */
 const ROLE_SHARES = [36, 24, 28, 12] as const;
-/** How far a star strays in depth from its band of the logo, in world units. */
+/** How far a star strays in depth from its band of the Intuition logo, in world units. */
 const DEPTH_SPREAD = 0.2;
 /**
  * The chance a star is one of the big ones: in the sky, and rarely on the
@@ -132,13 +132,13 @@ const PARTED_SEED = 0x85a308d3;
 
 /** Seconds the stars take to come in from the sky and form the mark. */
 const INTRO_SECONDS = 5.5;
-/** How far into the intro the logo has formed, near enough: most stars are home. */
+/** How far into the intro the Intuition logo has formed, near enough: most stars are home. */
 const FORMED_AT = 0.85;
 /** Seconds the parting takes to play, before it eases out. */
 const PART_SECONDS = 1.6;
-/** The share of the parting before the stars start to leave the logo. */
+/** The share of the parting before the stars start to leave the Intuition logo. */
 const SCATTER_FROM = 0.2;
-/** Parted stars' size, against the logo's. */
+/** Parted stars' size, against the Intuition logo's. */
 const PARTED_SIZE = 0.45;
 /** How fast the mark follows a drag, per second. */
 const DRAG_FOLLOW = 13;
@@ -207,13 +207,13 @@ function pick(weights: readonly number[], seed: number): number {
   return weights.length - 1;
 }
 
-/** Each band of the logo by its area, so they are all as densely starred. */
-const BAND_AREAS = LOGO.bands.map(
+/** Each band of the Intuition logo by its area, so they are all as densely starred. */
+const BAND_AREAS = INTUITION_LOGO.bands.map(
   (band) => band.radius * band.halfWidth * band.span,
 );
 
 /**
- * Every star, `STAR_STRIDE` floats each: the logo's first, spread evenly
+ * Every star, `STAR_STRIDE` floats each: the Intuition logo's first, spread evenly
  * over its bands, then the sky's. Most are small; a few are big, and once
  * the stars have parted, `PARTED_BIG_TIMES` as many.
  */
@@ -480,7 +480,7 @@ const glslColor = (role: Role): string =>
  * The star vertex shader: for drawing, or with `isPush`, for advancing the
  * pointer's push on each star, written out through transform feedback.
  *
- * A star flows round its band of the logo; a star of the sky stays out in
+ * A star flows round its band of the Intuition logo; a star of the sky stays out in
  * it. The intro brings each in from
  * the opening sky. Parted, most stars take a side of the film, and drift.
  */
@@ -503,14 +503,14 @@ const float PARTED_SIZE = ${glslFloat(PARTED_SIZE)};
 const float DEPTHS[3] = float[3](0.9, -0.9, 0.18);
 const float PHASES[3] = float[3](0.0, 1.9, 0.6);
 const vec3 COLORS[4] = vec3[4](${ROLES.map(glslColor).join(', ')});
-// The logo's bands, as shares of its size and in radians: radius, half
+// The Intuition logo's bands, as shares of its size and in radians: radius, half
 // width, start, span; and its centre's offset from the middle, y up.
-const vec4 BANDS[${LOGO.bands.length}] = vec4[${LOGO.bands.length}](${LOGO.bands
+const vec4 BANDS[${INTUITION_LOGO.bands.length}] = vec4[${INTUITION_LOGO.bands.length}](${INTUITION_LOGO.bands
     .map(
       (band) =>
         `vec4(${[
-          band.radius / LOGO.size,
-          band.halfWidth / LOGO.size,
+          band.radius / INTUITION_LOGO.size,
+          band.halfWidth / INTUITION_LOGO.size,
           (band.start * Math.PI) / 180,
           (band.span * Math.PI) / 180,
         ]
@@ -518,7 +518,7 @@ const vec4 BANDS[${LOGO.bands.length}] = vec4[${LOGO.bands.length}](${LOGO.bands
           .join(', ')})`,
     )
     .join(', ')});
-const vec2 CENTRE = vec2(${glslFloat(LOGO.center[0] / LOGO.size - 0.5)}, ${glslFloat(0.5 - LOGO.center[1] / LOGO.size)});
+const vec2 CENTRE = vec2(${glslFloat(INTUITION_LOGO.center[0] / INTUITION_LOGO.size - 0.5)}, ${glslFloat(0.5 - INTUITION_LOGO.center[1] / INTUITION_LOGO.size)});
 
 uniform vec2 uMarkCenter;
 uniform float uMarkSize;
@@ -621,9 +621,9 @@ void main() {
   vec2 field = 1.1 * uView;
   vec3 skyPlace = vec3((seed.xy - 0.5) * field, (seed.z - 0.5) * 0.5);
 
-  // On the logo, the star flows round its band, as fast as on any other,
+  // On the Intuition logo, the star flows round its band, as fast as on any other,
   // and an arc's stars fade out at one end as they come back in at the
-  // other; the logo turns, and its near side shows larger.
+  // other; the Intuition logo turns, and its near side shows larger.
   vec4 band = BANDS[int(max(aLook.z, 0.0) + 0.5)];
   float lap = fract(aPlace.x + uTravel[layer] * TAU / band.w);
   float angle = band.z + band.w * lap;
@@ -691,8 +691,8 @@ void main() {
   gl_Position = clip;
   vRole = int(aLook.y + 0.5);
   vColor = COLORS[vRole];
-  // On the logo only, a star twinkles at its own pace, its pace and phase
-  // drawn from its seeds, and fades as low as 70% on the logo's far side.
+  // On the Intuition logo only, a star twinkles at its own pace, its pace and phase
+  // drawn from its seeds, and fades as low as 70% on the Intuition logo's far side.
   float twinkle = 0.87 + 0.13 * sin(TAU * fract(seed.x * 13.7 + seed.y * 7.3)
     + uTime * 0.6 * (0.6 + 0.75 * fract(seed.z * 11.1)));
   float fadeBack = 0.7 + 0.3 * front;
@@ -1001,7 +1001,7 @@ export interface UniverseOptions {
   column: HTMLElement;
   /** Starts parted, with no intro: the film is already open. */
   isParted: boolean;
-  /** Called once, as the stars finish forming the logo. */
+  /** Called once, as the stars finish forming the Intuition logo. */
   onFormed: () => void;
 }
 

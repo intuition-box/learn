@@ -1254,7 +1254,7 @@ export const HANGING_RISE: Window = [0, 0.35];
  * its fees out, all of the deposit goes but its fees' amount, where it
  * stands on the row its shares run on; then the vaults of the triple's
  * terms arrive over it, and the protocol's logo under it; the lines grow
- * from the fee to each vault, and from its amount down to the logo, at one
+ * from the fee to each vault, and from its amount down to the Intuition logo, at one
  * speed; and each share shows. Seen through a perspective, the
  * claim moves down to make room for the menu above it, which shows. Choosing
  * another, the menu opens, moves to it, and closes on it; the weights change
@@ -2011,7 +2011,7 @@ function rowAtOf(spots: readonly PlanePoint[]): number | undefined {
  * `shareSpotsIn`), as large as every vault. A share goes into each, and the
  * entry fee into the triple's own vault; the protocol's goes to the
  * protocol, under the fees' amount: its share level with `level`, where
- * the builder's fee stands, the logo under it.
+ * the builder's fee stands, the Intuition logo under it.
  */
 function sharedIn(
   layout: Placed,

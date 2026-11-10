@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { ROLES } from '@/components/playground/story-shapes';
-import { LOGO } from '@/lib/logo';
+import { INTUITION_LOGO } from '@/lib/intuition-logo';
 
 import {
   createStars,
@@ -59,13 +59,13 @@ describe('createStars', () => {
     expect(stars.every(Number.isFinite)).toBe(true);
   });
 
-  it('keeps some stars out in the sky, and spreads the rest over every band of the logo', () => {
+  it('keeps some stars out in the sky, and spreads the rest over every band of the Intuition logo', () => {
     const bands = field(10);
     const sky = bands.filter((band) => band === -1).length;
     expect(sky).toBeGreaterThan(0);
     expect(sky).toBeLessThan(count / 2);
     expect(new Set(bands.filter((band) => band >= 0)).size).toBe(
-      LOGO.bands.length,
+      INTUITION_LOGO.bands.length,
     );
   });
 

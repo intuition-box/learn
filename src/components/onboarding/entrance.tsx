@@ -132,7 +132,7 @@ export function Entrance({
           className="pointer-events-auto flex size-[min(80vmin,38rem)] cursor-grab touch-pan-y items-center justify-center select-none data-[dragging=true]:cursor-grabbing"
         >
           {/*
-           * Inside the logo's ring, in a box of their own that does not grow
+           * Inside the Intuition logo's ring, in a box of their own that does not grow
            * with it, so the words keep their size: the line on every screen,
            * the sentence under it only where there is room for it. The box
            * lets a drag through to the ring's; only "Play" takes the pointer.
