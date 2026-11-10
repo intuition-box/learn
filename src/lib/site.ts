@@ -8,8 +8,13 @@
  */
 export const SITE_URL = 'https://learn.intuition.box';
 
-/** The site's two pages: the film, at the root, and the docs. */
+/**
+ * The site's pages: the film, at the root, the docs, and the brand page,
+ * with the folder its downloads are served from.
+ */
 export const ROUTES = {
   play: '/',
   docs: '/docs',
+  brand: '/brand',
+  brandFiles: '/brand/files',
 } as const;
