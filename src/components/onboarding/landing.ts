@@ -4,11 +4,11 @@
  * remembers how the visitor went on:
  *
  * - "Play", in the universe: the film, straight away, next time.
- * - "Skip to docs", from the film's page, or "Start building", at the
+ * - "Docs", in the film's top bar, or "Start building", at the
  *   film's end: the docs, next time.
  *
- * "Try the onboarding", in the docs, forgets it (`OnboardingLink`), so the
- * universe plays again, as on a first visit.
+ * "Onboarding", on the docs' homepage, and the logo atop the docs' sidebar
+ * remember the film (`OnboardingLink`), so the site opens on it.
  *
  * It is kept in this browser's localStorage, and read by a small script that
  * runs before the film's page paints (`landingGateScript`), so a returning
@@ -39,15 +39,6 @@ export function rememberLanding(landing: Landing): void {
     // Storage can be off: a private window, or site data blocked. Then the
     // site forgets, and opens on the film as for a first visit,
     // which is all there is to recover.
-  }
-}
-
-/** Forgets where the site opened, so the front page plays the universe again. */
-export function forgetLanding(): void {
-  try {
-    window.localStorage.removeItem(LANDING_KEY);
-  } catch {
-    // Storage can be off, and then there was nothing remembered to forget.
   }
 }
 

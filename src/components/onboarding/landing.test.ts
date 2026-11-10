@@ -1,11 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import {
-  forgetLanding,
-  LANDING_KEY,
-  landingGateScript,
-  rememberLanding,
-} from './landing';
+import { LANDING_KEY, landingGateScript, rememberLanding } from './landing';
 
 interface Visit {
   pathname?: string;
@@ -202,38 +197,5 @@ describe('rememberLanding', () => {
     expect(() => {
       rememberLanding('docs');
     }).not.toThrow();
-  });
-});
-
-describe('forgetLanding', () => {
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
-  it('opens the universe again, as on a first visit', () => {
-    const stored = new Map<string, string>([[LANDING_KEY, 'docs']]);
-    vi.stubGlobal('window', {
-      localStorage: {
-        removeItem: (key: string) => stored.delete(key),
-      },
-    });
-
-    forgetLanding();
-    expect(visit({ stored: stored.get(LANDING_KEY) ?? null })).toEqual({
-      replacedWith: null,
-      entrance: 'welcome',
-    });
-  });
-
-  it('does not throw when storage is blocked', () => {
-    vi.stubGlobal('window', {
-      localStorage: {
-        removeItem: () => {
-          throw new Error('SecurityError');
-        },
-      },
-    });
-
-    expect(() => forgetLanding()).not.toThrow();
   });
 });

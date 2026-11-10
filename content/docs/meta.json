@@ -9,7 +9,6 @@
     "extend",
     "reference",
     "---Links---",
-    { "title": "Try the onboarding", "href": "/" },
     {
       "title": "GitHub",
       "href": "https://github.com/0xIntuition/intuition-core"

@@ -6,8 +6,8 @@ description: Build on Intuition, the knowledge graph where every atom and every 
 actions:
   - label: Quickstart
     href: /docs/get-started/quickstart
-  - label: Run a node
-    href: /docs/node/run-a-node
+  - label: Onboarding
+    href: /
 ---
 
 Intuition is an open knowledge graph. Its data is made of **atoms**, which
