@@ -10,6 +10,12 @@ export interface IconPath {
   opacity: number;
   /** What the shape stands for, for a drawer that colors it by that. */
   part?: 'subject' | 'predicate' | 'object';
+  /**
+   * A shape cut out of this one with `gap` units of room round it, as the
+   * cloud is cut round its arrow. An `<svg>` draws it as a mask, the cut
+   * stroked `gap` × 2 wide in black; a canvas erases it, `destination-out`.
+   */
+  cut?: { d: string; gap: number };
 }
 
 export interface Icon {
@@ -313,4 +319,94 @@ export const MEDAL_ICON: RingedIcon = {
   ],
   box: { x: 4.387, y: 0, size: 22.929 },
   ring: { x: 15.791, y: 11.406, radius: 6.422 },
+};
+
+/*
+ * Downloads: duo icons, Saulo's choice of five, their arrows turned to point
+ * down. The file with the arrow (`FILE_DOWNLOAD_ICON`) is the brand page's.
+ */
+
+/** The arrow down, low: its tip where the cloud's bolt and the screen's triangle reached. */
+const DOWNLOAD_ARROW_LOW =
+  'M 11.293 21.307 L 9.172 19.186 C 8.618 18.651 8.851 17.718 9.591 17.505 C 9.947 17.404 10.329 17.506 10.586 17.772 L 11 18.186 L 11 15.48 C 11 14.71 11.833 14.229 12.5 14.614 C 12.809 14.793 13 15.123 13 15.48 L 13 18.186 L 13.414 17.772 C 13.949 17.218 14.882 17.451 15.095 18.191 C 15.196 18.547 15.094 18.929 14.828 19.186 L 12.708 21.307 C 12.317 21.698 11.684 21.698 11.293 21.307 Z';
+
+/** A folder, an arrow down into it. */
+export const FOLDER_DOWNLOAD_ICON: Icon = {
+  size: 24,
+  paths: [
+    {
+      d: 'M 20 6 L 12 6 L 10.59 4.59 C 10.21 4.21 9.7 4 9.17 4 L 4 4 C 2.9 4 2.01 4.9 2.01 6 L 2 18 C 2 19.1 2.9 20 4 20 L 20 20 C 21.1 20 22 19.1 22 18 L 22 8 C 22 6.9 21.1 6 20 6 Z',
+      opacity: 0.3,
+    },
+    {
+      d: 'M 13 13.21 L 13 10.21 C 13 9.66 12.55 9.21 12 9.21 C 11.45 9.21 11 9.66 11 10.21 L 11 13.21 L 9.21 13.21 C 8.76 13.21 8.54 13.75 8.86 14.06 L 11.66 16.85 C 11.86 17.05 12.17 17.04 12.37 16.85 L 15.16 14.06 C 15.46 13.75 15.24 13.21 14.8 13.21 L 13 13.21 Z',
+      opacity: 1,
+    },
+  ],
+};
+
+/** A file, its corner folded. */
+export const FILE_ICON: Icon = {
+  size: 24,
+  paths: [
+    {
+      d: 'M 12 2 L 12 8.5 C 12 9.273 12.587 9.919 13.356 9.993 L 13.5 10 L 20 10 L 20 20 C 20 21.047 19.194 21.917 18.15 21.995 L 18 22 L 6 22 C 4.953 22 4.083 21.194 4.005 20.15 L 4 20 L 4 4 C 4 2.953 4.806 2.083 5.85 2.005 L 6 2 L 12 2 Z',
+      opacity: 0.3,
+    },
+    {
+      d: 'M 14 2.043 C 14.323 2.112 14.625 2.259 14.877 2.473 L 15 2.586 L 19.414 7 C 19.648 7.234 19.821 7.523 19.916 7.84 L 19.956 8 L 14 8 L 14 2.043 Z',
+      opacity: 1,
+    },
+  ],
+};
+
+/** A file, its corner folded, an arrow down on it: a download. */
+export const FILE_DOWNLOAD_ICON: Icon = {
+  size: 24,
+  paths: [
+    {
+      d: 'M 12 2 L 12 8.5 C 12 9.273 12.587 9.919 13.356 9.993 L 13.5 10 L 20 10 L 20 20 C 20 21.047 19.194 21.917 18.15 21.995 L 18 22 L 6 22 C 4.953 22 4.083 21.194 4.005 20.15 L 4 20 L 4 4 C 4 2.953 4.806 2.083 5.85 2.005 L 6 2 L 12 2 Z',
+      opacity: 0.3,
+    },
+    {
+      d: 'M 14 2.043 C 14.323 2.112 14.625 2.259 14.877 2.473 L 15 2.586 L 19.414 7 C 19.648 7.234 19.821 7.523 19.916 7.84 L 19.956 8 L 14 8 L 14 2.043 Z',
+      opacity: 1,
+    },
+    {
+      d: 'M 11.293 17.707 L 9.172 15.586 C 8.618 15.051 8.851 14.118 9.591 13.905 C 9.947 13.804 10.329 13.906 10.586 14.172 L 11 14.586 L 11 11.88 C 11 11.11 11.833 10.629 12.5 11.014 C 12.809 11.193 13 11.523 13 11.88 L 13 14.586 L 13.414 14.172 C 13.949 13.618 14.882 13.851 15.095 14.591 C 15.196 14.947 15.094 15.329 14.828 15.586 L 12.708 17.707 C 12.317 18.098 11.684 18.098 11.293 17.707 Z',
+      opacity: 1,
+    },
+  ],
+};
+
+/** A cloud, an arrow down out of it, the cloud cut round the arrow. */
+export const CLOUD_DOWNLOAD_ICON: Icon = {
+  size: 24,
+  paths: [
+    {
+      d: 'M 11.5 2 C 14.208 2 16.632 3.678 17.586 6.212 C 22.041 7.437 23.499 13.026 20.21 16.271 C 19.288 17.181 18.096 17.768 16.813 17.945 L 7 18 C 3.151 18.003 0.743 13.837 2.665 10.503 C 3.2 9.575 4.018 8.844 5 8.416 C 5.046 4.859 7.943 2 11.5 2 Z',
+      opacity: 0.3,
+      cut: { d: DOWNLOAD_ARROW_LOW, gap: 1.5 },
+    },
+    {
+      d: DOWNLOAD_ARROW_LOW,
+      opacity: 1,
+    },
+  ],
+};
+
+/** A screen, an arrow down out of its foot, the screen cut round the arrow. */
+export const SCREEN_DOWNLOAD_ICON: Icon = {
+  size: 24,
+  paths: [
+    {
+      d: 'M 20 4 C 21.105 4 22 4.895 22 6 L 22 17 C 22 18.105 21.105 19 20 19 L 4 19 C 2.895 19 2 18.105 2 17 L 2 6 C 2 4.895 2.895 4 4 4 L 20 4 Z',
+      opacity: 0.3,
+      cut: { d: DOWNLOAD_ARROW_LOW, gap: 1.5 },
+    },
+    {
+      d: DOWNLOAD_ARROW_LOW,
+      opacity: 1,
+    },
+  ],
 };
