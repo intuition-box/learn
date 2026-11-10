@@ -93,6 +93,17 @@ The universe is a copy of `wave-universe` at commit `04beb00`, cut down to
 this page: a white sky, the role shapes, the mark. A fix made there is
 carried over by hand.
 
+### The brand page
+
+`/brand` shows the brand in itself: the logo and the mark, the colors with
+their contrast worked out, the type scale the site sets, and backgrounds and
+social images drawn from the film's atoms. Every picture downloads as SVG or
+as a PNG at its exact size, from `/brand/files/<name>`; `pnpm build` writes
+each one out as a static file, the PNGs rasterized by resvg. The page is
+rendered from one config, `src/lib/brand/learn-brand.ts`, by the components
+in `src/components/brand/`, which import nothing from the app, so they can
+move to a shared Wave package.
+
 ## Development
 
 Requires Node 26 (see `.nvmrc`) and pnpm 11.
@@ -118,10 +129,12 @@ pnpm dev
 
 ```text
 content/docs/                 The documentation, in Markdown; meta.json sets the order.
-src/app/                      Routes: the film at /, /docs, llms.txt, the sitemap; /play forwards to /.
+src/app/                      Routes: the film at /, /docs, /brand and its files, llms.txt, the sitemap; /play forwards to /.
+src/components/brand/         The brand page, rendered from a typed config; written to move to a Wave package.
 src/components/onboarding/    The entrance and its universe, the top bar, returning visitors.
 src/components/playground/    The film: its story, the 2D plane, the 3D scene, the timeline.
 src/lib/                      The site's URL, the documentation route, sphere math, icons.
+src/lib/brand/                Intuition's brand config, and the SVG pictures it offers to download.
 ```
 
 The documentation is rendered by
