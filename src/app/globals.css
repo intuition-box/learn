@@ -109,19 +109,6 @@
 }
 
 /*
- * The docs home's header: a field of atoms in their roles' shapes and
- * colours, every claim drawn (`public/docs/hero-atoms.svg`), in place of the
- * stylesheet's grid. Its ellipse behind the words, its fade and its
- * vignette stay as they are.
- *
- * Unlayered, so it outranks the stylesheet's own rule.
- */
-.wave-docs-hero::before {
-  rotate: none;
-  background: url('/docs/hero-atoms.svg') center / cover no-repeat;
-}
-
-/*
  * A diagram in the docs, a fence marked `diagram`: drawn in text, so its
  * lines keep their places against each other, and centred as a whole in its
  * box. Wider than the box, it scrolls as any code does.
