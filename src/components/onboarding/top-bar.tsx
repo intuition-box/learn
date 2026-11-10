@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 
 import { ROUTES } from '@/lib/site';
@@ -16,13 +17,17 @@ import { LogoMark } from './logo-mark';
 const LINK_CLASS =
   '-mx-2 rounded-md bg-graphite-0/80 px-2 py-1 outline-graphite-900 backdrop-blur-sm focus-visible:outline-2';
 
+/** A link in the bar: muted, and dark on hover or when it is the page you are on. */
+const NAV_LINK_CLASS = `text-sm text-graphite-500 hover:text-graphite-900 aria-[current=page]:text-graphite-900 ${LINK_CLASS}`;
+
 /**
- * The bar at the top of the film's page. While the entrance's stars come
- * in, it waits above; once they have formed the logo, it fades in and
- * slides down. Skipping to the documentation is remembered: the site opens
- * on the docs next time.
+ * The bar at the top of the film's page and the brand page. While the
+ * entrance's stars come in, it waits above; once they have formed the
+ * Intuition logo, it fades in and slides down. Going to the documentation
+ * is remembered: the site opens on the docs next time.
  */
 export function TopBar(): ReactNode {
+  const pathname = usePathname();
   return (
     <header className="flex items-center justify-between px-6 py-5 in-data-[entrance=welcome]:invisible in-data-[entrance=welcome]:-translate-y-4 in-data-[entrance=welcome]:opacity-0 motion-safe:transition-[opacity,translate,visibility] motion-safe:duration-700 motion-safe:ease-out">
       <Link
@@ -30,17 +35,24 @@ export function TopBar(): ReactNode {
         className={`flex items-center gap-2 font-medium ${LINK_CLASS}`}
       >
         <LogoMark className="h-5 text-graphite-900" />
-        Intuition
+        Learn
       </Link>
-      <nav aria-label="Main">
+      <nav aria-label="Main" className="flex items-center gap-5">
+        <Link
+          href={ROUTES.brand}
+          className={NAV_LINK_CLASS}
+          aria-current={pathname === ROUTES.brand ? 'page' : undefined}
+        >
+          Brand
+        </Link>
         <Link
           href={ROUTES.docs}
-          className={`text-sm text-graphite-500 hover:text-graphite-900 ${LINK_CLASS}`}
+          className={NAV_LINK_CLASS}
           onClick={() => {
             rememberLanding('docs');
           }}
         >
-          Skip to docs
+          Docs
         </Link>
       </nav>
     </header>
