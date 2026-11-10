@@ -1,0 +1,142 @@
+/*
+ * Intuition brand tokens, as CSS custom properties.
+ *
+ * The same tokens as tokens.json, named by its paths: --intuition-<group>-<name>.
+ * The brand is light; dark surfaces are composed from these same colors
+ * (Midnight, Graphite 950).
+ */
+
+:root {
+  /* Color: brand */
+  --intuition-color-brand-midnight: #16161e; /* Primary: text, the logo, primary buttons, dark surfaces */
+  --intuition-color-brand-teal: #00c9d1; /* Secondary: download and brand actions; Midnight text on it, never white */
+  --intuition-color-brand-gold: #eabf13; /* Accent: the rare highlight; Midnight text on it, never white */
+
+  /* Color: Graphite */
+  --intuition-color-graphite-0: #ffffff;
+  --intuition-color-graphite-50: #f2f3f7;
+  --intuition-color-graphite-100: #e2e2ea;
+  --intuition-color-graphite-200: #c6cbd9;
+  --intuition-color-graphite-300: #9a9aaf;
+  --intuition-color-graphite-400: #7e7e8f;
+  --intuition-color-graphite-500: #656575;
+  --intuition-color-graphite-600: #535362;
+  --intuition-color-graphite-700: #2e2e3a;
+  --intuition-color-graphite-800: #262631;
+  --intuition-color-graphite-900: #16161e;
+  --intuition-color-graphite-950: #07070c;
+
+  /* Color: interface roles */
+  --intuition-color-interface-page: var(--intuition-color-graphite-0);
+  --intuition-color-interface-text: var(--intuition-color-graphite-900);
+  --intuition-color-interface-text-muted: var(--intuition-color-graphite-500);
+  --intuition-color-interface-text-muted-on-dark: var(--intuition-color-graphite-300);
+  --intuition-color-interface-hairline: var(--intuition-color-graphite-100);
+  --intuition-color-interface-border-strong: var(--intuition-color-graphite-200);
+  --intuition-color-interface-surface-subtle: var(--intuition-color-graphite-50);
+  --intuition-color-interface-button-primary: var(--intuition-color-graphite-900);
+  --intuition-color-interface-button-primary-hover: var(--intuition-color-graphite-700);
+  --intuition-color-interface-focus: var(--intuition-color-graphite-900);
+  --intuition-color-interface-focus-on-dark: var(--intuition-color-graphite-0);
+
+  /* Color: protocol. Fill shapes only, never text. */
+  --intuition-color-protocol-subject: #7a86ff; /* Circle */
+  --intuition-color-protocol-predicate: #2fe08b; /* Triangle */
+  --intuition-color-protocol-object: #ff4f5e; /* Square */
+  --intuition-color-protocol-bridge-object: #ff5fd2; /* Hexagon */
+  --intuition-color-protocol-against: #ff912e;
+  --intuition-color-protocol-for: #28aaf5;
+
+  /* Color: drafting. The logo's diagrams only. */
+  --intuition-color-diagram-rule: #fb2c36;
+
+  /* Font families */
+  --intuition-font-family-title: 'Instrument Sans', 'Inter', ui-sans-serif,
+    system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    sans-serif;
+  --intuition-font-family-text: 'Inter', ui-sans-serif, system-ui,
+    -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --intuition-font-family-mono: 'Ioskeley Mono', ui-monospace, SFMono-Regular,
+    'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+
+  /* Font weights */
+  --intuition-font-weight-regular: 400; /* Text */
+  --intuition-font-weight-medium: 500; /* Titles, Kicker, emphasis, button labels */
+  --intuition-font-weight-semibold: 600; /* Only where 500 is not enough */
+
+  /* Font sizes, and their line heights */
+  --intuition-font-size-title-xl: 2.25rem; /* 36px */
+  --intuition-line-height-title-xl: 2.5rem; /* 40px */
+  --intuition-font-size-title-lg: 1.875rem; /* 30px */
+  --intuition-line-height-title-lg: 2.25rem; /* 36px */
+  --intuition-font-size-title-md: 1.5rem; /* 24px */
+  --intuition-line-height-title-md: 2rem; /* 32px */
+  --intuition-font-size-title-sm: 1.25rem; /* 20px */
+  --intuition-line-height-title-sm: 1.75rem; /* 28px */
+  --intuition-font-size-text-lg: 1.125rem; /* 18px */
+  --intuition-line-height-text-lg: 1.75rem; /* 28px */
+  --intuition-font-size-text-md: 1rem; /* 16px */
+  --intuition-line-height-text-md: 1.5rem; /* 24px */
+  --intuition-font-size-text-sm: 0.875rem; /* 14px */
+  --intuition-line-height-text-sm: 1.25rem; /* 20px */
+  --intuition-font-size-text-xs: 0.75rem; /* 12px */
+  --intuition-line-height-text-xs: 1rem; /* 16px */
+
+  /* Letter spacing */
+  --intuition-letter-spacing-title: -0.025em; /* Title md, lg and xl */
+  --intuition-letter-spacing-label: 0.18em; /* Label: capitals, Ioskeley Mono */
+
+  /* Diagram labels: Inter, 12px, line height 1, 10px off their line */
+  --intuition-diagram-label-gap: 10px;
+
+  /* Focus */
+  --intuition-focus-width: 2px;
+  --intuition-focus-offset: 2px;
+
+  /* Corners: three tiers by the kind of box (reference/interface.md) */
+  --intuition-radius-base: 0.625rem; /* 10px; 16px where squircles draw, below */
+  --intuition-radius-step: 0.25rem; /* 4px between tiers */
+  --intuition-radius-sm: calc(var(--intuition-radius-base) - var(--intuition-radius-step)); /* Chips, badges, menu items: 6px, 12px as squircles */
+  --intuition-radius-md: var(--intuition-radius-base); /* Controls and overlays: 10px, 16px as squircles */
+  --intuition-radius-lg: calc(var(--intuition-radius-base) + var(--intuition-radius-step)); /* Blocks: panels, cards, code: 14px, 20px as squircles */
+
+  /* Logo */
+  --intuition-logo-min-height: 16px; /* The mark itself, not its file */
+  --intuition-logo-clear-space: 0.467; /* × the mark's height, on every side */
+  --intuition-logo-reversed-inset: 0.0047; /* The reversed mark, optically corrected for the irradiation illusion: every edge 1 of the mark's 214 units in, × its height */
+}
+
+/* A squircle reads tighter than an arc at the same radius: where one draws, the base grows. */
+@supports (corner-shape: squircle) {
+  :root {
+    --intuition-radius-base: 1rem;
+  }
+}
+
+/* Every corner a squircle where the browser draws one; `*` reaches no pseudo-element. */
+*,
+::before,
+::after,
+::file-selector-button {
+  corner-shape: squircle;
+}
+
+/* Pills and dots stay round: a squircled pill has flattened ends. */
+.intuition-pill {
+  border-radius: 9999px;
+  corner-shape: round;
+}
+
+/* Ioskeley Mono's zero is slashed wherever it appears. */
+code,
+kbd,
+samp,
+pre,
+.intuition-mono {
+  font-variant-numeric: slashed-zero;
+}
+
+/* Mono text outside code elements: labels, values, hashes. */
+.intuition-mono {
+  font-family: var(--intuition-font-family-mono);
+}
