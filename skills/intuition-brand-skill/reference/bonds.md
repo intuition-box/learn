@@ -26,6 +26,8 @@ All measures are at the film's atom size, **34px**. At another size `s` ([bonds-
 5. **Grows once both atoms are in place; draws back; dots only on the drawn part.**
 6. **Center to center.** A bond goes from one shape to the other, always from and to each shape's center, its true center, where it balances: a triangle's sits below the middle of its box. A triple's two bonds meet exactly at the predicate's center: the first ends there and the second starts there, never one line from the subject to the object with the predicate somewhere along it.
 
+**The exception, for art only.** In an illustration made as art, such as the Observed and Orbit backgrounds, a bond may be drawn over the atom it leaves from, so it shows leaving from its center: the first over the subject's circle, the second over the predicate's triangle. Never in an interface, a diagram or the film, where bonds always run under the shapes.
+
 ## How to draw bonds
 
 1. Lay the triple out as [triples.md](triples.md) does.
