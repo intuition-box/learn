@@ -13,7 +13,10 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@waveso/docs": "0.15.0",
+    "@base-ui/react": "^1.6.0",
+    "@resvg/resvg-js": "2.6.2",
+    "@waveso/docs": "0.17.0",
+    "motion": "^14.10.1",
     "next": "16.5.0-canary.38",
     "react": "19.3.1",
     "react-dom": "19.3.1"
