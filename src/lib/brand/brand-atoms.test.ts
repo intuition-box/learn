@@ -21,7 +21,7 @@ describe('atomsSvg', () => {
     }
   });
 
-  it('sinks the sides into Midnight, and keeps them one shade on white', () => {
+  it('draws the sides in one shade of the shape: 30% darker on Midnight, 20% on white', () => {
     // The circle's layers, back to front: its sides, its face's rim, its face.
     const fills = (ground: 'dark' | 'light') =>
       Array.from(
@@ -30,12 +30,13 @@ describe('atomsSvg', () => {
         ),
         ([, fill]) => fill,
       );
-    // On white, the subject's #7a86ff 28% darker, front to back.
+    // The subject's #7a86ff, the same from the back to the face.
+    const dark = fills('dark');
+    expect(dark[0]).toBe('#555eb3');
+    expect(dark.at(-2)).toBe('#555eb3');
     const light = fills('light');
-    expect(light[0]).toBe('#5860b8');
-    expect(light.at(-4)).toBe('#5860b8');
-    // On Midnight, darker than its face and half sunk into #16161e at the back.
-    expect(fills('dark')[0]).toBe('#282a4a');
+    expect(light[0]).toBe('#626bcc');
+    expect(light.at(-2)).toBe('#626bcc');
   });
 });
 

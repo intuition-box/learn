@@ -8,7 +8,7 @@
  * The 3D is a view, not a renderer: each shape's face is its mark outline
  * under a turn (yaw) and a tip back (pitch), seen straight on, which keeps
  * a vertical line vertical, and its sides are copies of the face stacked
- * into the picture, shaded deeper as they go back. So every outline stays
+ * into the picture, one flat shade of the shape. So every outline stays
  * the mark's own, exactly. The one exception to the brand's rule that no
  * atom turns: the triangle is turned 10° in the picture's plane, Saulo's
  * call for this picture only.
@@ -30,14 +30,14 @@ export type AtomsGround = 'dark' | 'light';
 
 /**
  * Each ground's color, how much darker than its face a shape's side is, how
- * far its sides fade into the ground by the back, and the face's dark rim:
- * on Midnight the sides sink into it; on white they stay one solid shade.
+ * far its sides fade into the ground by the back, and the face's rim: one
+ * flat shade of the shape's color on both grounds.
  */
 const GROUNDS: Readonly<
   Record<AtomsGround, { hex: Hex; side: number; fade: number; rim: number }>
 > = {
-  dark: { hex: '#16161e', side: 0.5, fade: 0.55, rim: 0.35 },
-  light: { hex: '#ffffff', side: 0.28, fade: 0, rim: 0.28 },
+  dark: { hex: '#16161e', side: 0.3, fade: 0, rim: 0.3 },
+  light: { hex: '#ffffff', side: 0.2, fade: 0, rim: 0.2 },
 };
 
 export interface AtomsFrame {
