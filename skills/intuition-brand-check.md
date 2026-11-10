@@ -115,6 +115,18 @@ Every value in `skills/intuition-brand-skill/` against the brand page (`learn-br
 | ✓ Intuition Universe (backgrounds) | intuition-logo-universe-x-banner-1500x500.svg, 1500 × 500 | https://learn.intuition.box/brand/files/intuition-logo-universe-x-banner-1500x500.svg (page) |
 | ✓ Intuition Universe (backgrounds) | intuition-logo-universe-linkedin-banner-1584x396.svg, 1584 × 396 | https://learn.intuition.box/brand/files/intuition-logo-universe-linkedin-banner-1584x396.svg (page) |
 | ✓ Intuition Universe (backgrounds) | intuition-logo-universe-discord-banner-960x540.svg, 960 × 540 | https://learn.intuition.box/brand/files/intuition-logo-universe-discord-banner-960x540.svg (page) |
+| ✓ Atoms Midnight (backgrounds) | intuition-atoms-midnight-desktop-2560x1440.svg, 2560 × 1440 | https://learn.intuition.box/brand/files/intuition-atoms-midnight-desktop-2560x1440.svg (page) |
+| ✓ Atoms Midnight (backgrounds) | intuition-atoms-midnight-phone-1179x2556.svg, 1179 × 2556 | https://learn.intuition.box/brand/files/intuition-atoms-midnight-phone-1179x2556.svg (page) |
+| ✓ Atoms Midnight (backgrounds) | intuition-atoms-midnight-link-preview-1200x630.svg, 1200 × 630 | https://learn.intuition.box/brand/files/intuition-atoms-midnight-link-preview-1200x630.svg (page) |
+| ✓ Atoms Midnight (backgrounds) | intuition-atoms-midnight-x-banner-1500x500.svg, 1500 × 500 | https://learn.intuition.box/brand/files/intuition-atoms-midnight-x-banner-1500x500.svg (page) |
+| ✓ Atoms Midnight (backgrounds) | intuition-atoms-midnight-linkedin-banner-1584x396.svg, 1584 × 396 | https://learn.intuition.box/brand/files/intuition-atoms-midnight-linkedin-banner-1584x396.svg (page) |
+| ✓ Atoms Midnight (backgrounds) | intuition-atoms-midnight-discord-banner-960x540.svg, 960 × 540 | https://learn.intuition.box/brand/files/intuition-atoms-midnight-discord-banner-960x540.svg (page) |
+| ✓ Atoms, light (backgrounds) | intuition-atoms-light-desktop-2560x1440.svg, 2560 × 1440 | https://learn.intuition.box/brand/files/intuition-atoms-light-desktop-2560x1440.svg (page) |
+| ✓ Atoms, light (backgrounds) | intuition-atoms-light-phone-1179x2556.svg, 1179 × 2556 | https://learn.intuition.box/brand/files/intuition-atoms-light-phone-1179x2556.svg (page) |
+| ✓ Atoms, light (backgrounds) | intuition-atoms-light-link-preview-1200x630.svg, 1200 × 630 | https://learn.intuition.box/brand/files/intuition-atoms-light-link-preview-1200x630.svg (page) |
+| ✓ Atoms, light (backgrounds) | intuition-atoms-light-x-banner-1500x500.svg, 1500 × 500 | https://learn.intuition.box/brand/files/intuition-atoms-light-x-banner-1500x500.svg (page) |
+| ✓ Atoms, light (backgrounds) | intuition-atoms-light-linkedin-banner-1584x396.svg, 1584 × 396 | https://learn.intuition.box/brand/files/intuition-atoms-light-linkedin-banner-1584x396.svg (page) |
+| ✓ Atoms, light (backgrounds) | intuition-atoms-light-discord-banner-960x540.svg, 960 × 540 | https://learn.intuition.box/brand/files/intuition-atoms-light-discord-banner-960x540.svg (page) |
 | ✓ X avatar (social) | intuition-x-avatar-400x400.svg, 400 × 400 | https://learn.intuition.box/brand/files/intuition-x-avatar-400x400.svg (page) |
 | **Rules (page: Rules)** | | |
 | ✓ Do | Draw a subject as a circle, the organic shape. | "Draw a subject as a circle, the organic shape." (page) |

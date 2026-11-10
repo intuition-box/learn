@@ -35,6 +35,18 @@ Pictures of Intuition, each a kit: one picture in every size a place asks for. F
 | https://learn.intuition.box/brand/files/intuition-logo-universe-x-banner-1500x500.svg | 1500 × 500 | The Intuition Universe, X banner, the bottom left clear for the avatar |
 | https://learn.intuition.box/brand/files/intuition-logo-universe-linkedin-banner-1584x396.svg | 1584 × 396 | The Intuition Universe, LinkedIn banner, the bottom left clear for the photo |
 | https://learn.intuition.box/brand/files/intuition-logo-universe-discord-banner-960x540.svg | 960 × 540 | The Intuition Universe, Discord banner |
+| https://learn.intuition.box/brand/files/intuition-atoms-midnight-desktop-2560x1440.svg | 2560 × 1440 | Atoms Midnight, desktop wallpaper |
+| https://learn.intuition.box/brand/files/intuition-atoms-midnight-phone-1179x2556.svg | 1179 × 2556 | Atoms Midnight, phone wallpaper |
+| https://learn.intuition.box/brand/files/intuition-atoms-midnight-link-preview-1200x630.svg | 1200 × 630 | Atoms Midnight, link preview (Open Graph image) |
+| https://learn.intuition.box/brand/files/intuition-atoms-midnight-x-banner-1500x500.svg | 1500 × 500 | Atoms Midnight, X banner, the bottom left clear for the avatar |
+| https://learn.intuition.box/brand/files/intuition-atoms-midnight-linkedin-banner-1584x396.svg | 1584 × 396 | Atoms Midnight, LinkedIn banner, the bottom left clear for the photo |
+| https://learn.intuition.box/brand/files/intuition-atoms-midnight-discord-banner-960x540.svg | 960 × 540 | Atoms Midnight, Discord banner |
+| https://learn.intuition.box/brand/files/intuition-atoms-light-desktop-2560x1440.svg | 2560 × 1440 | Atoms, light, desktop wallpaper |
+| https://learn.intuition.box/brand/files/intuition-atoms-light-phone-1179x2556.svg | 1179 × 2556 | Atoms, light, phone wallpaper |
+| https://learn.intuition.box/brand/files/intuition-atoms-light-link-preview-1200x630.svg | 1200 × 630 | Atoms, light, link preview (Open Graph image) |
+| https://learn.intuition.box/brand/files/intuition-atoms-light-x-banner-1500x500.svg | 1500 × 500 | Atoms, light, X banner, the bottom left clear for the avatar |
+| https://learn.intuition.box/brand/files/intuition-atoms-light-linkedin-banner-1584x396.svg | 1584 × 396 | Atoms, light, LinkedIn banner, the bottom left clear for the photo |
+| https://learn.intuition.box/brand/files/intuition-atoms-light-discord-banner-960x540.svg | 960 × 540 | Atoms, light, Discord banner |
 
 ## Social
 
