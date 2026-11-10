@@ -29,7 +29,7 @@ export function TopBar(): ReactNode {
         href={ROUTES.play}
         className={`flex items-center gap-2 font-medium ${LINK_CLASS}`}
       >
-        <LogoMark form="grid" className="h-5 text-black" />
+        <LogoMark className="h-5 text-graphite-900" />
         Intuition
       </Link>
       <nav aria-label="Main">

@@ -5,7 +5,7 @@ import { logoMarkFile } from '@/components/onboarding/logo-mark';
  * time from the same shapes as the mark on the page.
  */
 export function GET(): Response {
-  return new Response(logoMarkFile('grid'), {
+  return new Response(logoMarkFile(), {
     headers: { 'content-type': 'image/svg+xml' },
   });
 }
