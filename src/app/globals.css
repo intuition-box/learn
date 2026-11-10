@@ -46,10 +46,33 @@
    * out of it and fades, again and again: go.
    */
   --animate-way-pulse: way-pulse 1.6s ease-out infinite;
+  /*
+   * The brand page's reversed mark, laid over the mark in red, once its
+   * card is in view: it holds there, then drifts off as if dragged, down and
+   * right, then left, and up to rest, again and again. In the drawing's own
+   * units, so the drift keeps its size against the mark at any width.
+   */
+  --animate-reversed-drag: reversed-drag 6s cubic-bezier(0.45, 0, 0.55, 1)
+    infinite;
 
   @keyframes caption-arrive {
     from {
       opacity: 0;
+    }
+  }
+
+  @keyframes reversed-drag {
+    0%,
+    40%,
+    85%,
+    100% {
+      transform: translate(0, 0);
+    }
+    55% {
+      transform: translate(8px, 8px);
+    }
+    70% {
+      transform: translate(-8px, 2.667px);
     }
   }
 
