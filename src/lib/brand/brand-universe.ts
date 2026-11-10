@@ -23,20 +23,7 @@ import {
 import { INTUITION_LOGO } from '@/lib/intuition-logo';
 
 import { seededRandom } from './atom-field';
-import {
-  UNIVERSE_DRAWING,
-  UNIVERSE_LETTERS,
-  UNIVERSE_STARS,
-} from './universe-figma';
-
-/**
- * The letters are Inter Regular outlines; a stroke in their own ink, this
- * wide in the 13px outline's units, thickens each stem by the difference to
- * Inter Medium's, for the type scale's font-medium.
- */
-const MEDIUM_STROKE = 0.2;
-/** The letters' ink by the ground: Graphite 0 on Midnight, Midnight on white. */
-const LETTER_INK = { dark: '#ffffff', light: '#16161e' } as const;
+import { UNIVERSE_DRAWING, UNIVERSE_STARS } from './universe-figma';
 
 /** The shader's layers: how far each bows in depth round the mark, and where its bow peaks. */
 const DEPTHS = [0.9, -0.9, 0.18] as const;
@@ -191,12 +178,9 @@ function roleBy(value: number): Role {
   return 'object';
 }
 
-/** The drawing's letters were set at 13px; they stand at the type scale's Text lg, 18px. */
-const LETTER_SCALE = 18 / 13;
 /**
  * A frame the drawing is spread across, as a size of its own, and the
- * corner a platform lays its own picture over: no star there, and a letter
- * that would fall in it stands just above it.
+ * corner a platform lays its own picture over: no star there.
  */
 export interface UniverseFrame {
   width: number;
@@ -206,29 +190,16 @@ export interface UniverseFrame {
 /** A phone's drawing: as big as the Intuition Universe's, so its stars stand as far apart. */
 export const UNIVERSE_PHONE = { width: 760, height: 1648 } as const;
 
-/** The centre of a letter's outline: every number pair in it is a point. */
-function letterCentre(d: string): { x: number; y: number } {
-  const numbers = (d.match(/-?\d+(?:\.\d+)?/g) ?? []).map(Number);
-  const xs = numbers.filter((_, index) => index % 2 === 0);
-  const ys = numbers.filter((_, index) => index % 2 === 1);
-  return {
-    x: (Math.min(...xs) + Math.max(...xs)) / 2,
-    y: (Math.min(...ys) + Math.max(...ys)) / 2,
-  };
-}
-
 /**
  * Saulo's Universe as SVG elements, scaled by `scale`: each of his stars an
  * atom, its role drawn by the homepage universe's shares, solid, in its
- * role's color; his letters, Inter outlines, in white at Text lg, each kept
- * at its own turn. Landscape, as he drew it at 1440 × 810; portrait, for a
- * phone, his drawing turned a quarter, its stars and letters moving with it
- * while every atom stays upright and every letter keeps its turn.
+ * role's color. Landscape, as he drew it at 1440 × 810; portrait, for a
+ * phone, his drawing turned a quarter, its stars moving with it while every
+ * atom stays upright. The same on either ground: the document sets it.
  */
 export function figmaUniverseSvg(
   scale: number,
   layout: 'landscape' | 'portrait' | UniverseFrame = 'landscape',
-  ground: 'dark' | 'light' = 'dark',
 ): string {
   const { width, height } = UNIVERSE_DRAWING;
   const place = (x: number, y: number) => {
@@ -264,14 +235,6 @@ export function figmaUniverseSvg(
     }
     return `<use href="#u-${role}" fill="${hexOf(role)}" transform="translate(${n(at.x)} ${n(at.y)}) scale(${Number((size / unit).toFixed(4))})"/>`;
   }).join('');
-  const letters = UNIVERSE_LETTERS.map((d) => {
-    const centre = letterCentre(d);
-    const placed = place(centre.x, centre.y);
-    const at = isUnderAvatar(placed)
-      ? { x: placed.x, y: (clear?.y ?? placed.y) - 24 }
-      : placed;
-    return `<path d="${d}" fill="${LETTER_INK[ground]}" stroke="${LETTER_INK[ground]}" stroke-width="${MEDIUM_STROKE}" stroke-linejoin="round" transform="translate(${n(at.x)} ${n(at.y)}) scale(${Number(LETTER_SCALE.toFixed(5))}) translate(${n(-centre.x)} ${n(-centre.y)})"/>`;
-  }).join('');
   const defs = `<defs>${ROLES.map((role) => `<path id="u-${role}" d="${outlinePath(role, unit, 0)}"/>`).join('')}</defs>`;
-  return `${defs}<g transform="scale(${Number(scale.toFixed(5))})">${atoms}${letters}</g>`;
+  return `${defs}<g transform="scale(${Number(scale.toFixed(5))})">${atoms}</g>`;
 }

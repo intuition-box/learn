@@ -541,9 +541,9 @@ export const intuitionUniversePhone = (): string =>
   );
 
 /**
- * The Universe, as Saulo drew it at 1440 × 810: his stars as atoms, his
- * letters in white at Text lg, on Midnight, scaled to the wallpaper; the
- * phone's, his drawing turned a quarter for a tall screen.
+ * The Universe, as Saulo drew it at 1440 × 810: his stars as atoms, on
+ * Midnight, scaled to the wallpaper; the phone's, his drawing turned a
+ * quarter for a tall screen.
  */
 export const universeDesktop = (): string =>
   svgDocument(
@@ -620,7 +620,7 @@ export function universeSocial(
 ): string {
   return svgDocument(
     PRESETS[preset],
-    figmaUniverseSvg(1, UNIVERSE_SOCIAL[preset], ground),
+    figmaUniverseSvg(1, UNIVERSE_SOCIAL[preset]),
     ground === 'dark' ? LOGO_HEX : GRAPHITE[0],
   );
 }
@@ -648,22 +648,18 @@ export function atoms(
   );
 }
 
-/** The Universe, light: the same, on white, its letters in Midnight. */
+/** The Universe, light: the same, on white. */
 export const universeLightDesktop = (): string =>
   svgDocument(
     PRESETS.desktop,
-    figmaUniverseSvg(PRESETS.desktop.width / 1440, 'landscape', 'light'),
+    figmaUniverseSvg(PRESETS.desktop.width / 1440),
     GRAPHITE[0],
   );
 
 export const universeLightPhone = (): string =>
   svgDocument(
     PRESETS.phone,
-    figmaUniverseSvg(
-      PRESETS.phone.width / UNIVERSE_PHONE.width,
-      'portrait',
-      'light',
-    ),
+    figmaUniverseSvg(PRESETS.phone.width / UNIVERSE_PHONE.width, 'portrait'),
     GRAPHITE[0],
   );
 
