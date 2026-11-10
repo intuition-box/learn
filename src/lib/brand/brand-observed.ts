@@ -125,8 +125,8 @@ const AMBIENT = blend(
 /** A solid's depth, as a share of its size. */
 const DEPTH = 0.45;
 
-/** The atoms in the dark: role, place, depth (toward us +), size across, and how each is turned and tipped, in degrees. */
-const SOLIDS: readonly {
+/** An atom in the dark: role, place, depth (toward us +), size across, and how it is turned and tipped, in degrees. */
+export interface Solid {
   role: Role;
   x: number;
   y: number;
@@ -134,7 +134,21 @@ const SOLIDS: readonly {
   size: number;
   yaw: number;
   pitch: number;
-}[] = [
+}
+
+/**
+ * A scene lit as Observed is: its atoms in the dark, back to front, and
+ * where the triple's three atoms stand, each by its true center.
+ */
+export interface Scene {
+  solids: readonly Solid[];
+  triple: Readonly<
+    Record<'identity' | 'predicate' | 'object', readonly [number, number]>
+  >;
+}
+
+/** Observed's atoms in the dark. */
+const SOLIDS: readonly Solid[] = [
   { role: 'identity', x: 972, y: 492, z: -160, size: 330, yaw: 0, pitch: 0 },
   { role: 'bridge', x: 1002, y: 847, z: -60, size: 34, yaw: -30, pitch: 25 },
   { role: 'object', x: 1241, y: 207, z: -80, size: 26, yaw: 35, pitch: 30 },
@@ -152,6 +166,21 @@ const SOLIDS: readonly {
     pitch: -22,
   },
 ];
+
+/** A point on Observed's triple line, `step` atoms from its middle, two atom sizes apart. */
+function along(step: number): readonly [number, number] {
+  const angle = (TRIPLE.degrees * Math.PI) / 180;
+  return [
+    TRIPLE.x + step * 2 * TRIPLE.size * Math.cos(angle),
+    TRIPLE.y + step * 2 * TRIPLE.size * Math.sin(angle),
+  ];
+}
+
+/** Observed: its atoms in the dark, and its triple on one straight line. */
+export const OBSERVED_SCENE: Scene = {
+  solids: SOLIDS,
+  triple: { identity: along(-1), predicate: along(0), object: along(1) },
+};
 
 const n = (value: number): number => Number(value.toFixed(2));
 
@@ -248,7 +277,7 @@ const hexOf = (rgb: readonly number[]): Hex =>
 
 /** A flat-faced solid: its faces turned to us, each lit, as SVG; and its outline's faces for a shadow. */
 function prism(
-  solid: (typeof SOLIDS)[number],
+  solid: Solid,
   lights: readonly Light[],
 ): { faces: string; silhouette: string } {
   const yaw = (solid.yaw * Math.PI) / 180;
@@ -364,7 +393,7 @@ function prism(
 
 /** A sphere, each pixel lit as its surface turns to each light, dithered; and its outline for a shadow. */
 function sphere(
-  solid: (typeof SOLIDS)[number],
+  solid: Solid,
   lights: readonly Light[],
   scale: number,
   seed: number,
@@ -403,6 +432,11 @@ function sphere(
 
 /** Observed in `frame`, as SVG elements on `OBSERVED_GROUND`: the ground is the document's. */
 export function observedSvg(frame: AtomsFrame): string {
+  return sceneSvg(frame, OBSERVED_SCENE);
+}
+
+/** A scene in `frame`, lit as Observed is, as SVG elements on `OBSERVED_GROUND`. */
+export function sceneSvg(frame: AtomsFrame, scene: Scene): string {
   const placement = atomsPlacement(frame);
   const defs: string[] = [];
   const body: string[] = [];
@@ -430,32 +464,28 @@ export function observedSvg(frame: AtomsFrame): string {
   );
 
   // The triple, its atoms the lights.
-  const light = (role: Role, step: number): Light => {
-    const angle = (TRIPLE.degrees * Math.PI) / 180;
-    // Each atom placed so its true center is on the line: the triangle a
-    // little higher than its box's middle, so the bond runs straight.
+  const light = (role: keyof Scene['triple']): Light => {
+    // Each atom placed by its true center: the triangle a little higher
+    // than its box's middle, so a bond reaches its center.
     const centre = balance(role, TRIPLE.size);
+    const [x, y] = scene.triple[role];
     const color = rgbToHex(ROLE_COLORS[role]);
     const rgb = blend(parseHex(color), [255, 255, 255], LIGHT.white);
     return {
       role,
       color,
       rgb,
-      at: [
-        TRIPLE.x + step * 2 * TRIPLE.size * Math.cos(angle) - centre.x,
-        TRIPLE.y + step * 2 * TRIPLE.size * Math.sin(angle) - centre.y,
-        LIGHT.forward,
-      ],
+      at: [x - centre.x, y - centre.y, LIGHT.forward],
     };
   };
   const lights = [
-    light('identity', -1),
-    light('predicate', 0),
-    light('object', 1),
+    light('identity'),
+    light('predicate'),
+    light('object'),
   ] as const;
 
   // The solids, back to front, each after its shadow, cast away from the nearest light.
-  for (const [index, solid] of SOLIDS.entries()) {
+  for (const [index, solid] of scene.solids.entries()) {
     const drawn =
       solid.role === 'identity'
         ? sphere(solid, lights, placement.scale, 200 + index)
@@ -488,8 +518,17 @@ export function observedSvg(frame: AtomsFrame): string {
     const offset = balance(l.role, TRIPLE.size);
     return { x: l.at[0] + offset.x, y: l.at[1] + offset.y };
   };
+  // The beam's blur, its area round both bonds with room for the whole
+  // blur on every side: sized from a bond's own box, a bond running nearly
+  // straight up would have its glow cut into a strip.
+  const ends = [subject, predicate, object].map(point);
+  const margin = 3 * 11 + 13;
+  const left = Math.min(...ends.map((end) => end.x)) - margin;
+  const top = Math.min(...ends.map((end) => end.y)) - margin;
+  const right = Math.max(...ends.map((end) => end.x)) + margin;
+  const bottom = Math.max(...ends.map((end) => end.y)) + margin;
   defs.push(
-    `<filter id="remake-beam" x="-0.2" y="-2" width="1.4" height="5"><feGaussianBlur stdDeviation="11"/></filter>`,
+    `<filter id="remake-beam" filterUnits="userSpaceOnUse" x="${n(left)}" y="${n(top)}" width="${n(right - left)}" height="${n(bottom - top)}"><feGaussianBlur stdDeviation="11"/></filter>`,
   );
   for (const [from, to] of [
     [subject, predicate],
@@ -499,23 +538,7 @@ export function observedSvg(frame: AtomsFrame): string {
       `<line x1="${n(point(from).x)}" y1="${n(point(from).y)}" x2="${n(point(to).x)}" y2="${n(point(to).y)}" stroke="#ffffff" stroke-opacity="0.18" stroke-width="13" stroke-linecap="round" filter="url(#remake-beam)"/>`,
     );
   }
-  body.push(
-    bondSvg({
-      id: 'observed:0',
-      from: point(subject),
-      to: point(predicate),
-      atomSize: TRIPLE.size,
-      ground: 'dark',
-    }),
-    bondSvg({
-      id: 'observed:1',
-      from: point(predicate),
-      to: point(object),
-      atomSize: TRIPLE.size,
-      ground: 'dark',
-    }),
-  );
-  for (const source of lights) {
+  const drawLight = (source: Light) => {
     const id = `remake-light-${source.role}`;
     const shape = (size: number) =>
       `<path d="${outlinePath(source.role, size / Math.max(shapeSize(source.role).width, shapeSize(source.role).height), 0)}" transform="translate(${n(source.at[0])} ${n(source.at[1])})"`;
@@ -527,7 +550,31 @@ export function observedSvg(frame: AtomsFrame): string {
       `<g opacity="0.7" filter="url(#${id}-glow)">${shape(TRIPLE.size * 1.12)} fill="${source.color}"/></g>`,
       `${shape(TRIPLE.size)} fill="url(#${id})"/>`,
     );
-  }
+  };
+  // Each bond over the atom it leaves from, reaching its center, and under
+  // the one it reaches: the first over the subject, the second over the
+  // predicate (an exception for art only: bonds run under their atoms).
+  drawLight(subject);
+  body.push(
+    bondSvg({
+      id: 'observed:0',
+      from: point(subject),
+      to: point(predicate),
+      atomSize: TRIPLE.size,
+      ground: 'dark',
+    }),
+  );
+  drawLight(predicate);
+  body.push(
+    bondSvg({
+      id: 'observed:1',
+      from: point(predicate),
+      to: point(object),
+      atomSize: TRIPLE.size,
+      ground: 'dark',
+    }),
+  );
+  drawLight(object);
 
   return `<defs>${defs.join('')}</defs><g transform="translate(${n(placement.x)} ${n(placement.y)}) scale(${n(placement.scale)}) translate(${-FOCUS.x} ${-FOCUS.y})">${body.join('')}</g>`;
 }
