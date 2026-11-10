@@ -18,6 +18,22 @@
   --font-mono: var(--wave-docs-font-mono);
 
   /*
+   * Wave UI's corners, through the documentation stylesheet's own radius
+   * tokens, so the site and `/docs` round alike: three tiers, chosen by the
+   * kind of box, never its size. `rounded-sm` for chips, badges and the
+   * focus ring of an inline link; `rounded-md` for controls and overlays
+   * (buttons, fields, menus, cards over the page); `rounded-lg` for every
+   * block in the page (panels, cards, the film). Where squircles draw, the
+   * stylesheet raises all three, as a squircle reads tighter than an arc.
+   * The rest of Tailwind's radii are cleared, so no fourth corner creeps in;
+   * `rounded-full` is no token and stays.
+   */
+  --radius-*: initial;
+  --radius-sm: var(--wave-docs-radius-sm);
+  --radius-md: var(--wave-docs-radius);
+  --radius-lg: var(--wave-docs-radius-lg);
+
+  /*
    * The film's motion. Every one is applied behind `motion-safe:`, so none
    * runs for a reader who asked for reduced motion. None but the pulse has
    * a last keyframe, so each ends on the element's own style.
@@ -142,6 +158,29 @@
 }
 
 /*
+ * Squircle corners, Wave UI's rule as its `styles.css` writes it: every
+ * corner a continuous superellipse rather than a circular arc, where the
+ * browser draws one (Chrome today), and an ordinary rounded corner where it
+ * does not. Pills and dots opt back out: a squircled pill has flattened
+ * ends and a squircled dot is a rounded square. Pseudo-elements and the
+ * file button are named, as `*` reaches none of them.
+ */
+@layer base {
+  *,
+  ::before,
+  ::after,
+  ::file-selector-button {
+    corner-shape: squircle;
+  }
+
+  [class*='rounded-full'],
+  [class*='rounded-full']::before,
+  [class*='rounded-full']::after {
+    corner-shape: round;
+  }
+}
+
+/*
  * A diagram in the docs, a fence marked `diagram`: drawn in text, so its
  * lines keep their places against each other, and centred as a whole in its
  * box. Wider than the box, it scrolls as any code does.
@@ -172,7 +211,7 @@
 
   /* The playground's first input, the one the whole step is about. */
   .field-lg {
-    @apply h-14 rounded-lg px-4 text-xl;
+    @apply h-14 px-4 text-xl;
   }
 
   /*
@@ -180,6 +219,6 @@
    * set off from it by its border alone.
    */
   .panel {
-    @apply rounded-2xl border border-graphite-100 bg-graphite-0;
+    @apply rounded-lg border border-graphite-100 bg-graphite-0;
   }
 }
