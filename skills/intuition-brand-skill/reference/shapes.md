@@ -67,8 +67,8 @@ Fields of claims: atoms in their shapes, joined by faint bonds, few and clear. E
 | Field | Look | For |
 |---|---|---|
 | Intuition Universe | The homepage's universe: atoms in their protocol colors forming the Intuition logo's ring on white, still and solid, without the welcome or Play | Light surfaces, wallpapers |
-| Universe | Atoms in their protocol colors scattered on Midnight, here and there a letter of Intuition in white, Inter at Text lg, each turned its own way | Dark surfaces, wallpapers |
-| Universe, light | The same on white, its letters in Midnight | Light surfaces, wallpapers |
+| Universe | Atoms in their protocol colors scattered on Midnight | Dark surfaces, wallpapers |
+| Universe, light | The same on white | Light surfaces, wallpapers |
 | Atoms | The logo mark's four shapes as solids in their protocol colors, each turned its own way in 3D, among small filled atoms in their colors, a few far ones out of focus, on Midnight or on white. Its triangle is turned 10° in the picture's plane: an exception for this picture only, never a rule to follow | Dark and light surfaces, wallpapers, social images |
 
 Phone versions leave a clear band near the top for the clock.
