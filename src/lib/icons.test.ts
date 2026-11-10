@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  APP_COLOUR,
+  APP_COLOR,
   APP_ICON,
-  depositorColour,
-  FEE_COLOUR,
+  depositorColor,
+  FEE_COLOR,
   FEE_ICON,
-  SWIPE_COLOUR,
+  SWIPE_COLOR,
   SWIPE_ICON,
   USER_ICON,
   USER_ICON_FOOT,
-  VAULT_COLOURS,
+  VAULT_COLORS,
   VAULT_ICON,
   vaultFace,
 } from './icons';
@@ -18,12 +18,12 @@ import {
 describe('a vault’s faces', () => {
   it('draws an atom’s with its lid solid black, and its sides as if disabled: black at 40%', () => {
     expect(vaultFace('atom', 'subject')).toEqual({
-      colour: [0, 0, 0],
+      color: [0, 0, 0],
       opacity: 1,
     });
     for (const face of ['against', 'for'] as const) {
       expect(vaultFace('atom', face)).toEqual({
-        colour: [0, 0, 0],
+        color: [0, 0, 0],
         opacity: 0.4,
       });
     }
@@ -32,15 +32,15 @@ describe('a vault’s faces', () => {
   it('draws a triple’s with its sides solid, against orange and for blue, and its lid as if disabled: black at 40%', () => {
     for (const face of ['against', 'for'] as const) {
       expect(vaultFace('triple', face)).toEqual({
-        colour: VAULT_COLOURS[face],
+        color: VAULT_COLORS[face],
         opacity: 1,
       });
     }
     expect(vaultFace('triple', 'subject')).toEqual({
-      colour: [0, 0, 0],
+      color: [0, 0, 0],
       opacity: 0.4,
     });
-    expect(VAULT_COLOURS.subject).toEqual([0, 0, 0]);
+    expect(VAULT_COLORS.subject).toEqual([0, 0, 0]);
   });
 
   it('has the icon’s own opacities an atom’s', () => {
@@ -51,10 +51,10 @@ describe('a vault’s faces', () => {
 });
 
 describe('a person who deposits', () => {
-  it('takes the colour of what they stake on: an atom black, against orange, for blue', () => {
-    expect(depositorColour('subject')).toEqual([0, 0, 0]);
-    expect(depositorColour('against')).toEqual(VAULT_COLOURS.against);
-    expect(depositorColour('for')).toEqual(VAULT_COLOURS.for);
+  it('takes the color of what they stake on: an atom black, against orange, for blue', () => {
+    expect(depositorColor('subject')).toEqual([0, 0, 0]);
+    expect(depositorColor('against')).toEqual(VAULT_COLORS.against);
+    expect(depositorColor('for')).toEqual(VAULT_COLORS.for);
   });
 
   it('keeps the head at 30%, the shoulders solid', () => {
@@ -73,14 +73,14 @@ describe('a person who deposits', () => {
 describe('a fee', () => {
   it('is a pie, light, with a slice of it pulled out, solid, in black', () => {
     expect(FEE_ICON.paths.map((path) => path.opacity)).toEqual([0.3, 1]);
-    expect(FEE_COLOUR).toEqual([0, 0, 0]);
+    expect(FEE_COLOR).toEqual([0, 0, 0]);
   });
 });
 
 describe('an app', () => {
   it('is a window, its body light under its bar, solid, in black', () => {
     expect(APP_ICON.paths.map((path) => path.opacity)).toEqual([0.3, 1]);
-    expect(APP_COLOUR).toEqual([0, 0, 0]);
+    expect(APP_COLOR).toEqual([0, 0, 0]);
   });
 
   it('meets a line from above at the top of its bar', () => {
@@ -91,6 +91,6 @@ describe('an app', () => {
 describe('a swipe', () => {
   it('is a hand, light, under an arrow, solid, in black', () => {
     expect(SWIPE_ICON.paths.map((path) => path.opacity)).toEqual([0.3, 1]);
-    expect(SWIPE_COLOUR).toEqual([0, 0, 0]);
+    expect(SWIPE_COLOR).toEqual([0, 0, 0]);
   });
 });

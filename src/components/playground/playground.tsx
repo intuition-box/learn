@@ -30,7 +30,7 @@ import {
   THE_WAY_ON,
 } from './story-model';
 import { StoryScene } from './story-scene';
-import { outlinePath, ROLE_COLOURS } from './story-shapes';
+import { outlinePath, ROLE_COLORS } from './story-shapes';
 import { StoryTimeline } from './story-timeline';
 
 /** Once the film is on screen, how long it waits to start: a breath. */
@@ -50,11 +50,11 @@ const BEAT_STARTS = BEATS.map((beat) => beat.start);
 const GLYPH_BOX = 12;
 
 /**
- * A role's shape, in its colour, beside the word for it in a caption: the
+ * A role's shape, in its color, beside the word for it in a caption: the
  * same rounded outline the cloud and the plane fill, filled as they do.
  */
 function RoleGlyph({ role }: { role: Role }): ReactNode {
-  const fill = `rgb(${ROLE_COLOURS[role].join(', ')})`;
+  const fill = `rgb(${ROLE_COLORS[role].join(', ')})`;
 
   return (
     <svg

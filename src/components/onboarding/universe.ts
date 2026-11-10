@@ -17,7 +17,7 @@
 
 import type { Role } from '@/components/playground/story-model';
 import {
-  ROLE_COLOURS,
+  ROLE_COLORS,
   ROLES,
   traceShape,
 } from '@/components/playground/story-shapes';
@@ -472,9 +472,9 @@ type Uniforms = Record<(typeof UNIFORMS)[number], WebGLUniformLocation | null>;
 const glslFloat = (value: number): string =>
   /[.e]/.test(String(value)) ? String(value) : `${value}.0`;
 
-/** A role colour as a GLSL vec3, 0 to 1. */
-const glslColour = (role: Role): string =>
-  `vec3(${ROLE_COLOURS[role].map((channel) => glslFloat(channel / 255)).join(', ')})`;
+/** A role color as a GLSL vec3, 0 to 1. */
+const glslColor = (role: Role): string =>
+  `vec3(${ROLE_COLORS[role].map((channel) => glslFloat(channel / 255)).join(', ')})`;
 
 /**
  * The star vertex shader: for drawing, or with `isPush`, for advancing the
@@ -502,7 +502,7 @@ const float PARTED_SIZE = ${glslFloat(PARTED_SIZE)};
 // along the outline its bow peaks.
 const float DEPTHS[3] = float[3](0.9, -0.9, 0.18);
 const float PHASES[3] = float[3](0.0, 1.9, 0.6);
-const vec3 COLOURS[4] = vec3[4](${ROLES.map(glslColour).join(', ')});
+const vec3 COLORS[4] = vec3[4](${ROLES.map(glslColor).join(', ')});
 // The logo's bands, as shares of its size and in radians: radius, half
 // width, start, span; and its centre's offset from the middle, y up.
 const vec4 BANDS[${LOGO.bands.length}] = vec4[${LOGO.bands.length}](${LOGO.bands
@@ -541,7 +541,7 @@ uniform float uWakeRadius;
 #ifdef PUSH
 out vec4 vWake;
 #else
-out vec3 vColour;
+out vec3 vColor;
 out float vOpacity;
 flat out int vRole;
 #endif
@@ -690,13 +690,13 @@ void main() {
   clip.xy += push.xy;
   gl_Position = clip;
   vRole = int(aLook.y + 0.5);
-  vColour = COLOURS[vRole];
+  vColor = COLORS[vRole];
   // On the logo only, a star twinkles at its own pace, its pace and phase
   // drawn from its seeds, and fades as low as 70% on the logo's far side.
   float twinkle = 0.87 + 0.13 * sin(TAU * fract(seed.x * 13.7 + seed.y * 7.3)
     + uTime * 0.6 * (0.6 + 0.75 * fract(seed.z * 11.1)));
   float fadeBack = 0.7 + 0.3 * front;
-  // Otherwise full colour, but for a star coming in, an arc's star at its
+  // Otherwise full color, but for a star coming in, an arc's star at its
   // ends, and the corners.
   vOpacity = mix(1.0, fadeBack * twinkle * ends, onMark) * smoothstep(0.0, 0.2, shown)
     * (1.0 - cornerFade(clip.xy));
@@ -705,26 +705,26 @@ void main() {
 `;
 }
 
-/** A star: its role's shape, sampled from the shapes texture, in its colour. */
+/** A star: its role's shape, sampled from the shapes texture, in its color. */
 const FRAGMENT_SOURCE = /* glsl */ `#version 300 es
 precision highp float;
 precision mediump sampler2DArray;
 uniform sampler2DArray uShapes;
-in vec3 vColour;
+in vec3 vColor;
 in float vOpacity;
 flat in int vRole;
-out vec4 outColour;
+out vec4 outColor;
 void main() {
   float alpha = texture(uShapes, vec3(gl_PointCoord, float(vRole))).a * vOpacity;
-  outColour = vec4(vColour * alpha, alpha);
+  outColor = vec4(vColor * alpha, alpha);
 }
 `;
 
 /** Transform feedback needs a fragment stage, though nothing is drawn. */
 const DISCARD_SOURCE = /* glsl */ `#version 300 es
 precision lowp float;
-out vec4 outColour;
-void main() { outColour = vec4(0.0); }
+out vec4 outColor;
+void main() { outColor = vec4(0.0); }
 `;
 
 function compileShader(
@@ -895,7 +895,7 @@ function createRenderer(
   ] as const;
   gl.bindBuffer(gl.ARRAY_BUFFER, null);
   const feedback = gl.createTransformFeedback();
-  // Premultiplied colour over the transparent canvas.
+  // Premultiplied color over the transparent canvas.
   gl.enable(gl.BLEND);
   gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
   gl.clearColor(0, 0, 0, 0);

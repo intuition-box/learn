@@ -40,7 +40,7 @@ const seconds = (ms: number): number => Math.round(ms / 1000);
  * where the film is, with a handle on it, a dot where each beat starts, and
  * each chapter's name under its
  * segment, grey until the chapter has played through, then the track's
- * colour. Drag or click to move through the film. The arrow keys step from
+ * color. Drag or click to move through the film. The arrow keys step from
  * beat to beat, Page Up and Page Down from chapter to chapter, and Home and
  * End go to either end.
  */

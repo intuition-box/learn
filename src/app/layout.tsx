@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { SITE_URL } from '@/lib/site';
 
 // The documentation stylesheet is loaded for every page, not only `/docs`:
-// globals.css takes the site's colours and typefaces from its tokens. It
+// globals.css takes the site's colors and typefaces from its tokens. It
 // comes first so the rules in globals.css follow it.
 import '@waveso/docs/styles.css';
 import './globals.css';

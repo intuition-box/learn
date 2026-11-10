@@ -9,7 +9,7 @@ import { rememberLanding } from './landing';
 import { LogoMark } from './logo-mark';
 
 /*
- * Each link has a patch of the page's colour behind it, a little see-through
+ * Each link has a patch of the page's color behind it, a little see-through
  * and blurred, because the stars pass under the bar. The negative
  * margin keeps the words on the bar's edge, where they were before the patch.
  */

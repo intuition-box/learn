@@ -2374,7 +2374,7 @@ export function planeAt(
 
   // A triple's vaults: the people arrive, then their lines grow from them up
   // to the claim, one after another (see `vaultGrowth`). A position shows,
-  // or a side takes its colour, as the claim says.
+  // or a side takes its color, as the claim says.
   const oldVaults = from?.vaults;
   const newVaults = to?.vaults;
   const weighed = shift(

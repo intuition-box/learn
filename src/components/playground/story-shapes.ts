@@ -22,8 +22,8 @@ export const ROLES = [
   'bridge',
 ] as const satisfies readonly Role[];
 
-/** One colour per role, as sRGB channels from 0 to 255. */
-export const ROLE_COLOURS = {
+/** One color per role, as sRGB channels from 0 to 255. */
+export const ROLE_COLORS = {
   identity: [122, 134, 255],
   predicate: [47, 224, 139],
   object: [255, 79, 94],

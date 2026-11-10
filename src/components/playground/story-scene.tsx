@@ -1,21 +1,21 @@
 import { type ReactNode, useEffect, useRef } from 'react';
 
 import {
-  APP_COLOUR,
+  APP_COLOR,
   APP_ICON,
-  FEE_COLOUR,
+  FEE_COLOR,
   FEE_ICON,
-  SWIPE_COLOUR,
+  SWIPE_COLOR,
   SWIPE_ICON,
   type Icon,
   MEDAL_ICON,
   USER_ICON,
   USER_ICON_FOOT,
-  VAULT_COLOURS,
+  VAULT_COLORS,
   VAULT_ICON,
   VAULT_SIZE,
   type VaultOf,
-  depositorColour,
+  depositorColor,
   vaultFace,
 } from '@/lib/icons';
 import { LOGO, LOGO_COLOUR, LOGO_REACH } from '@/lib/logo';
@@ -82,7 +82,7 @@ import {
   planeAt,
   type VaultSide,
 } from './story-plane';
-import { ROLE_COLOURS, traceShape } from './story-shapes';
+import { ROLE_COLORS, traceShape } from './story-shapes';
 
 /** How far the eye is from the cloud's centre, in radii: the perspective. */
 const EYE_DISTANCE = 3.2;
@@ -194,12 +194,12 @@ const LINE = { width: 1, alpha: 0.16 } as const;
 /** A frame round a triple inside a claim: how strong its tint is, inside and round it. */
 const FRAME = { fill: 0.07, stroke: 0.45 } as const;
 /**
- * Each side's colour on its lines to a triple's vault, from the moment
+ * Each side's color on its lines to a triple's vault, from the moment
  * they grow: its face's, orange against the triple and blue for it.
  */
-const SIDE_COLOURS = {
-  against: VAULT_COLOURS.against,
-  for: VAULT_COLOURS.for,
+const SIDE_COLORS = {
+  against: VAULT_COLORS.against,
+  for: VAULT_COLORS.for,
 } as const satisfies Record<VaultSide, Rgb>;
 /** A perspective's outline, round or square: a faint fill, a dashed hairline. */
 const OUTLINE = { fill: 0.025, stroke: 0.12, dash: [3, 4] } as const;
@@ -277,27 +277,27 @@ function turnHintAt(elapsed: number): {
  * and as tall, its place in its ring: gold, silver, copper. And how tall
  * its numeral stands against the ring's radius, as the one in the icon does.
  */
-const RANK_COLOURS: readonly Rgb[] = [
+const RANK_COLORS: readonly Rgb[] = [
   [227, 179, 65],
   [168, 169, 173],
   [184, 115, 51],
 ];
 const MEDAL = { numeral: 1.116 } as const;
 
-/** A medal before a name: its colour, its place, and how far it has come, 0 to 1. */
+/** A medal before a name: its color, its place, and how far it has come, 0 to 1. */
 interface Medal {
-  colour: Rgb;
+  color: Rgb;
   place: number;
   amount: number;
 }
 
 /** The medal before a name ranked in a list's top three, as far as `amount` has come. */
 function medalOf(rank: number | undefined, amount: number): Medal | undefined {
-  const colour = rank === undefined ? undefined : RANK_COLOURS[rank];
+  const color = rank === undefined ? undefined : RANK_COLORS[rank];
 
-  return rank === undefined || colour === undefined || amount <= 0
+  return rank === undefined || color === undefined || amount <= 0
     ? undefined
-    : { colour, place: rank + 1, amount };
+    : { color, place: rank + 1, amount };
 }
 
 /** A menu of perspectives, as drawn: where it is, what it offers, and how far it shows and opens. */
@@ -334,7 +334,7 @@ const WAY_SCALE = 32 / 22;
 /** The room above a globe for its menu. */
 const GLOBE_MENU_ROOM = PLANE.picker.height + GLOBE_MENU.gap;
 
-/** A position on its line: a small pill of the page's colour, ringed with a hairline. */
+/** A position on its line: a small pill of the page's color, ringed with a hairline. */
 const WEIGHT = { height: PILL_HEIGHT, padding: 6, fontSize: 11 } as const;
 
 export interface StorySceneProps {
@@ -353,7 +353,7 @@ export interface StorySceneProps {
    * pulses it once the atoms round it have quietened. It reads its size,
    * full grown, from `--way-height`, `--way-padding` and `--way-font` on its
    * box, how far it has grown from `--way-scale`, to scale by from its
-   * top's middle, its pulse's colour from `--way-pulse`, and whether to
+   * top's middle, its pulse's color from `--way-pulse`, and whether to
    * pulse from `data-pulsing`.
    */
   way?: ReactNode;
@@ -404,8 +404,8 @@ interface Line {
   /** How far its dots have flowed. */
   flow: number;
   fade?: readonly number[];
-  /** Its colour: the ink, unless given. */
-  colour?: Rgb;
+  /** Its color: the ink, unless given. */
+  color?: Rgb;
 }
 
 /** Where an atom is drawn: its shape's middle, its size, and its name's scale. */
@@ -501,15 +501,15 @@ function mix(a: Rgb, b: Rgb, t: number): Rgb {
   ];
 }
 
-/** A colour from 0 to 255 channels. */
+/** A color from 0 to 255 channels. */
 function rgba([r, g, b]: Rgb, alpha = 1): string {
   return `rgba(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)}, ${alpha})`;
 }
 
 /**
- * A CSS colour token, in 0 to 255 channels. The browser converts it, by
- * painting it on a canvas, because a computed colour can come back in any
- * colour space (`lab()`, `oklch()`).
+ * A CSS color token, in 0 to 255 channels. The browser converts it, by
+ * painting it on a canvas, because a computed color can come back in any
+ * color space (`lab()`, `oklch()`).
  */
 function readToken(name: string): Rgb {
   const value = getComputedStyle(document.documentElement).getPropertyValue(
@@ -726,7 +726,7 @@ function pointAlong(
  * about, flat, which holds the film, and both go back to the film as the
  * film plays on or moves to another beat.
  *
- * Atoms are drawn in their role's shape and colour, morphing as they take a
+ * Atoms are drawn in their role's shape and color, morphing as they take a
  * role, with their names under them. A triple is a faint line of flowing ink
  * dots through its three atoms, curving round the cloud, drawn from the
  * subject on. Drawn on a canvas, only while something moves.
@@ -806,11 +806,11 @@ export function StoryScene(props: StorySceneProps): ReactNode {
       '(prefers-reduced-motion: reduce)',
     ).matches;
     const ink = readToken('--wave-docs-fg');
-    // The page's own colour: the words on a name's badge.
+    // The page's own color: the words on a name's badge.
     const page = readToken('--wave-docs-bg');
     // The line from a triple's vault to the triple, and an atom's vault's
     // lines; the ring round a position; and the person on a page about
-    // Elon Musk, in the icon's own colour.
+    // Elon Musk, in the icon's own color.
     const grey = readToken('--color-graphite-500');
     const ring = readToken('--color-graphite-100');
     const pagePerson = readToken('--color-graphite-950');
@@ -846,7 +846,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
       const scale = size / box.size;
       target.save();
       target.globalAlpha *= medal.amount;
-      target.fillStyle = rgba(medal.colour);
+      target.fillStyle = rgba(medal.color);
       target.translate(x, y);
       target.save();
       target.scale(scale, scale);
@@ -921,7 +921,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
       role: ShapeRole,
     ): void {
       const paint = rgba(
-        mix(ROLE_COLOURS[role.from], ROLE_COLOURS[role.to], role.progress),
+        mix(ROLE_COLORS[role.from], ROLE_COLORS[role.to], role.progress),
       );
       // One fill of the rounded outline: nothing is painted twice, so a
       // shape fading in is evenly see-through, with no darker rim.
@@ -976,7 +976,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
      */
     function drawLine(target: CanvasRenderingContext2D, line: Line): void {
       const { points, progress, alpha, fade } = line;
-      const colour = line.colour ?? ink;
+      const color = line.color ?? ink;
       const lengths = segmentLengths(points);
       const length = lengths.reduce((sum, part) => sum + part, 0);
       if (length <= 0 || progress <= 0) {
@@ -985,7 +985,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
       const drawn = length * progress;
       target.lineWidth = LINE.width;
       if (fade === undefined) {
-        target.strokeStyle = rgba(colour, LINE.alpha * alpha);
+        target.strokeStyle = rgba(color, LINE.alpha * alpha);
         target.beginPath();
         target.moveTo(points[0]?.x ?? 0, points[0]?.y ?? 0);
         let covered = 0;
@@ -1018,7 +1018,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
           if (shown < 0.01) {
             continue;
           }
-          target.strokeStyle = rgba(colour, LINE.alpha * alpha * shown);
+          target.strokeStyle = rgba(color, LINE.alpha * alpha * shown);
           target.beginPath();
           target.moveTo(from.x, from.y);
           target.lineTo(
@@ -1029,7 +1029,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
         }
       }
 
-      target.fillStyle = rgba(colour);
+      target.fillStyle = rgba(color);
       const dots = dotsAlong(
         line.id,
         line.units,
@@ -1386,14 +1386,14 @@ export function StoryScene(props: StorySceneProps): ReactNode {
     }
 
     /**
-     * An icon of one colour, `size` across, its middle on `at`: each of its
+     * An icon of one color, `size` across, its middle on `at`: each of its
      * shapes at its own strength (`paths`, from an icon `units` across).
      */
     function drawShapes(
       target: CanvasRenderingContext2D,
       paths: readonly { path: Path2D; opacity: number }[],
       units: number,
-      colour: Rgb,
+      color: Rgb,
       at: ScreenPoint,
       size: number,
       alpha: number,
@@ -1401,7 +1401,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
       target.save();
       target.translate(at.x - size / 2, at.y - size / 2);
       target.scale(size / units, size / units);
-      target.fillStyle = rgba(colour);
+      target.fillStyle = rgba(color);
       for (const { path, opacity } of paths) {
         target.globalAlpha = alpha * opacity;
         target.fill(path);
@@ -1411,7 +1411,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
 
     /**
      * A fee's icon, `size` across, its middle on `at`: its pie light, its
-     * slice solid (`FEE_ICON`), in `FEE_COLOUR`.
+     * slice solid (`FEE_ICON`), in `FEE_COLOR`.
      */
     function drawFee(
       target: CanvasRenderingContext2D,
@@ -1419,12 +1419,12 @@ export function StoryScene(props: StorySceneProps): ReactNode {
       size: number,
       alpha: number,
     ): void {
-      drawShapes(target, feePaths, FEE_ICON.size, FEE_COLOUR, at, size, alpha);
+      drawShapes(target, feePaths, FEE_ICON.size, FEE_COLOR, at, size, alpha);
     }
 
     /**
      * A builder's app, `size` across, its middle on `at`: its body light,
-     * its bar solid (`APP_ICON`), in `APP_COLOUR`.
+     * its bar solid (`APP_ICON`), in `APP_COLOR`.
      */
     function drawApp(
       target: CanvasRenderingContext2D,
@@ -1432,7 +1432,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
       size: number,
       alpha: number,
     ): void {
-      drawShapes(target, appPaths, APP_ICON.size, APP_COLOUR, at, size, alpha);
+      drawShapes(target, appPaths, APP_ICON.size, APP_COLOR, at, size, alpha);
     }
 
     /**
@@ -1467,21 +1467,21 @@ export function StoryScene(props: StorySceneProps): ReactNode {
     }
 
     /**
-     * A person, `size` across, centred on `at`, in `colour`: the icon's
-     * shapes, each at its own strength. One who deposits takes the colour
-     * of what they stake on (see `depositorColour`).
+     * A person, `size` across, centred on `at`, in `color`: the icon's
+     * shapes, each at its own strength. One who deposits takes the color
+     * of what they stake on (see `depositorColor`).
      */
     function drawPerson(
       target: CanvasRenderingContext2D,
       at: ScreenPoint,
       size: number,
       alpha: number,
-      colour: Rgb,
+      color: Rgb,
     ): void {
       target.save();
       target.translate(at.x - size / 2, at.y - size / 2);
       target.scale(size / USER_ICON.size, size / USER_ICON.size);
-      target.fillStyle = rgba(colour);
+      target.fillStyle = rgba(color);
       for (const { path, opacity } of personPaths) {
         target.globalAlpha = alpha * opacity;
         target.fill(path);
@@ -1492,7 +1492,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
     /**
      * The vault of an atom or of a triple, as large as an icon `size`
      * across, the middle of its shape on `at`: each face as strong as the
-     * rule says for what it holds (see `vaultFace`): in its own colour,
+     * rule says for what it holds (see `vaultFace`): in its own color,
      * solid, where it is used, and pure black at 40% where not.
      */
     function drawVault(
@@ -1509,8 +1509,8 @@ export function StoryScene(props: StorySceneProps): ReactNode {
       target.scale(scale, scale);
       target.translate(-(box.x + box.width / 2), -(box.y + box.height / 2));
       for (const { path, face } of vaultPaths) {
-        const { colour, opacity } = vaultFace(of, face);
-        target.fillStyle = rgba(colour);
+        const { color, opacity } = vaultFace(of, face);
+        target.fillStyle = rgba(color);
         target.globalAlpha = alpha * opacity;
         target.fill(path);
       }
@@ -1562,7 +1562,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
       );
       plane.lineWidth = 1 / zoom;
       for (const frame of blended.frames) {
-        const tint = ROLE_COLOURS[frame.role];
+        const tint = ROLE_COLORS[frame.role];
         plane.globalAlpha = frame.presence;
         plane.fillStyle = rgba(tint, FRAME.fill);
         plane.strokeStyle = rgba(tint, FRAME.stroke);
@@ -1685,7 +1685,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
 
       // A triple's vault: the lines down from its frame to it, and from
       // its faces against and for to each person on that side, a side's
-      // running together to the vault, each side in its colour;
+      // running together to the vault, each side in its color;
       // the vault, a triple's; each person's position, on their line, and
       // all the positions on each side, where its lines run together; and
       // the people, arriving as atoms do.
@@ -1791,7 +1791,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
               line.isHeld === true
                 ? state.props.scene.heldFlow
                 : state.props.scene.flow,
-            colour: line.side === null ? grey : SIDE_COLOURS[line.side],
+            color: line.side === null ? grey : SIDE_COLORS[line.side],
           });
         }
       }
@@ -1833,7 +1833,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
             person.isStill === true ? onStill(person) : onCanvas(person),
             PLANE.atomSize * zoom * (0.55 + 0.45 * person.presence),
             person.presence * person.strength,
-            depositorColour(person.side),
+            depositorColor(person.side),
           );
         }
       }
@@ -1891,7 +1891,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
             progress: fee.branch,
             alpha: fee.strength,
             flow: feeFlow,
-            colour: grey,
+            color: grey,
           });
         }
         if (fee.icon > 0) {
@@ -1923,7 +1923,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
               progress: fee.appLine,
               alpha: fee.strength,
               flow: feeFlow,
-              colour: grey,
+              color: grey,
             });
           }
           if (fee.appIcon > 0) {
@@ -2041,7 +2041,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
               progress: ran(share.grown, lengths[index] ?? 0),
               alpha: 1,
               flow: state.props.scene.flow,
-              colour: grey,
+              color: grey,
             });
           }
         }
@@ -2054,7 +2054,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
               progress: ran(protocolFee.grown, protocolLength),
               alpha: 1,
               flow: state.props.scene.flow,
-              colour: grey,
+              color: grey,
             });
           }
           if (protocolFee.presence > 0) {
@@ -2079,7 +2079,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
               progress: 1,
               alpha: share.presence,
               flow: state.props.scene.flow,
-              colour: grey,
+              color: grey,
             });
             drawVault(
               plane,
@@ -2168,7 +2168,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
       plane.textBaseline = 'middle';
       plane.fillStyle = rgba(ink);
       // A word that is becoming its atom's name grows the name's pill
-      // behind it, and turns the pill's colour round: it is the name.
+      // behind it, and turns the pill's color round: it is the name.
       const { badge } = PLANE;
       for (const words of blended.words) {
         if (words.alpha <= 0) {
@@ -2538,7 +2538,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
       data: number,
     ): void {
       const { page: box, scale } = layout;
-      // The encyclopedia's own colours: its text, its links, its rules and
+      // The encyclopedia's own colors: its text, its links, its rules and
       // its pale panels.
       const text: Rgb = [32, 33, 34];
       const link: Rgb = [51, 102, 204];
@@ -2551,16 +2551,16 @@ export function StoryScene(props: StorySceneProps): ReactNode {
         y: number,
         width: number,
         height: number,
-        colour: Rgb,
+        color: Rgb,
         alpha = 1,
       ): void => {
-        target.fillStyle = rgba(colour, alpha);
+        target.fillStyle = rgba(color, alpha);
         target.beginPath();
         target.roundRect(x, y, width, height, height / 2);
         target.fill();
       };
-      const line = (x1: number, y1: number, x2: number, colour: Rgb): void => {
-        target.strokeStyle = rgba(colour);
+      const line = (x1: number, y1: number, x2: number, color: Rgb): void => {
+        target.strokeStyle = rgba(color);
         target.lineWidth = hairline;
         target.beginPath();
         target.moveTo(x1, y1);
@@ -2703,14 +2703,14 @@ export function StoryScene(props: StorySceneProps): ReactNode {
       target.font = `${title.size}px ${serif}`;
       target.fillText(ATOMS.elonMusk.label, title.x, title.y);
       line(title.x, titleRule.y, titleRule.right, rule);
-      for (const [x, width, colour] of [
+      for (const [x, width, color] of [
         [title.x, 40, text],
         [title.x + 50, 26, link],
         [titleRule.right - 224, 30, text],
         [titleRule.right - 182, 72, link],
         [titleRule.right - 98, 72, link],
       ] as const) {
-        bar(x, tabs.y - 4, width, 8, colour, colour === link ? 0.45 : 0.3);
+        bar(x, tabs.y - 4, width, 8, color, color === link ? 0.45 : 0.3);
       }
       line(title.x, tabs.y + 14, titleRule.right, pale);
       bar(title.x, from.y - 4, from.width, 8, text, 0.18);
@@ -3675,7 +3675,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
                 progress,
                 alpha: alpha * vault.shown,
                 flow: state.props.scene.flow,
-                colour: grey,
+                color: grey,
               });
             };
             // From the top of each person's icon to where their lines
@@ -3711,7 +3711,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
                 person,
                 DEPOSITORS.size,
                 alpha * vault.shown,
-                depositorColour('subject'),
+                depositorColor('subject'),
               );
             }
             context.globalAlpha = alpha;
@@ -3862,7 +3862,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
           context,
           swipePaths,
           SWIPE_ICON.size,
-          SWIPE_COLOUR,
+          SWIPE_COLOR,
           {
             x: (left.x + right.x) / 2 + (hint.across - 0.5) * travelPx,
             y: (left.y + right.y) / 2 - Math.sin(Math.PI * hint.across) * arcPx,
@@ -3937,7 +3937,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
       way.style.setProperty('--way-padding', `${badge.padding * WAY_SCALE}px`);
       way.style.setProperty('--way-font', `${badge.fontSize * WAY_SCALE}px`);
       way.style.setProperty('--way-scale', String(grow / WAY_SCALE));
-      way.style.setProperty('--way-pulse', rgba(ROLE_COLOURS.predicate));
+      way.style.setProperty('--way-pulse', rgba(ROLE_COLORS.predicate));
       if (at !== null) {
         way.style.left = `${at.x}px`;
         way.style.top = `${at.top}px`;
