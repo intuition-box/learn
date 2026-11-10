@@ -37,6 +37,7 @@ import { intuitionLogoSvg } from '@/lib/intuition-logo';
 
 import { atomField, chainAtoms } from './atom-field';
 import { atomsSvg } from './brand-atoms';
+import { OBSERVED_GROUND, observedSvg } from './brand-observed';
 import { bondSvg } from './brand-bond';
 import {
   figmaUniverseSvg,
@@ -645,6 +646,15 @@ export function atoms(
     PRESETS[preset],
     atomsSvg(ATOMS_FRAMES[preset], ground),
     ground === 'dark' ? LOGO_HEX : GRAPHITE[0],
+  );
+}
+
+/** Observed (`brand-observed.ts`), the triple as the light, in one of Atoms' sizes, on its own ground, Graphite 950. */
+export function observed(preset: keyof typeof ATOMS_FRAMES): string {
+  return svgDocument(
+    PRESETS[preset],
+    observedSvg(ATOMS_FRAMES[preset]),
+    OBSERVED_GROUND,
   );
 }
 
