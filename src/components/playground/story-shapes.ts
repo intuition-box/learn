@@ -35,7 +35,7 @@ export const ROLE_COLORS = {
  * How far a shape's rounding reaches out from its outline, as a share of
  * its size: it rounds the corners.
  */
-const ROUNDING = 0.05;
+export const ROUNDING = 0.05;
 
 /** Points round each outline. A multiple of 4, so the square's corners are sampled. */
 const SAMPLES = 120;
