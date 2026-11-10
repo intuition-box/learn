@@ -24,6 +24,7 @@ All measures are at the film's atom size, **34px**. At another size `s` ([bonds-
 3. **The predicate's triangle always points up.** It never turns toward its object, never left, never right.
 4. **Never:** Solid; dashed; an arrow; colored; a shadow, glow or gradient; a thicker stroke.
 5. **Grows once both atoms are in place; draws back; dots only on the drawn part.**
+6. **Center to center.** A bond goes from one shape to the other, always from and to each shape's center, its true center, where it balances: a triangle's sits below the middle of its box. A triple's two bonds meet exactly at the predicate's center: the first ends there and the second starts there, never one line from the subject to the object with the predicate somewhere along it.
 
 ## How to draw bonds
 
