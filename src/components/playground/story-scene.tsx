@@ -316,16 +316,11 @@ type Menu = Pick<
  */
 const GLOBE_MENU = { gap: 24, under: 32 } as const;
 /**
- * An atom set back on the cloud, there but in none of the triples it shows:
- * how much of its shape shows, and of its name.
+ * An atom set back on the cloud, there but in none of the triples it shows,
+ * or quietened at the film's end, as faint as the rest: how much of its
+ * shape shows, and of its name.
  */
 const SET_BACK = { shape: PLANE.faded, name: 0.1 } as const;
-
-/**
- * An atom shown quieter than the rest, so the one the beat is about stands
- * out: how much of it shows, its shape and its name.
- */
-const QUIET = 0.3;
 
 /**
  * How much the way on's name grows as its neighbours quieten, from any
@@ -451,8 +446,6 @@ interface Ending {
    */
   risen: ReadonlySet<AtomId>;
   button: AtomId;
-  /** How large the way on's name is: 1 as any name, growing to `WAY_SCALE`. */
-  grow: number;
   /**
    * Where the way on is, for the page to place its name, the button: the
    * cloud draws its shape, under the haze, and not its name.
@@ -3174,15 +3167,12 @@ export function StoryScene(props: StorySceneProps): ReactNode {
       // above the graph; he is drawn there over it. As the film ends, he
       // goes back into it with it, and the cloud draws him again.
       // Where the way on is, if the cloud shows it. It grows as its
-      // neighbours quieten.
+      // neighbours quieten, and the globe fades round it as much.
       const way: { at: WayPlace | null } = { at: null };
-      const wayGrow = lerp(
-        1,
-        WAY_SCALE,
-        Math.max(0, ...state.props.scene.quiet.values()),
-      );
+      const quietened = Math.max(0, ...state.props.scene.quiet.values());
+      const wayGrow = lerp(1, WAY_SCALE, quietened);
       // Whether its neighbours' names fit under the line beside its own,
-      // grown, where the cloud comes home, into all the room it will have:
+      // at a name's size, where the cloud comes home, into all the room it will have:
       // if not, theirs sit above them, throughout, so no name ever changes
       // sides.
       const homeRadius = reachIn(height + roomBelow) / reachShare;
@@ -3196,7 +3186,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
         return context.measureText(label).width / 2 + badge.padding * scale;
       };
       const isRisen =
-        halfOf(ATOMS[THE_WAY_ON].label, WAY_SCALE) +
+        halfOf(ATOMS[THE_WAY_ON].label, 1) +
           Math.max(
             ...[...WAY_NEIGHBOURS].map((id) => halfOf(ATOMS[id].label, 1)),
           ) +
@@ -3277,7 +3267,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
         // one shown quieter, quieter.
         const showing = (id: AtomId, part: keyof typeof SET_BACK): number =>
           lerp(1, SET_BACK[part], setBack.get(id) ?? 0) *
-          lerp(1, QUIET, ending?.quiet.get(id) ?? 0);
+          lerp(1, SET_BACK[part], ending?.quiet.get(id) ?? 0);
         const isSetBack = (id: AtomId): boolean =>
           (setBack.get(id) ?? 0) >= 0.5;
         // Each triple's bonds, under the atoms, drawn as far as they have got. An
@@ -3598,18 +3588,16 @@ export function StoryScene(props: StorySceneProps): ReactNode {
           if (at.z < 0.1) {
             continue;
           }
-          // The way on's name, a button, as large as it has grown; and its
-          // neighbours', above them where the ending says.
+          // The way on's name, a button, laid out at a name's size: it scales
+          // over the page from there and moves no other name. Its
+          // neighbours' sit above them where the ending says.
           const isButton = atom.id === ending?.button;
-          const grow = isButton ? ending.grow : 1;
-          context.font = `500 ${badge.fontSize * grow}px ${fontFamily}`;
           const textWidth = context.measureText(atom.label).width;
-          context.font = `500 ${badge.fontSize}px ${fontFamily}`;
           const name = placeName(
             at,
-            textWidth / 2 + badge.padding * grow,
+            textWidth / 2 + badge.padding,
             atom.at[1],
-            badge.height * grow,
+            badge.height,
             ending?.risen.has(atom.id) ?? false,
           );
           if (name === null) {
@@ -3809,14 +3797,13 @@ export function StoryScene(props: StorySceneProps): ReactNode {
               quiet: state.props.scene.quiet,
               risen: isRisen ? WAY_NEIGHBOURS : NONE_RISEN,
               button: THE_WAY_ON,
-              grow: wayGrow,
               placeButton: (place) => {
                 way.at = place;
               },
             },
       );
       placeWay(way.at?.name ?? null, wayGrow, badge);
-      placeHaze(way.at, (wayGrow - 1) / (WAY_SCALE - 1));
+      placeHaze(way.at, quietened);
       // The copy over the cloud as it splits off, the two one at first.
       if (other !== null) {
         drawSphere(
