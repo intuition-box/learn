@@ -36,6 +36,7 @@ import {
 import { intuitionLogoSvg } from '@/lib/intuition-logo';
 
 import { atomField, chainAtoms } from './atom-field';
+import { atomsSvg } from './brand-atoms';
 import { bondSvg } from './brand-bond';
 import {
   figmaUniverseSvg,
@@ -620,6 +621,29 @@ export function universeSocial(
   return svgDocument(
     PRESETS[preset],
     figmaUniverseSvg(1, UNIVERSE_SOCIAL[preset], ground),
+    ground === 'dark' ? LOGO_HEX : GRAPHITE[0],
+  );
+}
+
+/** Atoms' sizes: the wallpapers, and the universes' social sizes with their clear corners. */
+const ATOMS_FRAMES = {
+  desktop: PRESETS.desktop,
+  phone: PRESETS.phone,
+  ...UNIVERSE_SOCIAL,
+} as const;
+
+/**
+ * Atoms (`brand-atoms.ts`) in one of its sizes, on Midnight or on white:
+ * the logo mark's four shapes in 3D among small atoms, fitted to the
+ * frame.
+ */
+export function atoms(
+  preset: keyof typeof ATOMS_FRAMES,
+  ground: 'dark' | 'light',
+): string {
+  return svgDocument(
+    PRESETS[preset],
+    atomsSvg(ATOMS_FRAMES[preset], ground),
     ground === 'dark' ? LOGO_HEX : GRAPHITE[0],
   );
 }
