@@ -222,3 +222,28 @@
     @apply rounded-lg border border-graphite-100 bg-graphite-0;
   }
 }
+
+/*
+ * Wave UI's motion tokens, by its names and values (its \`styles.css\`): the
+ * one curve, the durations by tier, a popup's slide and blur, and the
+ * stagger between its parts. For a reader who asked for less motion they all
+ * drop to nothing, as in Wave UI.
+ */
+:root {
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --duration-sm: 150ms;
+  --duration-md: 200ms;
+  --offset-md: 4px;
+  --blur-md: 4px;
+  --stagger-md: 60ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:root {
+    --duration-sm: 0ms;
+    --duration-md: 0ms;
+    --offset-md: 0px;
+    --blur-md: 0px;
+    --stagger-md: 0ms;
+  }
+}

@@ -1,0 +1,6 @@
+/** Joins class names, skipping the empty ones. */
+export function cn(
+  ...classes: Array<string | false | null | undefined>
+): string {
+  return classes.filter(Boolean).join(' ');
+}
