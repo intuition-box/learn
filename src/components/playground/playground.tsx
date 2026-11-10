@@ -95,7 +95,7 @@ function Caption({ parts }: { parts: readonly CaptionPart[] }): ReactNode {
           href={part.href}
           target="_blank"
           rel="noopener noreferrer"
-          className="rounded-sm whitespace-nowrap text-fg underline decoration-fg-muted underline-offset-[0.2em] outline-offset-2 outline-accent hover:decoration-fg focus-visible:outline-2"
+          className="rounded-sm whitespace-nowrap text-graphite-900 underline decoration-graphite-500 underline-offset-[0.2em] outline-offset-2 outline-graphite-900 hover:decoration-graphite-900 focus-visible:outline-2"
         >
           {part.text}
           {/* Out of the page: an arrow pointing up and away. */}
@@ -388,7 +388,7 @@ export function Playground(): ReactNode {
             // has quietened.
             <Link
               href={ROUTES.docs}
-              className="flex h-(--way-height) origin-top scale-(--way-scale) items-center rounded-full bg-fg px-(--way-padding) text-(length:--way-font) leading-none font-medium whitespace-nowrap text-bg outline-offset-2 outline-accent transition-colors duration-200 ease-out hover:bg-fg/85 focus-visible:outline-2 motion-safe:in-data-[pulsing=true]:animate-way-pulse"
+              className="flex h-(--way-height) origin-top scale-(--way-scale) items-center rounded-full bg-graphite-900 px-(--way-padding) text-(length:--way-font) leading-none font-medium whitespace-nowrap text-graphite-0 outline-offset-2 outline-graphite-900 transition-colors duration-200 ease-out hover:bg-graphite-900/85 focus-visible:outline-2 motion-safe:in-data-[pulsing=true]:animate-way-pulse"
               onClick={() => {
                 rememberLanding('docs');
               }}

@@ -20,7 +20,7 @@ export function Moved({ to }: MovedProps): ReactNode {
   }, [to]);
 
   return (
-    <main className="flex min-h-dvh items-center justify-center px-6 text-fg-muted">
+    <main className="flex min-h-dvh items-center justify-center px-6 text-graphite-500">
       <a href={to} className="underline underline-offset-[0.2em]">
         This page has moved.
       </a>

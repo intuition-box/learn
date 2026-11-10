@@ -38,7 +38,7 @@ export default function RootLayout({
         {/* oxlint-disable-next-line nextjs/no-sync-scripts -- it must run before the first paint. */}
         <script src="/landing.js" />
       </head>
-      <body className="min-h-dvh bg-bg font-sans text-fg antialiased">
+      <body className="min-h-dvh bg-graphite-0 font-sans text-graphite-900 antialiased">
         {children}
       </body>
     </html>

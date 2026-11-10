@@ -4296,7 +4296,7 @@ export function StoryScene(props: StorySceneProps): ReactNode {
       <div
         ref={hazeRef}
         aria-hidden
-        className="pointer-events-none absolute top-0 left-0 h-[calc(100%+var(--below))] w-full rounded-lg bg-bg/40 opacity-0 backdrop-blur-[2px]"
+        className="pointer-events-none absolute top-0 left-0 h-[calc(100%+var(--below))] w-full rounded-lg bg-graphite-0/40 opacity-0 backdrop-blur-[2px]"
       />
       {/* The plane, sharp in front of the cloud: drawn, never touched. */}
       <canvas
