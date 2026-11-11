@@ -139,6 +139,12 @@ Every value in `skills/intuition-brand-skill/` against the brand page (`learn-br
 | ✓ Orbit (backgrounds) | intuition-orbit-x-banner-1500x500.svg, 1500 × 500 | https://learn.intuition.box/brand/files/intuition-orbit-x-banner-1500x500.svg (page) |
 | ✓ Orbit (backgrounds) | intuition-orbit-linkedin-banner-1584x396.svg, 1584 × 396 | https://learn.intuition.box/brand/files/intuition-orbit-linkedin-banner-1584x396.svg (page) |
 | ✓ Orbit (backgrounds) | intuition-orbit-discord-banner-960x540.svg, 960 × 540 | https://learn.intuition.box/brand/files/intuition-orbit-discord-banner-960x540.svg (page) |
+| ✓ Multiplayer (backgrounds) | intuition-multiplayer-desktop-2560x1440.svg, 2560 × 1440 | https://learn.intuition.box/brand/files/intuition-multiplayer-desktop-2560x1440.svg (page) |
+| ✓ Multiplayer (backgrounds) | intuition-multiplayer-phone-1179x2556.svg, 1179 × 2556 | https://learn.intuition.box/brand/files/intuition-multiplayer-phone-1179x2556.svg (page) |
+| ✓ Multiplayer (backgrounds) | intuition-multiplayer-link-preview-1200x630.svg, 1200 × 630 | https://learn.intuition.box/brand/files/intuition-multiplayer-link-preview-1200x630.svg (page) |
+| ✓ Multiplayer (backgrounds) | intuition-multiplayer-x-banner-1500x500.svg, 1500 × 500 | https://learn.intuition.box/brand/files/intuition-multiplayer-x-banner-1500x500.svg (page) |
+| ✓ Multiplayer (backgrounds) | intuition-multiplayer-linkedin-banner-1584x396.svg, 1584 × 396 | https://learn.intuition.box/brand/files/intuition-multiplayer-linkedin-banner-1584x396.svg (page) |
+| ✓ Multiplayer (backgrounds) | intuition-multiplayer-discord-banner-960x540.svg, 960 × 540 | https://learn.intuition.box/brand/files/intuition-multiplayer-discord-banner-960x540.svg (page) |
 | ✓ X avatar (social) | intuition-x-avatar-400x400.svg, 400 × 400 | https://learn.intuition.box/brand/files/intuition-x-avatar-400x400.svg (page) |
 | **Rules (page: Rules)** | | |
 | ✓ Do | Draw a subject as a circle, the organic shape. | "Draw a subject as a circle, the organic shape." (page) |
