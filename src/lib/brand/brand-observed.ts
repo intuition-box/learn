@@ -130,7 +130,7 @@ const AMBIENT = blend(
  * tightest is the hot edge).
  */
 const BLOOM = [
-  { blur: 0.015, strength: 0.6, white: 0.3 },
+  { blur: 0.03, strength: 0.3, white: 0.3 },
   { blur: 0.04, strength: 0.35, white: 0 },
   { blur: 0.1, strength: 0.2, white: 0 },
   { blur: 0.25, strength: 0.12, white: 0 },
