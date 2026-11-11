@@ -38,6 +38,7 @@ import { intuitionLogoSvg } from '@/lib/intuition-logo';
 import { atomField, chainAtoms } from './atom-field';
 import { atomsSvg } from './brand-atoms';
 import { OBSERVED_GROUND, observedSvg } from './brand-observed';
+import { multiplayerSvg } from './brand-multiplayer';
 import { orbitSvg } from './brand-orbit';
 import { bondSvg } from './brand-bond';
 import {
@@ -664,6 +665,15 @@ export function orbit(preset: keyof typeof ATOMS_FRAMES): string {
   return svgDocument(
     PRESETS[preset],
     orbitSvg(ATOMS_FRAMES[preset]),
+    OBSERVED_GROUND,
+  );
+}
+
+/** Multiplayer (`brand-multiplayer.ts`), the four shapes and the words, in one of Atoms' sizes, on Graphite 950. */
+export function multiplayer(preset: keyof typeof ATOMS_FRAMES): string {
+  return svgDocument(
+    PRESETS[preset],
+    multiplayerSvg(ATOMS_FRAMES[preset]),
     OBSERVED_GROUND,
   );
 }
