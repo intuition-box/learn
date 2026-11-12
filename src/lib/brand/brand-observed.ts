@@ -11,8 +11,13 @@
  * any frame the same way (`atomsPlacement`).
  */
 
-import { parseHex, rgbToHex } from '@/components/brand/color';
-import type { Hex } from '@/components/brand/color';
+import {
+  oklchToRgb,
+  parseHex,
+  rgbToHex,
+  rgbToOklch,
+} from '@/components/brand/color';
+import type { Hex, Rgb } from '@/components/brand/color';
 import type { Role } from '@/components/playground/story-model';
 import {
   outlinePath,
@@ -138,11 +143,55 @@ const BLOOM = [
 ] as const;
 /**
  * A turned light's core, so its light reads as something inside: its own
- * color at full at the core; around it, the color laid over itself in
- * multiply, deeper toward the rim: `rim` of the way at most, half that at
- * `reach` (a share of the face's radius). No white anywhere.
+ * color at full at the core; around it, the color deepening toward its deep
+ * tone (`deepToneOf`) at the rim: `rim` of the way at most, half that at
+ * `reach` (a share of the face's radius). The deep tone is at least `depth`
+ * darker than the color in OKLCH lightness, whatever the color, so every
+ * shape's sides stand out from its front as much. No white anywhere.
  */
-const CORE = { reach: 0.5, rim: 1 } as const;
+const CORE = { reach: 0.5, rim: 1, depth: 0.08 } as const;
+
+/**
+ * A color's deep tone, where its front deepens to at the rim: the color
+ * laid over itself in multiply (each channel `c × c / 255`), which deepens
+ * and saturates it and turns its hue a few degrees, so it stays vivid;
+ * then, if that is not yet `CORE.depth` darker than the color in OKLCH
+ * lightness, darker still, keeping multiply's hue and as much of its chroma
+ * as a screen shows. Multiply alone deepens each color by its own amount
+ * (the role colors' blue by 0.144, its red by 0.043): red keeps its
+ * lightness in its one full channel, which multiply cannot lower. The floor
+ * is a number, not one shape's color, so a changed role color still gets
+ * the same step.
+ */
+export function deepToneOf(rgb: Rgb): [number, number, number] {
+  const multiplied = [
+    (rgb[0] * rgb[0]) / 255,
+    (rgb[1] * rgb[1]) / 255,
+    (rgb[2] * rgb[2]) / 255,
+  ] as const;
+  const [lightness] = rgbToOklch(rgb);
+  const [deepened, chroma, hue] = rgbToOklch(multiplied);
+  const target = lightness - CORE.depth;
+  if (deepened <= target) {
+    return [...multiplied];
+  }
+  // The most of multiply's chroma a screen shows at that lightness.
+  let shown = 0;
+  let beyond = chroma;
+  if (oklchToRgb([target, chroma, hue]) === undefined) {
+    for (let step = 0; step < 30; step += 1) {
+      const middle = (shown + beyond) / 2;
+      if (oklchToRgb([target, middle, hue]) === undefined) {
+        beyond = middle;
+      } else {
+        shown = middle;
+      }
+    }
+  } else {
+    shown = chroma;
+  }
+  return oklchToRgb([target, shown, hue]) ?? [...multiplied];
+}
 /** Where two faces we see meet, and round the outline: a white line, `pixels` wide in the frame, at `opacity`. */
 const EDGE_LINE = { pixels: 1, opacity: 0.1 } as const;
 /** Where a flat face's core gradient is drawn, from its core to its rim: every tenth. */
@@ -929,9 +978,9 @@ export function sceneSvg(frame: AtomsFrame, scene: Scene): string {
       // turns and whatever is next to it.
       const glowing = (): [number, number, number] => [...base];
       // Its face, its core light in its own color: the color at full at
-      // the core; around it, the color over itself in multiply, deeper
-      // toward the rim (`CORE`). The sphere glows the same way, all over.
-      const deepTone = base.map((value) => (value * value) / 255);
+      // the core, deepening toward the rim to its deep tone (`CORE`,
+      // `deepToneOf`). The sphere glows the same way, all over.
+      const deepTone = deepToneOf(base);
       const coreTone = (t: number): [number, number, number] =>
         blend(base, deepTone, CORE.rim * (1 - 1 / (1 + (t / CORE.reach) ** 2)));
       const glowingSphere = (

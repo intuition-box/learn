@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import { parseHex, rgbToOklch } from '@/components/brand/color';
+
 import {
   MULTIPLAYER_SCENE,
   REFERENCE_BOUNDS,
@@ -100,6 +102,62 @@ describe('multiplayerSvg', () => {
         });
       }
     }
+  });
+
+  it('gives every shape the same visible step from its sides to its front', () => {
+    const lines = [...svg.matchAll(/<g opacity="0.1">(.*?)<\/g>/g)].map(
+      ([, inner = '']) => inner,
+    );
+    const steps = PRISMS.map((role, index) => {
+      const gradient = new RegExp(
+        `<radialGradient id="remake-light-${role}-cap" gradientUnits="userSpaceOnUse" cx="([\\d.-]+)" cy="([\\d.-]+)" r="([\\d.-]+)">(.*?)</radialGradient>`,
+      ).exec(svg);
+      const [cx = 0, cy = 0, r = 1] = [
+        gradient?.[1],
+        gradient?.[2],
+        gradient?.[3],
+      ].map(Number);
+      const stops = [
+        ...(gradient?.[4] ?? '').matchAll(
+          /offset="([\d.]+)" stop-color="(#[0-9a-f]{6})"/g,
+        ),
+      ].map(([, offset = '0', color = '#000000']) => ({
+        offset: Number(offset),
+        rgb: parseHex(color),
+      }));
+      // Where its front meets its sides, along that line (the circle's
+      // lines come first, then each prism's): how far out, the median.
+      const numbers = (
+        /<path d="M([^"]+)"/.exec(lines[index + 1] ?? '')?.[1] ?? ''
+      )
+        .split(/[ L]/)
+        .map(Number);
+      const reaches = numbers
+        .filter((_, at) => at % 2 === 0)
+        .map((x, at) =>
+          Math.min(1, Math.hypot(x - cx, (numbers[2 * at + 1] ?? 0) - cy) / r),
+        )
+        .sort((one, other) => one - other);
+      const t = reaches[Math.floor(reaches.length / 2)] ?? 0;
+      // The front's color there, as the gradient draws it.
+      const after = Math.max(
+        1,
+        stops.findIndex((stop) => stop.offset >= t),
+      );
+      const from = stops[after - 1];
+      const to = stops[after];
+      const share =
+        from && to ? (t - from.offset) / (to.offset - from.offset || 1) : 0;
+      const channel = (at: 0 | 1 | 2) =>
+        (from?.rgb[at] ?? 0) +
+        share * ((to?.rgb[at] ?? 0) - (from?.rgb[at] ?? 0));
+      const front = [channel(0), channel(1), channel(2)] as const;
+      return rgbToOklch(parseHex(ROLE_COLORS[role]))[0] - rgbToOklch(front)[0];
+    });
+    for (const step of steps) {
+      expect(step).toBeGreaterThanOrEqual(0.06);
+    }
+    expect(Math.max(...steps) - Math.min(...steps)).toBeLessThanOrEqual(0.01);
   });
 
   it('lights every side of a shape the same: its own color, at full', () => {

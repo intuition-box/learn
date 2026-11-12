@@ -4,6 +4,7 @@ import {
   contrastRatio,
   formatOklch,
   formatRatio,
+  oklchToRgb,
   parseHex,
   relativeLuminance,
   rgbToHex,
@@ -82,5 +83,21 @@ describe('rgbToOklch and formatOklch', () => {
     const [, chroma, hue] = rgbToOklch(parseHex('#767676'));
     expect(chroma).toBeLessThan(0.0005);
     expect(hue).toBe(0);
+  });
+});
+
+describe('oklchToRgb', () => {
+  it('turns OKLCH back into the color it came from', () => {
+    for (const hex of ['#7a86ff', '#2fe08b', '#ff4f5e', '#ff5fd2', '#07070c']) {
+      const rgb = parseHex(hex);
+      const back = oklchToRgb(rgbToOklch(rgb)) ?? [];
+      rgb.forEach((channel, index) => {
+        expect(back[index]).toBeCloseTo(channel, 3);
+      });
+    }
+  });
+
+  it('gives none for a color no screen shows', () => {
+    expect(oklchToRgb([0.5, 0.4, 150])).toBeUndefined();
   });
 });

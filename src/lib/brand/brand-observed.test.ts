@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
+import { parseHex, rgbToOklch } from '@/components/brand/color';
+import type { Rgb } from '@/components/brand/color';
+
 import {
   OBSERVED_GROUND,
   OBSERVED_SHADOW,
+  deepToneOf,
   edgeLines,
   observedSvg,
   outlineLine,
@@ -103,5 +107,45 @@ describe('outlineLine', () => {
     const line = outlineLine({ ...square, yaw: 30 }, '#ffffff', 1);
     expect(line.match(/<path /g)).toHaveLength(1);
     expect(line).toMatch(/Z" fill="none" stroke="#ffffff" stroke-width="1"/);
+  });
+});
+
+describe('deepToneOf', () => {
+  const lightness = (rgb: Rgb) => rgbToOklch(rgb)[0];
+  const multiply = (rgb: Rgb): Rgb => [
+    (rgb[0] * rgb[0]) / 255,
+    (rgb[1] * rgb[1]) / 255,
+    (rgb[2] * rgb[2]) / 255,
+  ];
+
+  it('lays the color over itself in multiply, where that deepens it enough', () => {
+    // Multiply takes 0.084 of the role colors' green's lightness: past the floor.
+    const green = parseHex('#2fe08b');
+    expect(deepToneOf(green)).toEqual([...multiply(green)]);
+  });
+
+  it('deepens any color at least 0.08 in OKLCH lightness, whatever multiply does', () => {
+    for (const hex of [
+      '#7a86ff',
+      '#2fe08b',
+      '#ff4f5e',
+      '#ff5fd2',
+      '#ff0000',
+      '#00ff00',
+      '#ffff00',
+      '#7f7f7f',
+    ]) {
+      const rgb = parseHex(hex);
+      expect(
+        lightness(rgb) - lightness(deepToneOf(rgb)),
+      ).toBeGreaterThanOrEqual(0.08 - 1e-6);
+    }
+  });
+
+  it("keeps multiply's hue when it deepens further", () => {
+    const red = parseHex('#ff4f5e');
+    const [, , deepHue] = rgbToOklch(deepToneOf(red));
+    const [, , multipliedHue] = rgbToOklch(multiply(red));
+    expect(deepHue).toBeCloseTo(multipliedHue, 0);
   });
 });

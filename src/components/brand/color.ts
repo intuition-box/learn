@@ -112,3 +112,39 @@ export function formatOklch([lightness, chroma, hue]: Oklch): string {
     String(Number(value.toFixed(digits)));
   return `oklch(${places(lightness, 3)} ${places(chroma, 3)} ${Math.round(hue) % 360})`;
 }
+
+/** How far past the screen's colors an OKLCH color may land and still count as on it: rounding, no more. */
+const ON_SCREEN = 1e-6;
+
+/** Linear light, 0 to 1, as an sRGB channel, 0 to 255, unrounded. */
+function channelOf(light: number): number {
+  const value = Math.min(1, Math.max(0, light));
+  return (
+    255 *
+    (value <= 0.0031308 ? 12.92 * value : 1.055 * value ** (1 / 2.4) - 0.055)
+  );
+}
+
+/**
+ * An OKLCH color as sRGB channels, 0 to 255, unrounded: the inverse of
+ * `rgbToOklch`. None if a screen cannot show it (outside sRGB).
+ */
+export function oklchToRgb([lightness, chroma, hue]: Oklch):
+  | [number, number, number]
+  | undefined {
+  const radians = (hue * Math.PI) / 180;
+  const a = chroma * Math.cos(radians);
+  const b = chroma * Math.sin(radians);
+  const l = (lightness + 0.3963377774 * a + 0.2158037573 * b) ** 3;
+  const m = (lightness - 0.1055613458 * a - 0.0638541728 * b) ** 3;
+  const s = (lightness - 0.0894841775 * a - 1.291485548 * b) ** 3;
+  const light = [
+    4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+    -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+    -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s,
+  ] as const;
+  if (light.some((value) => value < -ON_SCREEN || value > 1 + ON_SCREEN)) {
+    return undefined;
+  }
+  return [channelOf(light[0]), channelOf(light[1]), channelOf(light[2])];
+}
