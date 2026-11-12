@@ -3,8 +3,11 @@ import { describe, expect, it } from 'vitest';
 import {
   OBSERVED_GROUND,
   OBSERVED_SHADOW,
+  edgeLines,
   observedSvg,
+  outlineLine,
 } from './brand-observed';
+import type { Solid } from './brand-observed';
 import { GRAPHITE } from './learn-artwork';
 
 describe('observedSvg', () => {
@@ -57,5 +60,48 @@ describe('observedSvg', () => {
       expect(first?.[3]).toBeCloseTo(second?.[1] ?? Number.NaN, 1);
       expect(angle(first)).toBeCloseTo(angle(second), 3);
     }
+  });
+});
+
+const square: Solid = {
+  role: 'object',
+  x: 0,
+  y: 0,
+  z: 0,
+  size: 100,
+  yaw: 0,
+  pitch: 0,
+  depth: 40,
+};
+
+describe('edgeLines', () => {
+  it('draws nothing on a prism seen face on: no two faces we see meet', () => {
+    expect(edgeLines(square, '#ffffff', 1)).toBe('');
+  });
+
+  it('draws one run where the front meets the side turned to us', () => {
+    const lines = edgeLines({ ...square, yaw: 30 }, '#ffffff', 1);
+    expect(lines.match(/<path /g)).toHaveLength(1);
+    expect(lines).toContain('stroke="#ffffff" stroke-width="1"');
+  });
+
+  it('draws nothing on a sphere, whose only edge is its outline', () => {
+    expect(
+      edgeLines({ ...square, role: 'identity', yaw: 30 }, '#ffffff', 1),
+    ).toBe('');
+  });
+});
+
+describe('outlineLine', () => {
+  it("draws a sphere's outline as its circle", () => {
+    expect(outlineLine({ ...square, role: 'identity' }, '#ffffff', 1)).toBe(
+      '<circle cx="0" cy="0" r="50" fill="none" stroke="#ffffff" stroke-width="1"/>',
+    );
+  });
+
+  it("draws a prism's outline as one closed path round it", () => {
+    const line = outlineLine({ ...square, yaw: 30 }, '#ffffff', 1);
+    expect(line.match(/<path /g)).toHaveLength(1);
+    expect(line).toMatch(/Z" fill="none" stroke="#ffffff" stroke-width="1"/);
   });
 });

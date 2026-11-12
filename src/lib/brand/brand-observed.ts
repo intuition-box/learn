@@ -123,18 +123,30 @@ const AMBIENT = blend(
   0.85,
 );
 /**
- * A turned light's glow, as a camera's bloom: four layers, each reaching
- * about 2.5 times further than the last and weaker, so the light is
- * strongest at the shape and falls off fast. Each: its blur, as a share of
- * the shape's size, its strength, and how much white is in it (the
- * tightest is the hot edge).
+ * A turned light's glow, as a camera's bloom: three layers, each reaching
+ * further than the last and weaker, so the light is strongest at the shape
+ * and falls off fast. Each: its blur, as a share of the shape's size, its
+ * strength, and its color: the light's own for the tightest, the hot edge,
+ * and its pure hue further out. No white: a light grows brighter with more
+ * of its own color, never with white paint. No near glow: the shape stands
+ * clean in the dark, its light reaching out from further off.
  */
 const BLOOM = [
-  { blur: 0.03, strength: 0.3, white: 0.3 },
-  { blur: 0.04, strength: 0.35, white: 0 },
-  { blur: 0.1, strength: 0.2, white: 0 },
-  { blur: 0.25, strength: 0.12, white: 0 },
+  { blur: 0.03, strength: 0.3, isOwnColor: true },
+  { blur: 0.1, strength: 0.2, isOwnColor: false },
+  { blur: 0.25, strength: 0.12, isOwnColor: false },
 ] as const;
+/**
+ * A turned light's core, so its light reads as something inside: its own
+ * color at full at the core; around it, the color laid over itself in
+ * multiply, deeper toward the rim: `rim` of the way at most, half that at
+ * `reach` (a share of the face's radius). No white anywhere.
+ */
+const CORE = { reach: 0.5, rim: 1 } as const;
+/** Where two faces we see meet, and round the outline: a white line, `pixels` wide in the frame, at `opacity`. */
+const EDGE_LINE = { pixels: 1, opacity: 0.1 } as const;
+/** Where a flat face's core gradient is drawn, from its core to its rim: every tenth. */
+const CORE_STOPS = Array.from({ length: 11 }, (_, index) => index / 10);
 /** A turned light's depth, as a share of the 1×1 square its shape is drawn in. */
 const SOLID_DEPTH = 0.4;
 /** A solid's depth, as a share of its size. */
@@ -355,6 +367,168 @@ const channel = (value: number | undefined): number =>
 export const hexOf = (rgb: readonly number[]): Hex =>
   rgbToHex([channel(rgb[0]), channel(rgb[1]), channel(rgb[2])]);
 
+/** A solid's outline in its own plane: its role's outline at its size, turned in that plane by its roll. */
+function rolledOutline(solid: Solid): [number, number][] {
+  const roll = ((solid.roll ?? 0) * Math.PI) / 180;
+  return outline(solid.role, solid.size).map(([x, y]): [number, number] => [
+    x * Math.cos(roll) - y * Math.sin(roll),
+    x * Math.sin(roll) + y * Math.cos(roll),
+  ]);
+}
+
+/** The smallest convex outline round some points (Andrew's monotone chain). */
+function convexHull(
+  points: readonly (readonly [number, number])[],
+): [number, number][] {
+  const sorted = [...points].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const cross = (
+    o: readonly [number, number],
+    a: readonly [number, number],
+    b: readonly [number, number],
+  ) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const chain = (ordered: readonly (readonly [number, number])[]) => {
+    const hull: (readonly [number, number])[] = [];
+    for (const point of ordered) {
+      while (
+        hull.length >= 2 &&
+        cross(
+          hull[hull.length - 2] ?? point,
+          hull[hull.length - 1] ?? point,
+          point,
+        ) <= 0
+      ) {
+        hull.pop();
+      }
+      hull.push(point);
+    }
+    return hull.slice(0, -1);
+  };
+  return [...chain(sorted), ...chain([...sorted].reverse())].map(
+    ([x, y]): [number, number] => [x, y],
+  );
+}
+
+/** A prism as we see it, in the scene: its front face's outline, and its own outline, the hull of its front and back. */
+function seenPrism(solid: Solid): {
+  front: [number, number][];
+  hull: [number, number][];
+} {
+  const yaw = (solid.yaw * Math.PI) / 180;
+  const pitch = (solid.pitch * Math.PI) / 180;
+  const half = (solid.depth ?? solid.size * DEPTH) / 2;
+  const seen = (
+    [x, y]: readonly [number, number],
+    z: number,
+  ): [number, number] => {
+    const [tx, ty] = turn([x, y, z], yaw, pitch);
+    return [solid.x + tx, solid.y + ty];
+  };
+  const traced = rolledOutline(solid);
+  const front = traced.map((point) => seen(point, half));
+  return {
+    front,
+    hull: convexHull([...front, ...traced.map((point) => seen(point, -half))]),
+  };
+}
+
+/** How far `point` stands outside a solid's outline as we see it: 0 inside. */
+export function outsideOutline(
+  solid: Solid,
+  [x, y]: readonly [number, number],
+): number {
+  if (solid.role === 'identity') {
+    return Math.max(0, Math.hypot(x - solid.x, y - solid.y) - solid.size / 2);
+  }
+  const { hull } = seenPrism(solid);
+  const edges = hull.map(
+    (a, index) => [a, hull[(index + 1) % hull.length] ?? a] as const,
+  );
+  const turns = edges.map(
+    ([[ax, ay], [bx, by]]) => (bx - ax) * (y - ay) - (by - ay) * (x - ax),
+  );
+  if (turns.every((turn) => turn >= 0) || turns.every((turn) => turn <= 0)) {
+    return 0;
+  }
+  return Math.min(
+    ...edges.map(([[ax, ay], [bx, by]]) => {
+      const [ex, ey] = [bx - ax, by - ay];
+      const t = Math.min(
+        1,
+        Math.max(0, ((x - ax) * ex + (y - ay) * ey) / (ex * ex + ey * ey || 1)),
+      );
+      return Math.hypot(x - ax - t * ex, y - ay - t * ey);
+    }),
+  );
+}
+
+/**
+ * A thin line, `width` across, in `color`, round a solid's outline: a
+ * sphere's circle, a prism's hull.
+ */
+export function outlineLine(solid: Solid, color: Hex, width: number): string {
+  const stroke = `fill="none" stroke="${color}" stroke-width="${n(width)}"`;
+  if (solid.role === 'identity') {
+    return `<circle cx="${n(solid.x)}" cy="${n(solid.y)}" r="${n(solid.size / 2)}" ${stroke}/>`;
+  }
+  const { hull } = seenPrism(solid);
+  return `<path d="M${hull.map(([x, y]) => `${n(x)} ${n(y)}`).join('L')}Z" ${stroke} stroke-linejoin="round"/>`;
+}
+
+/**
+ * A thin line, `width` across, in `color`, wherever two of a prism's faces
+ * we see meet: its front face's edges, except where they are its outline
+ * (`outlineLine` draws that). Nothing on a sphere, which has no edges but
+ * its outline.
+ */
+export function edgeLines(solid: Solid, color: Hex, width: number): string {
+  if (solid.role === 'identity') {
+    return '';
+  }
+  const { front, hull } = seenPrism(solid);
+  // Whether a point lies on the outline, within half a line's width.
+  const isOnOutline = ([x, y]: readonly [number, number]): boolean =>
+    hull.some(([ax, ay], index) => {
+      const [bx, by] = hull[(index + 1) % hull.length] ?? [ax, ay];
+      const [ex, ey] = [bx - ax, by - ay];
+      const t = Math.min(
+        1,
+        Math.max(0, ((x - ax) * ex + (y - ay) * ey) / (ex * ex + ey * ey || 1)),
+      );
+      return Math.hypot(x - ax - t * ex, y - ay - t * ey) < width / 2;
+    });
+  // The front face's edge, run by run where it is not the outline,
+  // starting from a stretch that is, so no run is cut where the loop closes.
+  const count = front.length;
+  const isInner = front.map((point, index) => {
+    const [nx, ny] = front[(index + 1) % count] ?? point;
+    return !isOnOutline([(point[0] + nx) / 2, (point[1] + ny) / 2]);
+  });
+  const start = Math.max(0, isInner.indexOf(false));
+  const runs: [number, number][][] = [];
+  let run: [number, number][] = [];
+  for (let step = 0; step < count; step += 1) {
+    const index = (start + step) % count;
+    if (isInner[index]) {
+      if (run.length === 0) {
+        run.push(front[index] ?? [0, 0]);
+      }
+      run.push(front[(index + 1) % count] ?? [0, 0]);
+    } else if (run.length > 0) {
+      runs.push(run);
+      run = [];
+    }
+  }
+  if (run.length > 0) {
+    runs.push(run);
+  }
+  return runs
+    .map(
+      (points) =>
+        `<path d="M${points.map(([x, y]) => `${n(x)} ${n(y)}`).join('L')}" fill="none" stroke="${color}" stroke-width="${n(width)}" stroke-linecap="round" stroke-linejoin="round"/>`,
+    )
+    .join('');
+}
+
 /** A flat-faced solid: its faces turned to us, each lit, as SVG; and its outline's faces for a shadow. */
 export function prism(
   solid: Solid,
@@ -366,13 +540,7 @@ export function prism(
   const yaw = (solid.yaw * Math.PI) / 180;
   const pitch = (solid.pitch * Math.PI) / 180;
   const half = (solid.depth ?? solid.size * DEPTH) / 2;
-  const roll = ((solid.roll ?? 0) * Math.PI) / 180;
-  const traced = outline(solid.role, solid.size).map(
-    ([x, y]): [number, number] => [
-      x * Math.cos(roll) - y * Math.sin(roll),
-      x * Math.sin(roll) + y * Math.cos(roll),
-    ],
-  );
+  const traced = rolledOutline(solid);
   // Start at a corner: a flat side split where the outline wraps round
   // would be two faces, each shaded on its own, with a seam between.
   const heading = (index: number) => {
@@ -537,6 +705,54 @@ export function observedSvg(frame: AtomsFrame): string {
   return sceneSvg(frame, OBSERVED_SCENE);
 }
 
+/**
+ * Where a scene's light stands: each atom by its true center, the triangle
+ * a little higher than its box's middle so a bond reaches its center;
+ * shapes drawn on one unit stand where the scene puts them.
+ */
+function lightAt(scene: Scene, role: Role): Vec {
+  const atom = scene.size ?? TRIPLE.size;
+  const centre =
+    scene.unit === undefined ? balance(role, atom) : { x: 0, y: 0 };
+  const [x, y] =
+    role === 'bridge' ? (scene.bridge ?? [0, 0]) : scene.triple[role];
+  return [x - centre.x, y - centre.y, LIGHT.forward];
+}
+
+/** A scene's light at `at` as the solid it is drawn as, if the scene turns it. */
+function turnedSolid(scene: Scene, role: Role, at: Vec): Solid | undefined {
+  const turn = scene.turns?.[role];
+  if (turn === undefined) {
+    return undefined;
+  }
+  const unit = scene.unit ?? scene.size ?? TRIPLE.size;
+  const { width, height } = shapeSize(role);
+  return {
+    role,
+    x: at[0],
+    y: at[1],
+    z: 0,
+    size: unit * Math.max(width, height) * (turn.scale ?? 1),
+    yaw: turn.yaw,
+    pitch: turn.pitch,
+    roll: turn.roll ?? 0,
+    // One depth for all, measured on the shapes' 1×1 square: what differs
+    // is only how each is turned.
+    depth: unit * SOLID_DEPTH,
+  };
+}
+
+/** A scene's turned lights, as the solids it draws them as, where it draws them. */
+export function turnedLights(scene: Scene): Solid[] {
+  const roles: readonly Role[] =
+    scene.bridge === undefined
+      ? ['identity', 'predicate', 'object']
+      : ['identity', 'predicate', 'object', 'bridge'];
+  return roles.flatMap(
+    (role) => turnedSolid(scene, role, lightAt(scene, role)) ?? [],
+  );
+}
+
 /** A scene in `frame`, lit as Observed is, as SVG elements on `OBSERVED_GROUND`. */
 export function sceneSvg(frame: AtomsFrame, scene: Scene): string {
   const centered = scene.centered;
@@ -586,20 +802,9 @@ export function sceneSvg(frame: AtomsFrame, scene: Scene): string {
 
   // The triple, its atoms the lights.
   const light = (role: Role): Light => {
-    // Each atom placed by its true center: the triangle a little higher
-    // than its box's middle, so a bond reaches its center.
-    const centre =
-      scene.unit === undefined ? balance(role, atom) : { x: 0, y: 0 };
-    const [x, y] =
-      role === 'bridge' ? (scene.bridge ?? [0, 0]) : scene.triple[role];
     const color = rgbToHex(ROLE_COLORS[role]);
     const rgb = blend(parseHex(color), [255, 255, 255], LIGHT.white);
-    return {
-      role,
-      color,
-      rgb,
-      at: [x - centre.x, y - centre.y, LIGHT.forward],
-    };
+    return { role, color, rgb, at: lightAt(scene, role) };
   };
   const lights = [
     light('identity'),
@@ -685,28 +890,16 @@ export function sceneSvg(frame: AtomsFrame, scene: Scene): string {
       `<radialGradient id="${id}" cx="0.5" cy="0.5" r="0.6"><stop offset="0" stop-color="${hexOf(blend(parseHex(source.color), [255, 255, 255], 0.6))}"/><stop offset="0.55" stop-color="${source.color}"/><stop offset="1" stop-color="${hexOf(blend(parseHex(source.color), [0, 0, 0], 0.12))}"/></radialGradient>`,
       `<filter id="${id}-glow" x="-1" y="-1" width="3" height="3"><feGaussianBlur stdDeviation="${n(atom * 0.3)}"/></filter>`,
     );
-    const turn = scene.turns?.[source.role];
-    if (turn !== undefined) {
+    const solid = turnedSolid(scene, source.role, source.at);
+    if (solid !== undefined) {
       // Orbit's own solids, a sphere or a deep prism, each face in the
-      // light's color, brightest where it turns to us: it glows.
-      const { width, height } = shapeSize(source.role);
-      const solid: Solid = {
-        role: source.role,
-        x: source.at[0],
-        y: source.at[1],
-        z: 0,
-        size:
-          (scene.unit ?? atom) * Math.max(width, height) * (turn.scale ?? 1),
-        yaw: turn.yaw,
-        pitch: turn.pitch,
-        roll: turn.roll ?? 0,
-        // One depth for all, measured on the shapes' 1×1 square: what differs
-        // is only how each is turned.
-        depth: (scene.unit ?? atom) * SOLID_DEPTH,
-      };
+      // light's color: it glows.
       const base = parseHex(source.color);
-      // The other three lights, whose colors fall on this one.
-      const others = shining.filter((other) => other.role !== source.role);
+      // The other three lights, whose colors fall on this one: each in its
+      // own color, no white (the small atoms' light keeps its own).
+      const others = shining
+        .filter((other) => other.role !== source.role)
+        .map((other) => ({ ...other, rgb: parseHex(other.color) }));
       // What the others' light adds at a point, beyond the dark's own.
       const neighborLight = (
         point: Vec,
@@ -731,33 +924,25 @@ export function sceneSvg(frame: AtomsFrame, scene: Scene): string {
           (color[2] ?? 0) + 0.6 * added[2],
         ];
       };
-      // A light glows from every face: its sides bright in its color, a
-      // little brighter where they turn to us, never dark; and lit by the others.
-      const glowing = (point: Vec, normal: Vec): [number, number, number] => {
-        const facing = Math.max(0, normal[2]);
-        return withNeighbors(
-          blend(base, [255, 255, 255], 0.08 + 0.12 * facing),
-          point,
-          normal,
-        );
-      };
-      // Its face as Orbit's colored atoms glow: white at the center, its
-      // color, a darker edge. The sphere glows the same way, all over.
-      const centerTone = blend(base, [255, 255, 255], 0.6);
-      const edgeTone = blend(base, [0, 0, 0], 0.12);
+      // Every side the same light: the core's, reaching the sides and
+      // making them shine, its own color at full, whichever way a side
+      // turns and whatever is next to it.
+      const glowing = (): [number, number, number] => [...base];
+      // Its face, its core light in its own color: the color at full at
+      // the core; around it, the color over itself in multiply, deeper
+      // toward the rim (`CORE`). The sphere glows the same way, all over.
+      const deepTone = base.map((value) => (value * value) / 255);
+      const coreTone = (t: number): [number, number, number] =>
+        blend(base, deepTone, CORE.rim * (1 - 1 / (1 + (t / CORE.reach) ** 2)));
       const glowingSphere = (
         point: Vec,
         normal: Vec,
-      ): [number, number, number] => {
-        const t = Math.min(1, Math.hypot(normal[0], normal[1]));
-        return withNeighbors(
-          t < 0.55
-            ? blend(centerTone, base, t / 0.55)
-            : blend(base, edgeTone, (t - 0.55) / 0.45),
+      ): [number, number, number] =>
+        withNeighbors(
+          coreTone(Math.min(1, Math.hypot(normal[0], normal[1]))),
           point,
           normal,
         );
-      };
       const drawn =
         source.role === 'identity'
           ? sphere(solid, [], placement.scale, 300, glowingSphere)
@@ -784,24 +969,29 @@ export function sceneSvg(frame: AtomsFrame, scene: Scene): string {
                 Math.max(...ys) - Math.min(...ys),
               );
               defs.push(
-                `<radialGradient id="${id}-cap" gradientUnits="userSpaceOnUse" cx="${n(cx / (3 * area))}" cy="${n(cy / (3 * area))}" r="${n(0.6 * side)}"><stop offset="0" stop-color="${hexOf(centerTone)}"/><stop offset="0.55" stop-color="${source.color}"/><stop offset="1" stop-color="${hexOf(edgeTone)}"/></radialGradient>`,
+                `<radialGradient id="${id}-cap" gradientUnits="userSpaceOnUse" cx="${n(cx / (3 * area))}" cy="${n(cy / (3 * area))}" r="${n(0.6 * side)}">${CORE_STOPS.map((t) => `<stop offset="${t}" stop-color="${hexOf(coreTone(t))}"/>`).join('')}</radialGradient>`,
               );
               return `url(#${id}-cap)`;
             });
       // Its glow as light: the bloom's layers added to the dark beneath them
       // (screen), centered on the shape; then the shape itself, crisp, on top.
       const bloom = BLOOM.map((layer, index) => {
-        const color = hexOf(
-          layer.white > 0
-            ? blend(base, [255, 255, 255], layer.white)
-            : pureHue(base),
-        );
+        const color = layer.isOwnColor ? source.color : hexOf(pureHue(base));
         defs.push(
           `<filter id="${id}-bloom-${index}" x="-1" y="-1" width="3" height="3"><feGaussianBlur stdDeviation="${n(layer.blur * atom)}"/></filter>`,
         );
         return `<g opacity="${layer.strength}" filter="url(#${id}-bloom-${index})" fill="${color}" style="mix-blend-mode:screen">${drawn.silhouette.replaceAll('#000000', color)}</g>`;
       }).join('');
-      body.push(bloom, drawn.faces);
+      // A thin white line where two faces we see meet, and round it.
+      const lineWidth = EDGE_LINE.pixels / placement.scale;
+      const lines =
+        edgeLines(solid, '#ffffff', lineWidth) +
+        outlineLine(solid, '#ffffff', lineWidth);
+      body.push(
+        bloom,
+        drawn.faces,
+        `<g opacity="${EDGE_LINE.opacity}">${lines}</g>`,
+      );
       return;
     }
     body.push(
