@@ -98,5 +98,6 @@ When copy names who Intuition is for, name both, as in "people and agents": the 
 - [reference/shapes.md](reference/shapes.md): the atom shapes exactly as the film builds them, with [scripts/atom.mjs](scripts/atom.mjs), and the imagery built from them.
 - [reference/bonds.md](reference/bonds.md): the bonds that join atoms, the brand's signature, exactly as the film draws them, on light and on dark; with [bonds-anatomy.md](reference/bonds-anatomy.md), [bonds-layout.md](reference/bonds-layout.md), [bonds-motion.md](reference/bonds-motion.md) and [scripts/bond.mjs](scripts/bond.mjs).
 - [reference/triples.md](reference/triples.md): where a triple's atoms stand: on one line, their names, frames for nested triples.
+- [reference/3d.md](reference/3d.md): the atom shapes as 3D solids that glow, and how their light falls on everything else: one unit, 0.4 deep, the seven layers of a glowing shape, dissected in [reference/3d-layers.png](reference/3d-layers.png).
 - [reference/assets.md](reference/assets.md): every downloadable file, with its address, size and use.
 - [tokens/tokens.json](tokens/tokens.json), [tokens/tokens.css](tokens/tokens.css): the design tokens.
