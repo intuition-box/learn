@@ -39,6 +39,7 @@ import { atomField, chainAtoms } from './atom-field';
 import { atomsSvg } from './brand-atoms';
 import { OBSERVED_GROUND, observedSvg } from './brand-observed';
 import { multiplayerSvg } from './brand-multiplayer';
+import { LONG_SHADOWS_GROUND, longShadowsSvg } from './brand-long-shadows';
 import { moleculeSvg } from './brand-molecule';
 import { orbitSvg } from './brand-orbit';
 import { bondSvg } from './brand-bond';
@@ -686,6 +687,15 @@ export function molecule(preset: keyof typeof ATOMS_FRAMES): string {
     PRESETS[preset],
     moleculeSvg(ATOMS_FRAMES[preset]),
     OBSERVED_GROUND,
+  );
+}
+
+/** Long shadows (`brand-long-shadows.ts`), the atom shapes standing in a low light, in one of Atoms' sizes, on its reference's floor. */
+export function longShadows(preset: keyof typeof ATOMS_FRAMES): string {
+  return svgDocument(
+    PRESETS[preset],
+    longShadowsSvg(ATOMS_FRAMES[preset]),
+    LONG_SHADOWS_GROUND,
   );
 }
 

@@ -83,7 +83,7 @@ describe('LEARN_BRAND', () => {
   });
 
   it('has every section, and every asset its file', () => {
-    expect(brandAssets(LEARN_BRAND)).toHaveLength(59);
+    expect(brandAssets(LEARN_BRAND)).toHaveLength(65);
   });
 
   it('matches Graphite in globals.css, step for step', () => {
