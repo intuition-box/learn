@@ -39,6 +39,7 @@ import { atomField, chainAtoms } from './atom-field';
 import { atomsSvg } from './brand-atoms';
 import { OBSERVED_GROUND, observedSvg } from './brand-observed';
 import { multiplayerSvg } from './brand-multiplayer';
+import { moleculeSvg } from './brand-molecule';
 import { orbitSvg } from './brand-orbit';
 import { bondSvg } from './brand-bond';
 import {
@@ -674,6 +675,15 @@ export function multiplayer(preset: keyof typeof ATOMS_FRAMES): string {
   return svgDocument(
     PRESETS[preset],
     multiplayerSvg(ATOMS_FRAMES[preset]),
+    OBSERVED_GROUND,
+  );
+}
+
+/** Molecule (`brand-molecule.ts`), six atoms bonded round a triangle, in one of Atoms' sizes, before its reference's backdrop. */
+export function molecule(preset: keyof typeof ATOMS_FRAMES): string {
+  return svgDocument(
+    PRESETS[preset],
+    moleculeSvg(ATOMS_FRAMES[preset]),
     OBSERVED_GROUND,
   );
 }

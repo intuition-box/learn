@@ -65,6 +65,12 @@ Pictures of Intuition, each a kit: one picture in every size a place asks for. F
 | https://learn.intuition.box/brand/files/intuition-multiplayer-x-banner-1500x500.svg | 1500 × 500 | Multiplayer, X banner, the bottom left clear for the avatar |
 | https://learn.intuition.box/brand/files/intuition-multiplayer-linkedin-banner-1584x396.svg | 1584 × 396 | Multiplayer, LinkedIn banner, the bottom left clear for the photo |
 | https://learn.intuition.box/brand/files/intuition-multiplayer-discord-banner-960x540.svg | 960 × 540 | Multiplayer, Discord banner |
+| https://learn.intuition.box/brand/files/intuition-molecule-desktop-2560x1440.svg | 2560 × 1440 | Molecule, desktop wallpaper |
+| https://learn.intuition.box/brand/files/intuition-molecule-phone-1179x2556.svg | 1179 × 2556 | Molecule, phone wallpaper |
+| https://learn.intuition.box/brand/files/intuition-molecule-link-preview-1200x630.svg | 1200 × 630 | Molecule, link preview (Open Graph image) |
+| https://learn.intuition.box/brand/files/intuition-molecule-x-banner-1500x500.svg | 1500 × 500 | Molecule, X banner, the bottom left clear for the avatar |
+| https://learn.intuition.box/brand/files/intuition-molecule-linkedin-banner-1584x396.svg | 1584 × 396 | Molecule, LinkedIn banner, the bottom left clear for the photo |
+| https://learn.intuition.box/brand/files/intuition-molecule-discord-banner-960x540.svg | 960 × 540 | Molecule, Discord banner |
 
 ## Social
 
