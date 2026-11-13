@@ -40,28 +40,33 @@ describe('atomsSvg', () => {
   });
 });
 
-describe('atomsSvg on white', () => {
-  it('keeps every front no more saturated than its role color', () => {
-    const svg = atomsSvg(ATOMS_DESIGN, 'light');
-    for (const [role, hex] of [
-      ['predicate', '#2fe08b'],
-      ['object', '#ff4f5e'],
-      ['bridge', '#ff5fd2'],
-    ] as const) {
-      const gradient = new RegExp(
-        `<radialGradient id="remake-light-${role}-cap"[^>]*>(.*?)</radialGradient>`,
-      ).exec(svg)?.[1];
-      const stops = [
-        ...(gradient ?? '').matchAll(/stop-color="(#[0-9a-f]{6})"/g),
-      ].map(([, color = '#000000']) => color);
-      expect(stops.length).toBeGreaterThan(0);
-      const [, own] = rgbToOklch(parseHex(hex));
-      for (const stop of stops) {
-        // Rounded to whole channels: a hair over, no more.
-        expect(rgbToOklch(parseHex(stop))[1]).toBeLessThanOrEqual(own + 0.003);
+describe('atomsSvg on either ground', () => {
+  it.each(['dark', 'light'] as const)(
+    'keeps every front no more saturated than its role color, on %s',
+    (ground) => {
+      const svg = atomsSvg(ATOMS_DESIGN, ground);
+      for (const [role, hex] of [
+        ['predicate', '#2fe08b'],
+        ['object', '#ff4f5e'],
+        ['bridge', '#ff5fd2'],
+      ] as const) {
+        const gradient = new RegExp(
+          `<radialGradient id="remake-light-${role}-cap"[^>]*>(.*?)</radialGradient>`,
+        ).exec(svg)?.[1];
+        const stops = [
+          ...(gradient ?? '').matchAll(/stop-color="(#[0-9a-f]{6})"/g),
+        ].map(([, color = '#000000']) => color);
+        expect(stops.length).toBeGreaterThan(0);
+        const [, own] = rgbToOklch(parseHex(hex));
+        for (const stop of stops) {
+          // Rounded to whole channels: a hair over, no more.
+          expect(rgbToOklch(parseHex(stop))[1]).toBeLessThanOrEqual(
+            own + 0.003,
+          );
+        }
       }
-    }
-  });
+    },
+  );
 });
 
 describe('atomsPlacement', () => {

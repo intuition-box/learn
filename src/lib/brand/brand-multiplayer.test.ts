@@ -19,9 +19,6 @@ const ROLE_COLORS = {
 } as const;
 const PRISMS = ['predicate', 'object', 'bridge'] as const;
 
-const channels = (hex: string): number[] =>
-  [1, 3, 5].map((at) => Number.parseInt(hex.slice(at, at + 2), 16));
-
 /** A light's bounds, as its bloom draws its silhouette, in the scene's units. */
 function silhouetteBounds(svg: string, role: keyof typeof ROLE_COLORS) {
   const start = svg.indexOf(`filter="url(#remake-light-${role}-bloom-0)"`);
@@ -86,7 +83,7 @@ describe('multiplayerSvg', () => {
     );
   });
 
-  it('keeps its core light in its own color: the front faces never whiter than it', () => {
+  it('keeps its core light in its own color: no front lighter or more saturated than it', () => {
     for (const role of PRISMS) {
       const gradient = new RegExp(
         `<radialGradient id="remake-light-${role}-cap"[^>]*>(.*?)</radialGradient>`,
@@ -95,11 +92,12 @@ describe('multiplayerSvg', () => {
         ...(gradient ?? '').matchAll(/stop-color="(#[0-9a-f]{6})"/g),
       ].map(([, color = '']) => color);
       expect(stops[0]).toBe(ROLE_COLORS[role]);
-      const own = channels(ROLE_COLORS[role]);
+      const [ownLightness, ownChroma] = rgbToOklch(parseHex(ROLE_COLORS[role]));
+      // Rounded to whole channels: a hair over, no more.
       for (const stop of stops) {
-        channels(stop).forEach((value, index) => {
-          expect(value).toBeLessThanOrEqual(own[index] ?? 0);
-        });
+        const [lightness, chroma] = rgbToOklch(parseHex(stop));
+        expect(lightness).toBeLessThanOrEqual(ownLightness + 0.002);
+        expect(chroma).toBeLessThanOrEqual(ownChroma + 0.003);
       }
     }
   });
@@ -154,8 +152,9 @@ describe('multiplayerSvg', () => {
       const front = [channel(0), channel(1), channel(2)] as const;
       return rgbToOklch(parseHex(ROLE_COLORS[role]))[0] - rgbToOklch(front)[0];
     });
+    // About 0.06 each: 0.058 to 0.061 since the fronts' saturation is capped.
     for (const step of steps) {
-      expect(step).toBeGreaterThanOrEqual(0.06);
+      expect(step).toBeGreaterThanOrEqual(0.055);
     }
     expect(Math.max(...steps) - Math.min(...steps)).toBeLessThanOrEqual(0.01);
   });

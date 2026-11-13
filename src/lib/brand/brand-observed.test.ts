@@ -145,10 +145,12 @@ describe('deepToneOf', () => {
     (rgb[2] * rgb[2]) / 255,
   ];
 
-  it('lays the color over itself in multiply, where that deepens it enough', () => {
+  it("keeps multiply's darkening where that deepens it enough, no more saturated", () => {
     // Multiply takes 0.084 of the role colors' green's lightness: past the floor.
     const green = parseHex('#2fe08b');
-    expect(deepToneOf(green)).toEqual([...multiply(green)]);
+    const [deep, chroma] = rgbToOklch(deepToneOf(green));
+    expect(deep).toBeCloseTo(lightness(multiply(green)), 3);
+    expect(chroma).toBeLessThanOrEqual(rgbToOklch(green)[1] + 1e-6);
   });
 
   it('deepens any color at least 0.08 in OKLCH lightness, whatever multiply does', () => {
@@ -169,15 +171,12 @@ describe('deepToneOf', () => {
     }
   });
 
-  it('on a light ground, darkens as much, no more saturated than the color', () => {
+  it('is never more saturated than the color itself', () => {
     for (const hex of ['#7a86ff', '#2fe08b', '#ff4f5e', '#ff5fd2']) {
       const rgb = parseHex(hex);
-      const [lightOnWhite, chromaOnWhite] = rgbToOklch(
-        deepToneOf(rgb, 'light'),
+      expect(rgbToOklch(deepToneOf(rgb))[1]).toBeLessThanOrEqual(
+        rgbToOklch(rgb)[1] + 1e-6,
       );
-      const [lightOnDark] = rgbToOklch(deepToneOf(rgb, 'dark'));
-      expect(lightOnWhite).toBeCloseTo(lightOnDark, 3);
-      expect(chromaOnWhite).toBeLessThanOrEqual(rgbToOklch(rgb)[1] + 1e-6);
     }
   });
 

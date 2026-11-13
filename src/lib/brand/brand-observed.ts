@@ -161,18 +161,13 @@ const CORE = { reach: 0.5, rim: 1, depth: 0.08 } as const;
  * (the role colors' blue by 0.144, its red by 0.043): red keeps its
  * lightness in its one full channel, which multiply cannot lower. The floor
  * is a number, not one shape's color, so a changed role color still gets
- * the same step. On a light ground, the same darkening, but no more
- * saturated than the color itself: multiply's extra saturation, with no
- * glow round it, reads loud on white.
+ * the same step. Last, it is no more saturated than the color itself, on
+ * any ground: multiply's extra saturation (up to 1.5 times, the blue's the
+ * most) read loud on white and too strong on the dark. So a shape's front is
+ * the same on every ground, and only its glow tells them apart.
  */
-export function deepToneOf(
-  rgb: Rgb,
-  ground: SceneGround = 'dark',
-): [number, number, number] {
+export function deepToneOf(rgb: Rgb): [number, number, number] {
   const deep = flooredMultiply(rgb);
-  if (ground === 'dark') {
-    return deep;
-  }
   const [lightness, chroma, hue] = rgbToOklch(deep);
   const [, ownChroma] = rgbToOklch(rgb);
   return chroma > ownChroma
@@ -180,7 +175,7 @@ export function deepToneOf(
     : deep;
 }
 
-/** The color over itself in multiply, then at least `CORE.depth` darker: the deep tone on a dark ground. */
+/** The color over itself in multiply, then at least `CORE.depth` darker: the deep tone, before its saturation is capped. */
 function flooredMultiply(rgb: Rgb): [number, number, number] {
   const multiplied = [
     (rgb[0] * rgb[0]) / 255,
@@ -278,9 +273,9 @@ export interface Scene {
   lightWhite?: number;
   /**
    * The ground the scene stands on: dark if not said. On a light ground the
-   * turned lights do not glow (light added to white shows nothing), and
-   * their fronts deepen without growing more saturated than their own color
-   * (without a glow to explain it, the extra saturation reads loud).
+   * turned lights do not glow: light added to white shows nothing. Their
+   * solids are the same on either ground, so a picture can fade from one to
+   * the other with only the glow coming and going.
    */
   ground?: SceneGround;
 }
@@ -1021,7 +1016,7 @@ export function sceneSvg(frame: AtomsFrame, scene: Scene): string {
       // Its face, its core light in its own color: the color at full at
       // the core, deepening toward the rim to its deep tone (`CORE`,
       // `deepToneOf`). The sphere glows the same way, all over.
-      const deepTone = deepToneOf(base, scene.ground);
+      const deepTone = deepToneOf(base);
       const coreTone = (t: number): [number, number, number] =>
         blend(base, deepTone, CORE.rim * (1 - 1 / (1 + (t / CORE.reach) ** 2)));
       const glowingSphere = (
