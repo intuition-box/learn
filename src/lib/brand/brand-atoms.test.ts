@@ -1,42 +1,66 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  ATOMS_DESIGN,
-  atomsInFrame,
-  atomsPlacement,
-  atomsSvg,
-  smallAtoms,
-} from './brand-atoms';
+import { parseHex, rgbToOklch } from '@/components/brand/color';
+
+import { atomsInFrame, atomsSvg, smallAtoms } from './brand-atoms';
+import { ATOMS_DESIGN, atomsPlacement } from './brand-atoms-frame';
 
 describe('atomsSvg', () => {
   it('draws the same picture every time', () => {
     expect(atomsSvg(ATOMS_DESIGN, 'dark')).toBe(atomsSvg(ATOMS_DESIGN, 'dark'));
   });
 
-  it('fills every shape and outlines none, on either ground', () => {
+  it('draws the small atoms filled, outlined none, before the four shapes', () => {
     for (const ground of ['dark', 'light'] as const) {
       const svg = atomsSvg(ATOMS_DESIGN, ground);
-      expect(svg).not.toContain('stroke');
-      expect(svg).not.toContain('fill="none"');
+      const shapes = svg.indexOf('remake-light-identity');
+      const dots = svg.slice(0, shapes);
+      expect(dots.match(/<use href="#atoms-dot-/g)).toHaveLength(
+        smallAtoms().length,
+      );
+      expect(dots).not.toContain('stroke');
     }
   });
 
-  it('draws the sides in one shade of the shape: 30% darker on Midnight, 20% on white', () => {
-    // The circle's layers, back to front: its sides, its face's rim, its face.
-    const fills = (ground: 'dark' | 'light') =>
-      Array.from(
-        atomsSvg(ATOMS_DESIGN, ground).matchAll(
-          /<use href="#atoms-identity"[^>]*fill="([^"]+)"/g,
-        ),
-        ([, fill]) => fill,
-      );
-    // The subject's #7a86ff, the same from the back to the face.
-    const dark = fills('dark');
-    expect(dark[0]).toBe('#555eb3');
-    expect(dark.at(-2)).toBe('#555eb3');
-    const light = fills('light');
-    expect(light[0]).toBe('#626bcc');
-    expect(light.at(-2)).toBe('#626bcc');
+  it('draws the four shapes by the 3D recipe: a sphere and three prisms, lined at 10%', () => {
+    const svg = atomsSvg(ATOMS_DESIGN, 'dark');
+    // The sphere, one dithered image; each prism's front, its core light.
+    expect(svg.match(/<image href="data:image\/png;base64,/g)).toHaveLength(1);
+    for (const role of ['predicate', 'object', 'bridge']) {
+      expect(svg).toContain(`fill="url(#remake-light-${role}-cap)"`);
+    }
+    expect(svg.match(/<g opacity="0.1">/g)).toHaveLength(4);
+  });
+
+  it('glows on Midnight, and not on white, where light added shows nothing', () => {
+    expect(atomsSvg(ATOMS_DESIGN, 'dark')).toContain('mix-blend-mode:screen');
+    expect(atomsSvg(ATOMS_DESIGN, 'light')).not.toContain(
+      'mix-blend-mode:screen',
+    );
+  });
+});
+
+describe('atomsSvg on white', () => {
+  it('keeps every front no more saturated than its role color', () => {
+    const svg = atomsSvg(ATOMS_DESIGN, 'light');
+    for (const [role, hex] of [
+      ['predicate', '#2fe08b'],
+      ['object', '#ff4f5e'],
+      ['bridge', '#ff5fd2'],
+    ] as const) {
+      const gradient = new RegExp(
+        `<radialGradient id="remake-light-${role}-cap"[^>]*>(.*?)</radialGradient>`,
+      ).exec(svg)?.[1];
+      const stops = [
+        ...(gradient ?? '').matchAll(/stop-color="(#[0-9a-f]{6})"/g),
+      ].map(([, color = '#000000']) => color);
+      expect(stops.length).toBeGreaterThan(0);
+      const [, own] = rgbToOklch(parseHex(hex));
+      for (const stop of stops) {
+        // Rounded to whole channels: a hair over, no more.
+        expect(rgbToOklch(parseHex(stop))[1]).toBeLessThanOrEqual(own + 0.003);
+      }
+    }
   });
 });
 

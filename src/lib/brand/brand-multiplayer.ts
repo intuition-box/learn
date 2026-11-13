@@ -9,7 +9,7 @@
 import { ROLES } from '@/components/playground/story-shapes';
 
 import { seededRandom } from './atom-field';
-import type { AtomsFrame } from './brand-atoms';
+import type { AtomsFrame } from './brand-atoms-frame';
 import { outsideOutline, sceneSvg, turnedLights } from './brand-observed';
 import type { Scene, Solid } from './brand-observed';
 import { MULTIPLAYER_BUBBLES } from './multiplayer-bubbles';

@@ -637,7 +637,7 @@ const ATOMS_FRAMES = {
 
 /**
  * Atoms (`brand-atoms.ts`) in one of its sizes, on Midnight or on white:
- * the logo mark's four shapes in 3D among small atoms, fitted to the
+ * the four atom shapes as solids lit from their cores, among small atoms, fitted to the
  * frame.
  */
 export function atoms(

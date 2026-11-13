@@ -8,7 +8,7 @@
  * the right of the wallpaper, at his scale.
  */
 
-import type { AtomsFrame } from './brand-atoms';
+import type { AtomsFrame } from './brand-atoms-frame';
 import { sceneSvg } from './brand-observed';
 import type { Scene } from './brand-observed';
 

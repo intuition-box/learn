@@ -142,6 +142,18 @@ describe('deepToneOf', () => {
     }
   });
 
+  it('on a light ground, darkens as much, no more saturated than the color', () => {
+    for (const hex of ['#7a86ff', '#2fe08b', '#ff4f5e', '#ff5fd2']) {
+      const rgb = parseHex(hex);
+      const [lightOnWhite, chromaOnWhite] = rgbToOklch(
+        deepToneOf(rgb, 'light'),
+      );
+      const [lightOnDark] = rgbToOklch(deepToneOf(rgb, 'dark'));
+      expect(lightOnWhite).toBeCloseTo(lightOnDark, 3);
+      expect(chromaOnWhite).toBeLessThanOrEqual(rgbToOklch(rgb)[1] + 1e-6);
+    }
+  });
+
   it("keeps multiply's hue when it deepens further", () => {
     const red = parseHex('#ff4f5e');
     const [, , deepHue] = rgbToOklch(deepToneOf(red));

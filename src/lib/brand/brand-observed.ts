@@ -28,8 +28,8 @@ import {
 } from '@/components/playground/story-shapes';
 
 import { seededRandom } from './atom-field';
-import { atomsPlacement } from './brand-atoms';
-import type { AtomsFrame } from './brand-atoms';
+import { atomsPlacement } from './brand-atoms-frame';
+import type { AtomsFrame } from './brand-atoms-frame';
 import { bondSvg } from './brand-bond';
 import { encodePng } from './png';
 
@@ -161,9 +161,27 @@ const CORE = { reach: 0.5, rim: 1, depth: 0.08 } as const;
  * (the role colors' blue by 0.144, its red by 0.043): red keeps its
  * lightness in its one full channel, which multiply cannot lower. The floor
  * is a number, not one shape's color, so a changed role color still gets
- * the same step.
+ * the same step. On a light ground, the same darkening, but no more
+ * saturated than the color itself: multiply's extra saturation, with no
+ * glow round it, reads loud on white.
  */
-export function deepToneOf(rgb: Rgb): [number, number, number] {
+export function deepToneOf(
+  rgb: Rgb,
+  ground: SceneGround = 'dark',
+): [number, number, number] {
+  const deep = flooredMultiply(rgb);
+  if (ground === 'dark') {
+    return deep;
+  }
+  const [lightness, chroma, hue] = rgbToOklch(deep);
+  const [, ownChroma] = rgbToOklch(rgb);
+  return chroma > ownChroma
+    ? (oklchToRgb([lightness, ownChroma, hue]) ?? deep)
+    : deep;
+}
+
+/** The color over itself in multiply, then at least `CORE.depth` darker: the deep tone on a dark ground. */
+function flooredMultiply(rgb: Rgb): [number, number, number] {
   const multiplied = [
     (rgb[0] * rgb[0]) / 255,
     (rgb[1] * rgb[1]) / 255,
@@ -252,7 +270,17 @@ export interface Scene {
   centered?: { x: number; y: number; width: number; height: number };
   /** Whether a pool of light lies under the scene; it does if not said. */
   hasPool?: boolean;
+  /**
+   * The ground the scene stands on: dark if not said. On a light ground the
+   * turned lights do not glow (light added to white shows nothing), and
+   * their fronts deepen without growing more saturated than their own color
+   * (without a glow to explain it, the extra saturation reads loud).
+   */
+  ground?: SceneGround;
 }
+
+/** A scene's ground: the dark, or white. */
+export type SceneGround = 'dark' | 'light';
 
 /** Observed's atoms in the dark. */
 const SOLIDS: readonly Solid[] = [
@@ -980,7 +1008,7 @@ export function sceneSvg(frame: AtomsFrame, scene: Scene): string {
       // Its face, its core light in its own color: the color at full at
       // the core, deepening toward the rim to its deep tone (`CORE`,
       // `deepToneOf`). The sphere glows the same way, all over.
-      const deepTone = deepToneOf(base);
+      const deepTone = deepToneOf(base, scene.ground);
       const coreTone = (t: number): [number, number, number] =>
         blend(base, deepTone, CORE.rim * (1 - 1 / (1 + (t / CORE.reach) ** 2)));
       const glowingSphere = (
@@ -1024,13 +1052,15 @@ export function sceneSvg(frame: AtomsFrame, scene: Scene): string {
             });
       // Its glow as light: the bloom's layers added to the dark beneath them
       // (screen), centered on the shape; then the shape itself, crisp, on top.
-      const bloom = BLOOM.map((layer, index) => {
-        const color = layer.isOwnColor ? source.color : hexOf(pureHue(base));
-        defs.push(
-          `<filter id="${id}-bloom-${index}" x="-1" y="-1" width="3" height="3"><feGaussianBlur stdDeviation="${n(layer.blur * atom)}"/></filter>`,
-        );
-        return `<g opacity="${layer.strength}" filter="url(#${id}-bloom-${index})" fill="${color}" style="mix-blend-mode:screen">${drawn.silhouette.replaceAll('#000000', color)}</g>`;
-      }).join('');
+      const bloom = (scene.ground === 'light' ? [] : BLOOM)
+        .map((layer, index) => {
+          const color = layer.isOwnColor ? source.color : hexOf(pureHue(base));
+          defs.push(
+            `<filter id="${id}-bloom-${index}" x="-1" y="-1" width="3" height="3"><feGaussianBlur stdDeviation="${n(layer.blur * atom)}"/></filter>`,
+          );
+          return `<g opacity="${layer.strength}" filter="url(#${id}-bloom-${index})" fill="${color}" style="mix-blend-mode:screen">${drawn.silhouette.replaceAll('#000000', color)}</g>`;
+        })
+        .join('');
       // A thin white line where two faces we see meet, and round it.
       const lineWidth = EDGE_LINE.pixels / placement.scale;
       const lines =
