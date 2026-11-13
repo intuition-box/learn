@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { orbitSvg } from './brand-orbit';
+import { ORBIT_SCENE, orbitSvg } from './brand-orbit';
+import { outsideOutline, turnedLights } from './brand-observed';
 
 describe('orbitSvg', () => {
   const frame = { width: 1920, height: 1080 };
@@ -26,6 +27,20 @@ describe('orbitSvg', () => {
 
   it('draws its bonds as the bond rules say, with no glow under them', () => {
     expect(orbitSvg(frame)).not.toContain('remake-beam');
+  });
+
+  it('keeps the triangle and the small sphere apart', () => {
+    const [, triangle] = turnedLights(ORBIT_SCENE);
+    const small = ORBIT_SCENE.solids[1];
+    expect(triangle?.role).toBe('predicate');
+    expect(small?.size).toBe(160);
+    if (triangle === undefined || small === undefined) {
+      return;
+    }
+    // From the sphere's edge to the triangle's outline, in the design.
+    expect(
+      outsideOutline(triangle, [small.x, small.y]) - small.size / 2,
+    ).toBeGreaterThan(40);
   });
 
   it("meets its two bonds at the triangle's center", () => {

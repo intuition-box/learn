@@ -2,9 +2,10 @@
  * Orbit: Saulo's original still life in his own composition, lit as
  * Observed is (`sceneSvg`). The subject stands where his white sphere is,
  * in front of the big sphere, a solid triangle at its left; the predicate
- * below, where his big pyramid is; the object above it, a small cube over
- * it where his cube is; and a small sphere at the right, which the second
- * bond passes in front of. His cluster is moved to Observed's focus, on
+ * below, where his big pyramid is, a little left of it; the object above
+ * it, a small cube over it where his cube is; and a small sphere at the
+ * right, a little further right, so it and the predicate stand apart
+ * (Saulo's sketch, 2026-11-13). His cluster is moved to Observed's focus, on
  * the right of the wallpaper, at his scale. As Observed's, its triple's
  * atoms are solids by the 3D recipe facing straight on, its atoms in the
  * dark are lit in the triple's own colors, and its bonds do not glow.
@@ -18,7 +19,7 @@ import type { Scene } from './brand-observed';
 export const ORBIT_SCENE: Scene = {
   solids: [
     { role: 'identity', x: 1085, y: 480, z: -160, size: 360, yaw: 0, pitch: 0 },
-    { role: 'identity', x: 1395, y: 645, z: -60, size: 160, yaw: 0, pitch: 0 },
+    { role: 'identity', x: 1428, y: 645, z: -60, size: 160, yaw: 0, pitch: 0 },
     {
       role: 'predicate',
       x: 950,
@@ -32,7 +33,7 @@ export const ORBIT_SCENE: Scene = {
   ],
   triple: {
     identity: [1140, 570],
-    predicate: [1335, 760],
+    predicate: [1297, 760],
     object: [1360, 420],
   },
   turns: FACING_TRIPLE,
