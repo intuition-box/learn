@@ -92,3 +92,113 @@ export function bondSvg({
     .join('');
   return `<g>${line}${dots}</g>`;
 }
+
+export interface CurvedBondOptions extends BondOptions {
+  /**
+   * How far its middle bends off the straight line, as a share of its
+   * length: 0 is the straight bond. It bends up on the picture, or left
+   * when it runs straight up and down.
+   */
+  bend: number;
+  /**
+   * Over 68px atoms, the bond is held at this many times the film's: 2, as
+   * the skill says, unless a picture's approved exception holds it larger.
+   */
+  heldAt?: number;
+}
+
+/**
+ * The same bond along a gentle curve: its hairline a quadratic curve, its
+ * dots the film's, each as far along the curve and as far off it as
+ * `bondSvg` puts it along and off the line. With no bend, the dots stand
+ * where `bondSvg` draws them.
+ */
+export function curvedBondSvg({
+  id,
+  from,
+  to,
+  atomSize,
+  bend,
+  heldAt = HELD_OVER / FILM_ATOM_SIZE,
+  ground = 'light',
+  devicePixel = 1,
+  timeMs = 0,
+}: CurvedBondOptions): string {
+  const look = BOND_GROUNDS[ground];
+  const scale =
+    Math.min(Math.max(atomSize, FILM_ATOM_SIZE), FILM_ATOM_SIZE * heldAt) /
+    FILM_ATOM_SIZE;
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const length = Math.hypot(dx, dy);
+  if (length === 0) {
+    return '';
+  }
+  // The control point: off the middle, up the picture (left when upright),
+  // twice the bend away, as a quadratic curve reaches half way to it.
+  let side = { x: -dy / length, y: dx / length };
+  if (side.y > 0 || (side.y === 0 && side.x > 0)) {
+    side = { x: -side.x, y: -side.y };
+  }
+  const control = {
+    x: (from.x + to.x) / 2 + side.x * 2 * bend * length,
+    y: (from.y + to.y) / 2 + side.y * 2 * bend * length,
+  };
+  const at = (t: number) => {
+    const u = 1 - t;
+    return {
+      x: u * u * from.x + 2 * u * t * control.x + t * t * to.x,
+      y: u * u * from.y + 2 * u * t * control.y + t * t * to.y,
+      tx: 2 * u * (control.x - from.x) + 2 * t * (to.x - control.x),
+      ty: 2 * u * (control.y - from.y) + 2 * t * (to.y - control.y),
+    };
+  };
+  const path = `M${round(from.x)} ${round(from.y)}Q${round(control.x)} ${round(control.y)} ${round(to.x)} ${round(to.y)}`;
+  if (atomSize < PLAIN_UNDER) {
+    return `<path d="${path}" fill="none" stroke="${look.ink}" stroke-opacity="${look.plain}" stroke-width="${round(devicePixel)}" stroke-linecap="round"/>`;
+  }
+  // Even steps along the curve, so a dot's share of the way is a share of its length.
+  const SAMPLES = 1000;
+  const lengths = [0];
+  for (let index = 1; index <= SAMPLES; index += 1) {
+    const p = at((index - 1) / SAMPLES);
+    const q = at(index / SAMPLES);
+    lengths.push((lengths[index - 1] ?? 0) + Math.hypot(q.x - p.x, q.y - p.y));
+  }
+  const total = lengths[SAMPLES] ?? length;
+  const tAt = (share: number) => {
+    const target = share * total;
+    let low = 0;
+    let high = SAMPLES;
+    while (low < high) {
+      const middle = (low + high) >> 1;
+      if ((lengths[middle] ?? 0) < target) {
+        low = middle + 1;
+      } else {
+        high = middle;
+      }
+    }
+    const before = lengths[Math.max(0, low - 1)] ?? 0;
+    const after = lengths[low] ?? before;
+    const within = after > before ? (target - before) / (after - before) : 0;
+    return (Math.max(0, low - 1) + within) / SAMPLES;
+  };
+  const line = `<path d="${path}" fill="none" stroke="${look.ink}" stroke-opacity="${look.line}" stroke-width="${round(HAIRLINE * scale)}" stroke-linecap="round"/>`;
+  const filmLength = total / scale;
+  const dots = dotsAlong(
+    id,
+    filmLength,
+    Math.round(filmLength / PIXELS_PER_DOT),
+    timeMs,
+    1,
+  )
+    .map((dot) => {
+      const p = at(tAt(Math.min(1, dot.along)));
+      const tangent = Math.hypot(p.tx, p.ty) || 1;
+      const x = p.x + (-p.ty / tangent) * dot.offset * scale;
+      const y = p.y + (p.tx / tangent) * dot.offset * scale;
+      return `<circle cx="${round(x)}" cy="${round(y)}" r="${round(dot.radius * scale)}" fill="${look.ink}" fill-opacity="${round(dot.alpha * look.dots)}"/>`;
+    })
+    .join('');
+  return `<g>${line}${dots}</g>`;
+}

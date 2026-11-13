@@ -150,6 +150,8 @@ const BLOOM = [
  * shape's sides stand out from its front as much. No white anywhere.
  */
 const CORE = { reach: 0.5, rim: 1, depth: 0.08 } as const;
+/** The far glow's place in `BLOOM`: the widest, weakest layer, the skill's layer 2. */
+const FAR_GLOW = 2;
 
 /**
  * A color's deep tone, where its front deepens to at the rim: the color
@@ -479,7 +481,7 @@ function rolledOutline(solid: Solid): [number, number][] {
 }
 
 /** The smallest convex outline round some points (Andrew's monotone chain). */
-function convexHull(
+export function convexHull(
   points: readonly (readonly [number, number])[],
 ): [number, number][] {
   const sorted = [...points].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
@@ -629,6 +631,112 @@ export function edgeLines(solid: Solid, color: Hex, width: number): string {
         `<path d="M${points.map(([x, y]) => `${n(x)} ${n(y)}`).join('L')}" fill="none" stroke="${color}" stroke-width="${n(width)}" stroke-linecap="round" stroke-linejoin="round"/>`,
     )
     .join('');
+}
+
+/** A face of a solid we see: its middle on the picture, where it faces, and its outline on the picture. */
+export interface SeenFace {
+  x: number;
+  y: number;
+  normal: Vec;
+  outline: [number, number][];
+  /** Whether it is a prism's front or back, its flat face, not one of its sides. */
+  isCap: boolean;
+}
+
+/**
+ * A solid's faces we see, one a side: a prism's caps and sides, its corners
+ * taken sharp (a rounded corner's narrow faces are not faces a bond leaves
+ * from); a sphere's one face, its middle its center.
+ */
+export function seenFaces(solid: Solid): SeenFace[] {
+  if (solid.role === 'identity') {
+    return [
+      { x: solid.x, y: solid.y, normal: [0, 0, 1], outline: [], isCap: false },
+    ];
+  }
+  const { width, height } = shapeSize(solid.role);
+  const unit = solid.size / Math.max(width, height);
+  const corners = roundedOutline(solid.role, solid.role, 1).map(
+    (corner): [number, number] => [corner.x * unit, corner.y * unit],
+  );
+  // The corners as far out as the rounded outline reaches: `size` across.
+  const spread = (points: readonly (readonly [number, number])[]) =>
+    Math.max(
+      Math.max(...points.map(([x]) => x)) - Math.min(...points.map(([x]) => x)),
+      Math.max(...points.map(([, y]) => y)) -
+        Math.min(...points.map(([, y]) => y)),
+    );
+  const grow = solid.size / (spread(corners) || 1);
+  const roll = ((solid.roll ?? 0) * Math.PI) / 180;
+  const grown = corners.map(([x, y]): [number, number] => [
+    (x * Math.cos(roll) - y * Math.sin(roll)) * grow,
+    (x * Math.sin(roll) + y * Math.cos(roll)) * grow,
+  ]);
+  // One point a corner: the samples along a straight side dropped.
+  const flat = grown.filter((point, index) => {
+    const before = grown[(index - 1 + grown.length) % grown.length] ?? point;
+    const after = grown[(index + 1) % grown.length] ?? point;
+    const a = Math.atan2(point[1] - before[1], point[0] - before[0]);
+    const b = Math.atan2(after[1] - point[1], after[0] - point[0]);
+    return Math.abs(Math.sin(b - a)) > 0.008 || Math.cos(b - a) < 0;
+  });
+  const yaw = (solid.yaw * Math.PI) / 180;
+  const pitch = (solid.pitch * Math.PI) / 180;
+  const half = (solid.depth ?? solid.size * DEPTH) / 2;
+  const front = flat.map(([x, y]) => turn([x, y, half], yaw, pitch));
+  const back = flat.map(([x, y]) => turn([x, y, -half], yaw, pitch));
+  const face = (
+    points: readonly Vec[],
+    normal: Vec,
+    isCap = false,
+  ): SeenFace => ({
+    x: solid.x + points.reduce((sum, p) => sum + p[0], 0) / points.length,
+    y: solid.y + points.reduce((sum, p) => sum + p[1], 0) / points.length,
+    normal,
+    outline: points.map((p): [number, number] => [
+      solid.x + p[0],
+      solid.y + p[1],
+    ]),
+    isCap,
+  });
+  const faces: SeenFace[] = [];
+  for (let i = 0; i < flat.length; i += 1) {
+    const j = (i + 1) % flat.length;
+    const [ax, ay] = flat[i] ?? [0, 0];
+    const [bx, by] = flat[j] ?? [0, 0];
+    let nx = by - ay;
+    let ny = -(bx - ax);
+    const length = Math.hypot(nx, ny) || 1;
+    nx /= length;
+    ny /= length;
+    if (nx * (ax + bx) + ny * (ay + by) < 0) {
+      nx = -nx;
+      ny = -ny;
+    }
+    const normal = turn([nx, ny, 0], yaw, pitch);
+    if (normal[2] > 0) {
+      faces.push(
+        face(
+          [
+            front[i] ?? [0, 0, 0],
+            front[j] ?? [0, 0, 0],
+            back[j] ?? [0, 0, 0],
+            back[i] ?? [0, 0, 0],
+          ],
+          normal,
+        ),
+      );
+    }
+  }
+  const capFront = turn([0, 0, 1], yaw, pitch);
+  if (capFront[2] > 0) {
+    faces.push(face(front, capFront, true));
+  }
+  const capBack = turn([0, 0, -1], yaw, pitch);
+  if (capBack[2] > 0) {
+    faces.push(face(back, capBack, true));
+  }
+  return faces;
 }
 
 /** A flat-faced solid: its faces turned to us, each lit, as SVG; and its outline's faces for a shadow. */
@@ -857,6 +965,139 @@ export function turnedLights(scene: Scene): Solid[] {
   );
 }
 
+/** What `glowingSolidSvg` draws: a glowing shape, and what it is drawn with. */
+export interface GlowingSolid {
+  /** Its defs' ids start with this. */
+  id: string;
+  solid: Solid;
+  /** Its role color. */
+  color: Hex;
+  /** The other lights, whose colors fall on a sphere: each in its own color. */
+  others: readonly Light[];
+  /** The frame's scale: a sphere's pixels, and the lines' one pixel. */
+  scale: number;
+  /** The size its bloom's blurs are shares of: the light's size. */
+  glowSize: number;
+  /** The ground it stands on: no glow on a light one. */
+  ground?: SceneGround | undefined;
+  /** A sphere's dither seed. */
+  sphereSeed?: number;
+  /** Where its gradient and filters go. */
+  defs: string[];
+  /** Its far glow (layer 2), drawn unless a picture's exception leaves it out. */
+  farGlow?: boolean;
+  /** Drawn after its middle glow and before its hot edge, for a picture's exception: a shadow, say. */
+  beforeHotEdge?: string;
+}
+
+/**
+ * A glowing shape by the 3D recipe (`reference/3d.md`), as SVG: its bloom
+ * (far, middle and the hot edge, screened, none on a light ground); its
+ * solid, every side its role color at full, its front its core light
+ * deepening to its deep tone, or a sphere glowing the same way all over
+ * with the others' light on it; then its lines, 1px of white at 10%.
+ */
+export function glowingSolidSvg({
+  id,
+  solid,
+  color,
+  others,
+  scale,
+  glowSize,
+  ground,
+  sphereSeed = 300,
+  defs,
+  farGlow = true,
+  beforeHotEdge,
+}: GlowingSolid): string {
+  const base = parseHex(color);
+  // What the others' light adds at a point, beyond the dark's own.
+  const neighborLight = (point: Vec, normal: Vec): [number, number, number] => {
+    const lit3 = lit(point, normal, others);
+    return [lit3[0] - AMBIENT[0], lit3[1] - AMBIENT[1], lit3[2] - AMBIENT[2]];
+  };
+  const withNeighbors = (
+    tone: readonly number[],
+    point: Vec,
+    normal: Vec,
+  ): [number, number, number] => {
+    const added = neighborLight(point, normal);
+    return [
+      (tone[0] ?? 0) + 0.6 * added[0],
+      (tone[1] ?? 0) + 0.6 * added[1],
+      (tone[2] ?? 0) + 0.6 * added[2],
+    ];
+  };
+  // Every side the same light: the core's, reaching the sides and making
+  // them shine, its own color at full, whichever way a side turns and
+  // whatever is next to it.
+  const glowing = (): [number, number, number] => [...base];
+  // Its face, its core light in its own color: the color at full at the
+  // core, deepening toward the rim to its deep tone (`CORE`, `deepToneOf`).
+  // The sphere glows the same way, all over.
+  const deepTone = deepToneOf(base);
+  const coreTone = (t: number): [number, number, number] =>
+    blend(base, deepTone, CORE.rim * (1 - 1 / (1 + (t / CORE.reach) ** 2)));
+  const glowingSphere = (point: Vec, normal: Vec): [number, number, number] =>
+    withNeighbors(
+      coreTone(Math.min(1, Math.hypot(normal[0], normal[1]))),
+      point,
+      normal,
+    );
+  const drawn =
+    solid.role === 'identity'
+      ? sphere(solid, [], scale, sphereSeed, glowingSphere)
+      : prism(solid, [], glowing, (points) => {
+          // Centered where the face balances, not on its box's middle,
+          // reaching as far as Orbit's does: 0.6 of the box's side.
+          let area = 0;
+          let cx = 0;
+          let cy = 0;
+          for (const [index, [x0, y0]] of points.entries()) {
+            const [x1, y1] = points[(index + 1) % points.length] ?? [x0, y0];
+            const cross = x0 * y1 - x1 * y0;
+            area += cross;
+            cx += (x0 + x1) * cross;
+            cy += (y0 + y1) * cross;
+          }
+          const xs = points.map(([x]) => x);
+          const ys = points.map(([, y]) => y);
+          const side = Math.max(
+            Math.max(...xs) - Math.min(...xs),
+            Math.max(...ys) - Math.min(...ys),
+          );
+          defs.push(
+            `<radialGradient id="${id}-cap" gradientUnits="userSpaceOnUse" cx="${n(cx / (3 * area))}" cy="${n(cy / (3 * area))}" r="${n(0.6 * side)}">${CORE_STOPS.map((t) => `<stop offset="${t}" stop-color="${hexOf(coreTone(t))}"/>`).join('')}</radialGradient>`,
+          );
+          return `url(#${id}-cap)`;
+        });
+  // Its glow as light: the bloom's layers added to the dark beneath them
+  // (screen), centered on the shape; then the shape itself, crisp, on top.
+  const glows = (ground === 'light' ? [] : BLOOM).map((layer, index) => {
+    if (!farGlow && index === FAR_GLOW) {
+      return '';
+    }
+    const layerColor = layer.isOwnColor ? color : hexOf(pureHue(base));
+    defs.push(
+      `<filter id="${id}-bloom-${index}" x="-1" y="-1" width="3" height="3"><feGaussianBlur stdDeviation="${n(layer.blur * glowSize)}"/></filter>`,
+    );
+    return `<g opacity="${layer.strength}" filter="url(#${id}-bloom-${index})" fill="${layerColor}" style="mix-blend-mode:screen">${drawn.silhouette.replaceAll('#000000', layerColor)}</g>`;
+  });
+  // As the recipe draws them (light added to light: their order does not
+  // change a pixel); or, for a picture's exception, far to near, with what
+  // it asks drawn just before the hot edge.
+  const isException = !farGlow || beforeHotEdge !== undefined;
+  const bloom = isException
+    ? `${glows[FAR_GLOW] ?? ''}${glows[1] ?? ''}${beforeHotEdge ?? ''}${glows[0] ?? ''}`
+    : glows.join('');
+  // A thin white line where two faces we see meet, and round it.
+  const lineWidth = EDGE_LINE.pixels / scale;
+  const lines =
+    edgeLines(solid, '#ffffff', lineWidth) +
+    outlineLine(solid, '#ffffff', lineWidth);
+  return `${bloom}${drawn.faces}<g opacity="${EDGE_LINE.opacity}">${lines}</g>`;
+}
+
 /** A scene in `frame`, lit as Observed is, as SVG elements on `OBSERVED_GROUND`. */
 export function sceneSvg(frame: AtomsFrame, scene: Scene): string {
   const centered = scene.centered;
@@ -977,107 +1218,22 @@ export function sceneSvg(frame: AtomsFrame, scene: Scene): string {
     );
     const solid = turnedSolid(scene, source.role, source.at);
     if (solid !== undefined) {
-      // Orbit's own solids, a sphere or a deep prism, each face in the
-      // light's color: it glows.
-      const base = parseHex(source.color);
       // The other three lights, whose colors fall on this one: each in its
       // own color, no white (the small atoms' light keeps its own).
       const others = shining
         .filter((other) => other.role !== source.role)
         .map((other) => ({ ...other, rgb: parseHex(other.color) }));
-      // What the others' light adds at a point, beyond the dark's own.
-      const neighborLight = (
-        point: Vec,
-        normal: Vec,
-      ): [number, number, number] => {
-        const lit3 = lit(point, normal, others);
-        return [
-          lit3[0] - AMBIENT[0],
-          lit3[1] - AMBIENT[1],
-          lit3[2] - AMBIENT[2],
-        ];
-      };
-      const withNeighbors = (
-        color: readonly number[],
-        point: Vec,
-        normal: Vec,
-      ): [number, number, number] => {
-        const added = neighborLight(point, normal);
-        return [
-          (color[0] ?? 0) + 0.6 * added[0],
-          (color[1] ?? 0) + 0.6 * added[1],
-          (color[2] ?? 0) + 0.6 * added[2],
-        ];
-      };
-      // Every side the same light: the core's, reaching the sides and
-      // making them shine, its own color at full, whichever way a side
-      // turns and whatever is next to it.
-      const glowing = (): [number, number, number] => [...base];
-      // Its face, its core light in its own color: the color at full at
-      // the core, deepening toward the rim to its deep tone (`CORE`,
-      // `deepToneOf`). The sphere glows the same way, all over.
-      const deepTone = deepToneOf(base);
-      const coreTone = (t: number): [number, number, number] =>
-        blend(base, deepTone, CORE.rim * (1 - 1 / (1 + (t / CORE.reach) ** 2)));
-      const glowingSphere = (
-        point: Vec,
-        normal: Vec,
-      ): [number, number, number] =>
-        withNeighbors(
-          coreTone(Math.min(1, Math.hypot(normal[0], normal[1]))),
-          point,
-          normal,
-        );
-      const drawn =
-        source.role === 'identity'
-          ? sphere(solid, [], placement.scale, 300, glowingSphere)
-          : prism(solid, [], glowing, (points) => {
-              // Centered where the face balances, not on its box's middle,
-              // reaching as far as Orbit's does: 0.6 of the box's side.
-              let area = 0;
-              let cx = 0;
-              let cy = 0;
-              for (const [index, [x0, y0]] of points.entries()) {
-                const [x1, y1] = points[(index + 1) % points.length] ?? [
-                  x0,
-                  y0,
-                ];
-                const cross = x0 * y1 - x1 * y0;
-                area += cross;
-                cx += (x0 + x1) * cross;
-                cy += (y0 + y1) * cross;
-              }
-              const xs = points.map(([x]) => x);
-              const ys = points.map(([, y]) => y);
-              const side = Math.max(
-                Math.max(...xs) - Math.min(...xs),
-                Math.max(...ys) - Math.min(...ys),
-              );
-              defs.push(
-                `<radialGradient id="${id}-cap" gradientUnits="userSpaceOnUse" cx="${n(cx / (3 * area))}" cy="${n(cy / (3 * area))}" r="${n(0.6 * side)}">${CORE_STOPS.map((t) => `<stop offset="${t}" stop-color="${hexOf(coreTone(t))}"/>`).join('')}</radialGradient>`,
-              );
-              return `url(#${id}-cap)`;
-            });
-      // Its glow as light: the bloom's layers added to the dark beneath them
-      // (screen), centered on the shape; then the shape itself, crisp, on top.
-      const bloom = (scene.ground === 'light' ? [] : BLOOM)
-        .map((layer, index) => {
-          const color = layer.isOwnColor ? source.color : hexOf(pureHue(base));
-          defs.push(
-            `<filter id="${id}-bloom-${index}" x="-1" y="-1" width="3" height="3"><feGaussianBlur stdDeviation="${n(layer.blur * atom)}"/></filter>`,
-          );
-          return `<g opacity="${layer.strength}" filter="url(#${id}-bloom-${index})" fill="${color}" style="mix-blend-mode:screen">${drawn.silhouette.replaceAll('#000000', color)}</g>`;
-        })
-        .join('');
-      // A thin white line where two faces we see meet, and round it.
-      const lineWidth = EDGE_LINE.pixels / placement.scale;
-      const lines =
-        edgeLines(solid, '#ffffff', lineWidth) +
-        outlineLine(solid, '#ffffff', lineWidth);
       body.push(
-        bloom,
-        drawn.faces,
-        `<g opacity="${EDGE_LINE.opacity}">${lines}</g>`,
+        glowingSolidSvg({
+          id,
+          solid,
+          color: source.color,
+          others,
+          scale: placement.scale,
+          glowSize: atom,
+          ground: scene.ground,
+          defs,
+        }),
       );
       return;
     }
