@@ -146,6 +146,8 @@ Every value in `skills/intuition-brand-skill/` against the brand page (`learn-br
 | ✓ Multiplayer (backgrounds) | intuition-multiplayer-linkedin-banner-1584x396.svg, 1584 × 396 | https://learn.intuition.box/brand/files/intuition-multiplayer-linkedin-banner-1584x396.svg (page) |
 | ✓ Multiplayer (backgrounds) | intuition-multiplayer-discord-banner-960x540.svg, 960 × 540 | https://learn.intuition.box/brand/files/intuition-multiplayer-discord-banner-960x540.svg (page) |
 | ✓ X avatar (social) | intuition-x-avatar-400x400.svg, 400 × 400 | https://learn.intuition.box/brand/files/intuition-x-avatar-400x400.svg (page) |
+| ✓ X avatar, Intuition Universe (social) | intuition-x-avatar-universe-400x400.svg, 400 × 400 | https://learn.intuition.box/brand/files/intuition-x-avatar-universe-400x400.svg (page) |
+| ✓ X avatar, Intuition Universe Midnight (social) | intuition-x-avatar-universe-midnight-400x400.svg, 400 × 400 | https://learn.intuition.box/brand/files/intuition-x-avatar-universe-midnight-400x400.svg (page) |
 | **Rules (page: Rules)** | | |
 | ✓ Do | Draw a subject as a circle, the organic shape. | "Draw a subject as a circle, the organic shape." (page) |
 | ✓ Do | Draw a predicate as a triangle, always pointing up. | "Draw a predicate as a triangle, always pointing up." (page) |

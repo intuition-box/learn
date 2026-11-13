@@ -45,6 +45,7 @@ import { bondSvg } from './brand-bond';
 import {
   figmaUniverseSvg,
   UNIVERSE_PHONE,
+  universeAvatarSvg,
   universeSvg,
 } from './brand-universe';
 import type { UniverseFrame } from './brand-universe';
@@ -810,6 +811,16 @@ export function xBanner(): string {
 }
 
 /** The X avatar: the mark two by two, Graphite 900 on white, inside the circle X crops it to. */
+/** The X avatar of the Intuition Universe, zoomed on its logo (`universeAvatarStars`), on white or on Midnight. */
+export function intuitionUniverseAvatar(ground: 'dark' | 'light'): string {
+  const canvas = PRESETS['x-avatar'];
+  return svgDocument(
+    canvas,
+    universeAvatarSvg(canvas.width),
+    ground === 'dark' ? LOGO_HEX : GRAPHITE[0],
+  );
+}
+
 export function xAvatar(): string {
   const canvas = PRESETS['x-avatar'];
   const height = 0.4 * canvas.height;

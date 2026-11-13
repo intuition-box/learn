@@ -20,7 +20,7 @@ import {
   ROLE_COLORS,
   ROLES,
 } from '@/components/playground/story-shapes';
-import { INTUITION_LOGO } from '@/lib/intuition-logo';
+import { INTUITION_LOGO, INTUITION_LOGO_REACH } from '@/lib/intuition-logo';
 
 import { seededRandom } from './atom-field';
 import { UNIVERSE_DRAWING, UNIVERSE_STARS } from './universe-figma';
@@ -55,6 +55,8 @@ export interface SkyStar {
   y: number;
   /** Its shape's size, in CSS pixels. */
   size: number;
+  /** A star of the sky, which never joins the Intuition logo. */
+  isSky: boolean;
 }
 
 /**
@@ -119,9 +121,65 @@ export function universeStars(width: number, height: number): SkyStar[] {
       x: ((clip.x + 1) / 2) * width,
       y: ((1 - clip.y) / 2) * height,
       size,
+      isSky,
     });
   }
   return result;
+}
+
+/**
+ * The Intuition Universe zoomed on its logo, as a square avatar: the
+ * homepage's own stars, each in its place, on the desktop's screen (1440 ×
+ * 810), the logo filling 82% of the square so a round crop keeps it whole.
+ * Only the logo's stars, none of the sky's; the smallest removed and the
+ * next ones grown about their centres, so the logo reads at a glance:
+ * stars of 3.5px or less go, those to 4px grow threefold, those to 6px
+ * twofold, the rest stay as they are. As Saulo set them, step by step.
+ */
+export function universeAvatarStars(side: number): SkyStar[] {
+  const width = 1440;
+  const height = 810;
+  const markSize = Math.min(0.8 * Math.min(width, height), 608);
+  const centre = {
+    x:
+      width / 2 +
+      (INTUITION_LOGO.center[0] / INTUITION_LOGO.size - 0.5) * markSize,
+    y:
+      height / 2 +
+      (INTUITION_LOGO.center[1] / INTUITION_LOGO.size - 0.5) * markSize,
+  };
+  const reach = (INTUITION_LOGO_REACH / INTUITION_LOGO.size) * markSize;
+  const half = reach / 0.82;
+  const scale = side / (2 * half);
+  const grown = (size: number): number =>
+    size <= 4 ? size * 3 : size <= 6 ? size * 2 : size;
+  return universeStars(width, height)
+    .filter(
+      (star) =>
+        !star.isSky &&
+        star.size > 3.5 &&
+        Math.abs(star.x - centre.x) <= half &&
+        Math.abs(star.y - centre.y) <= half,
+    )
+    .map((star) => ({
+      ...star,
+      x: side / 2 + (star.x - centre.x) * scale,
+      y: side / 2 + (star.y - centre.y) * scale,
+      size: grown(star.size) * scale,
+    }));
+}
+
+/** The avatar's stars as SVG elements, on a square `side` pixels across. */
+export function universeAvatarSvg(side: number): string {
+  const unit = 100;
+  const defs = `<defs>${ROLES.map((role) => `<path id="s-${role}" d="${outlinePath(role, unit, 0)}"/>`).join('')}</defs>`;
+  const body = universeAvatarStars(side)
+    .map(
+      ({ role, x, y, size }) =>
+        `<use href="#s-${role}" fill="${hexOf(role)}" transform="translate(${n(x)} ${n(y)}) scale(${Number((size / unit).toFixed(4))})"/>`,
+    )
+    .join('');
+  return `${defs}${body}`;
 }
 
 /** A role's color as hex. */

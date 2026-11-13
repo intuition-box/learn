@@ -84,6 +84,7 @@ Made to the size each place asks for, with room left where the place lays its ow
 | Image | Size | What it shows |
 |---|---|---|
 | X avatar | 400 × 400 | The mark in Midnight, centered on white |
+| X avatar, Intuition Universe | 400 × 400 | The homepage's universe zoomed on the Intuition logo: only the logo's atoms, each in its place, the smallest removed and the next ones grown, on white or on Midnight |
 
 ## Rules
 

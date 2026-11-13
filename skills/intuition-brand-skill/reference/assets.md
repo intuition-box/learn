@@ -77,6 +77,8 @@ Pictures of Intuition, each a kit: one picture in every size a place asks for. F
 | File | Size | Use |
 |---|---|---|
 | https://learn.intuition.box/brand/files/intuition-x-avatar-400x400.svg | 400 × 400 | X profile picture |
+| https://learn.intuition.box/brand/files/intuition-x-avatar-universe-400x400.svg | 400 × 400 | X profile picture: the Intuition Universe zoomed on its logo, on white |
+| https://learn.intuition.box/brand/files/intuition-x-avatar-universe-midnight-400x400.svg | 400 × 400 | X profile picture: the Intuition Universe zoomed on its logo, on Midnight |
 
 ## Using the files
 
