@@ -271,6 +271,18 @@ export interface Scene {
   /** Whether a pool of light lies under the scene; it does if not said. */
   hasPool?: boolean;
   /**
+   * Whether a soft glow lies under the bonds; it does if not said (Orbit's,
+   * as it was made). The brand's bond rules say a bond never glows, and
+   * nothing emits light along one: Observed's bonds do not.
+   */
+  beams?: boolean;
+  /**
+   * How much white the lights carry onto the gray solids: `LIGHT.white` if
+   * not said (Multiplayer's and Orbit's, as they were made); 0 for their own
+   * colors, as the glowing shapes throw on each other (Observed's).
+   */
+  lightWhite?: number;
+  /**
    * The ground the scene stands on: dark if not said. On a light ground the
    * turned lights do not glow (light added to white shows nothing), and
    * their fronts deepen without growing more saturated than their own color
@@ -311,10 +323,31 @@ function along(step: number): readonly [number, number] {
   ];
 }
 
-/** Observed: its atoms in the dark, and its triple on one straight line. */
+/**
+ * The triple's atoms as solids by the 3D recipe, at one unit: the one that
+ * draws the circle, a sphere now, as wide as its flat atom was.
+ */
+const TRIPLE_SCALE = 1 / shapeSize('identity').width;
+
+/**
+ * Observed: its atoms in the dark, and its triple on one straight line, its
+ * three atoms lit by the 3D recipe and facing straight on, as its flat
+ * atoms did: the circle a sphere, the triangle and the square showing only
+ * their fronts, each standing where its flat atom stood; the atoms in the
+ * dark lit in the triple's own colors, and its bonds with no glow.
+ */
 export const OBSERVED_SCENE: Scene = {
   solids: SOLIDS,
   triple: { identity: along(-1), predicate: along(0), object: along(1) },
+  turns: {
+    identity: { yaw: 0, pitch: 0, scale: TRIPLE_SCALE },
+    predicate: { yaw: 0, pitch: 0, scale: TRIPLE_SCALE },
+    object: { yaw: 0, pitch: 0, scale: TRIPLE_SCALE },
+  },
+  // Its bonds as the brand's bond rules draw them, with no glow; its light
+  // on the atoms in the dark in the triple's own colors, no white.
+  beams: false,
+  lightWhite: 0,
 };
 
 const n = (value: number): number => Number(value.toFixed(2));
@@ -804,18 +837,20 @@ function turnedSolid(scene: Scene, role: Role, at: Vec): Solid | undefined {
   }
   const unit = scene.unit ?? scene.size ?? TRIPLE.size;
   const { width, height } = shapeSize(role);
+  // A solid scaled is scaled whole, its depth too.
+  const scale = turn.scale ?? 1;
   return {
     role,
     x: at[0],
     y: at[1],
     z: 0,
-    size: unit * Math.max(width, height) * (turn.scale ?? 1),
+    size: unit * Math.max(width, height) * scale,
     yaw: turn.yaw,
     pitch: turn.pitch,
     roll: turn.roll ?? 0,
     // One depth for all, measured on the shapes' 1×1 square: what differs
     // is only how each is turned.
-    depth: unit * SOLID_DEPTH,
+    depth: unit * SOLID_DEPTH * scale,
   };
 }
 
@@ -880,7 +915,11 @@ export function sceneSvg(frame: AtomsFrame, scene: Scene): string {
   // The triple, its atoms the lights.
   const light = (role: Role): Light => {
     const color = rgbToHex(ROLE_COLORS[role]);
-    const rgb = blend(parseHex(color), [255, 255, 255], LIGHT.white);
+    const rgb = blend(
+      parseHex(color),
+      [255, 255, 255],
+      scene.lightWhite ?? LIGHT.white,
+    );
     return { role, color, rgb, at: lightAt(scene, role) };
   };
   const lights = [
@@ -920,7 +959,7 @@ export function sceneSvg(frame: AtomsFrame, scene: Scene): string {
     body.push(drawn.faces);
   }
 
-  // The bonds over a soft beam, then the lights, glowing from their centres.
+  // The bonds, over a soft beam where the scene keeps one, then the lights.
   const [subject, predicate, object] = lights;
   // Each bond from and to a shape's true center: the first ends exactly at
   // the triangle's, the second starts there.
@@ -938,12 +977,15 @@ export function sceneSvg(frame: AtomsFrame, scene: Scene): string {
   const top = Math.min(...ends.map((end) => end.y)) - margin;
   const right = Math.max(...ends.map((end) => end.x)) + margin;
   const bottom = Math.max(...ends.map((end) => end.y)) + margin;
-  defs.push(
-    `<filter id="remake-beam" filterUnits="userSpaceOnUse" x="${n(left)}" y="${n(top)}" width="${n(right - left)}" height="${n(bottom - top)}"><feGaussianBlur stdDeviation="11"/></filter>`,
-  );
+  const hasBeams = scene.beams !== false;
+  if (hasBeams) {
+    defs.push(
+      `<filter id="remake-beam" filterUnits="userSpaceOnUse" x="${n(left)}" y="${n(top)}" width="${n(right - left)}" height="${n(bottom - top)}"><feGaussianBlur stdDeviation="11"/></filter>`,
+    );
+  }
   // A scene without bonds has no beams either.
   const hasBonds = scene.bonds !== false;
-  for (const [from, to] of hasBonds
+  for (const [from, to] of hasBonds && hasBeams
     ? ([
         [subject, predicate],
         [predicate, object],

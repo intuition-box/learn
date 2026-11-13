@@ -5,11 +5,13 @@ import type { Rgb } from '@/components/brand/color';
 
 import {
   OBSERVED_GROUND,
+  OBSERVED_SCENE,
   OBSERVED_SHADOW,
   deepToneOf,
   edgeLines,
   observedSvg,
   outlineLine,
+  turnedLights,
 } from './brand-observed';
 import type { Solid } from './brand-observed';
 import { GRAPHITE } from './learn-artwork';
@@ -38,8 +40,36 @@ describe('observedSvg', () => {
     const images = observedSvg(frame).match(
       /<image href="data:image\/png;base64,/g,
     );
-    // The pool, the big sphere and the small one.
-    expect(images).toHaveLength(3);
+    // The pool, the big sphere, the small one, and the subject, a sphere itself.
+    expect(images).toHaveLength(4);
+  });
+
+  it('draws its bonds as the bond rules say, with no glow under them', () => {
+    expect(observedSvg(frame)).not.toContain('remake-beam');
+  });
+
+  it('draws its triple as solids that glow, the circle as wide as its flat atom was', () => {
+    const [subject, predicate, object] = turnedLights(OBSERVED_SCENE);
+    expect([subject?.role, predicate?.role, object?.role]).toEqual([
+      'identity',
+      'predicate',
+      'object',
+    ]);
+    // The triple's atoms were 124.8 design pixels across.
+    expect(subject?.size).toBeCloseTo(124.8);
+    const svg = observedSvg(frame);
+    for (const role of ['predicate', 'object']) {
+      expect(svg).toContain(`fill="url(#remake-light-${role}-cap)"`);
+    }
+    // Facing straight on, as the flat atoms did: no faces meet, so each
+    // prism's lines are its outline alone.
+    const lines = [...svg.matchAll(/<g opacity="0.1">(.*?)<\/g>/g)].map(
+      ([, inner = '']) => inner,
+    );
+    expect(lines).toHaveLength(3);
+    for (const prism of lines.slice(1)) {
+      expect(prism.match(/<path /g)).toHaveLength(1);
+    }
   });
 
   it("runs both bonds straight through the triangle's center", () => {
@@ -48,18 +78,15 @@ describe('observedSvg', () => {
         /<line x1="([-\d.]+)" y1="([-\d.]+)" x2="([-\d.]+)" y2="([-\d.]+)" stroke="#ffffff"/g,
       ),
     ].map((match) => match.slice(1).map(Number));
-    // The two soft beams, then the two bonds: each pair meets at the
-    // triangle's center, the second going on at the first's angle.
-    expect(beams).toHaveLength(4);
+    // The two bonds, with no glow under them: they meet at the triangle's
+    // center, the second going on at the first's angle.
+    expect(beams).toHaveLength(2);
     const angle = (line: number[] | undefined) =>
       Math.atan2(
         (line?.[3] ?? 0) - (line?.[1] ?? 0),
         (line?.[2] ?? 0) - (line?.[0] ?? 0),
       );
-    for (const [first, second] of [
-      [beams[0], beams[1]],
-      [beams[2], beams[3]],
-    ]) {
+    for (const [first, second] of [[beams[0], beams[1]]]) {
       expect(first?.[2]).toBeCloseTo(second?.[0] ?? Number.NaN, 1);
       expect(first?.[3]).toBeCloseTo(second?.[1] ?? Number.NaN, 1);
       expect(angle(first)).toBeCloseTo(angle(second), 3);
