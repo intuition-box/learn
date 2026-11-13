@@ -271,21 +271,34 @@ function boxBlur(
   }
 }
 
-/** A dark version of a backdrop color: its lightness `SHADOW.darkness` of what it was, its hue and as much of its chroma as a screen shows. */
-function darkOf(color: readonly [number, number, number]): string {
-  const [lightness, chroma, hue] = rgbToOklch([color[0], color[1], color[2]]);
+/** A color at `lightness` of its OKLCH lightness, its hue and as much of its chroma as a screen shows. */
+function withLightness(
+  color: readonly [number, number, number],
+  lightness: number,
+): [number, number, number] {
+  const [own, chroma, hue] = rgbToOklch([color[0], color[1], color[2]]);
   for (let share = 1; share > 0.01; share /= 2) {
-    const rgb = oklchToRgb([lightness * SHADOW.darkness, chroma * share, hue]);
+    const rgb = oklchToRgb([own * lightness, chroma * share, hue]);
     if (rgb !== undefined) {
-      return rgbToHex([
-        Math.round(rgb[0]),
-        Math.round(rgb[1]),
-        Math.round(rgb[2]),
-      ]);
+      return [rgb[0], rgb[1], rgb[2]];
     }
   }
-  return '#000000';
+  return [0, 0, 0];
 }
+
+/** A dark version of a backdrop color: its lightness `SHADOW.darkness` of what it was. */
+function darkOf(color: readonly [number, number, number]): string {
+  const rgb = withLightness(color, SHADOW.darkness);
+  return rgbToHex([Math.round(rgb[0]), Math.round(rgb[1]), Math.round(rgb[2])]);
+}
+
+/** The backdrop a little darker than the reference's, his call: this share of its measured lightness, its hue and chroma kept. */
+const BACKDROP_LIGHTNESS = 0.85;
+
+/** The measured backdrop, each cell darkened by `BACKDROP_LIGHTNESS`. */
+const BACKDROP_CELLS = MOLECULE_BACKDROP.map((row) =>
+  row.map((cell) => withLightness(cell, BACKDROP_LIGHTNESS)),
+);
 
 /**
  * A shape's shadow as one dithered image at half the frame's pixels: each
@@ -415,10 +428,10 @@ function catmullRom(
   );
 }
 
-/** The reference's backdrop at a point of the design, smoothly between its measured cells; held at its edges beyond them. */
+/** The backdrop at a point of the design, smoothly between its cells; held at its edges beyond them. */
 function backdropAt(x: number, y: number): [number, number, number] {
-  const rows = MOLECULE_BACKDROP.length;
-  const columns = MOLECULE_BACKDROP[0]?.length ?? 1;
+  const rows = BACKDROP_CELLS.length;
+  const columns = BACKDROP_CELLS[0]?.length ?? 1;
   const u = Math.min(
     columns - 1,
     Math.max(0, (x / MOLECULE_DESIGN.width) * columns - 0.5),
@@ -430,7 +443,7 @@ function backdropAt(x: number, y: number): [number, number, number] {
   const column = Math.floor(u);
   const row = Math.floor(v);
   const cell = (r: number, c: number, channel: number) =>
-    MOLECULE_BACKDROP[Math.min(rows - 1, Math.max(0, r))]?.[
+    BACKDROP_CELLS[Math.min(rows - 1, Math.max(0, r))]?.[
       Math.min(columns - 1, Math.max(0, c))
     ]?.[channel] ?? 0;
   const color: [number, number, number] = [0, 0, 0];
