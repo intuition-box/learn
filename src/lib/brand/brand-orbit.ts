@@ -5,11 +5,13 @@
  * below, where his big pyramid is; the object above it, a small cube over
  * it where his cube is; and a small sphere at the right, which the second
  * bond passes in front of. His cluster is moved to Observed's focus, on
- * the right of the wallpaper, at his scale.
+ * the right of the wallpaper, at his scale. As Observed's, its triple's
+ * atoms are solids by the 3D recipe facing straight on, its atoms in the
+ * dark are lit in the triple's own colors, and its bonds do not glow.
  */
 
 import type { AtomsFrame } from './brand-atoms-frame';
-import { sceneSvg } from './brand-observed';
+import { FACING_TRIPLE, sceneSvg } from './brand-observed';
 import type { Scene } from './brand-observed';
 
 /** Orbit's atoms in the dark, back to front, and its triple, each by its true center. */
@@ -33,6 +35,8 @@ export const ORBIT_SCENE: Scene = {
     predicate: [1335, 760],
     object: [1360, 420],
   },
+  turns: FACING_TRIPLE,
+  lightWhite: 0,
 };
 
 /** Orbit in `frame`, as SVG elements on Observed's ground: the ground is the document's. */

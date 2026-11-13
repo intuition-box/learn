@@ -17,10 +17,15 @@ describe('orbitSvg', () => {
     expect(svg).not.toContain('#ff5fd2');
   });
 
-  it('draws its two spheres and the pool as dithered images', () => {
+  it('draws its spheres and the pool as dithered images', () => {
+    // The pool, the big sphere, the small one, and the subject, a sphere itself.
     expect(
       orbitSvg(frame).match(/<image href="data:image\/png;base64,/g),
-    ).toHaveLength(3);
+    ).toHaveLength(4);
+  });
+
+  it('draws its bonds as the bond rules say, with no glow under them', () => {
+    expect(orbitSvg(frame)).not.toContain('remake-beam');
   });
 
   it("meets its two bonds at the triangle's center", () => {
@@ -29,12 +34,9 @@ describe('orbitSvg', () => {
         /<line x1="([-\d.]+)" y1="([-\d.]+)" x2="([-\d.]+)" y2="([-\d.]+)" stroke="#ffffff"/g,
       ),
     ].map((match) => match.slice(1).map(Number));
-    // The two soft beams, then the two bonds: each pair meets.
-    expect(lines).toHaveLength(4);
-    for (const [first, second] of [
-      [lines[0], lines[1]],
-      [lines[2], lines[3]],
-    ]) {
+    // The two bonds, with no glow under them: they meet.
+    expect(lines).toHaveLength(2);
+    for (const [first, second] of [[lines[0], lines[1]]]) {
       expect(first?.[2]).toBeCloseTo(second?.[0] ?? Number.NaN, 1);
       expect(first?.[3]).toBeCloseTo(second?.[1] ?? Number.NaN, 1);
     }

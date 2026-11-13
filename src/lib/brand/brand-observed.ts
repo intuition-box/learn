@@ -271,15 +271,9 @@ export interface Scene {
   /** Whether a pool of light lies under the scene; it does if not said. */
   hasPool?: boolean;
   /**
-   * Whether a soft glow lies under the bonds; it does if not said (Orbit's,
-   * as it was made). The brand's bond rules say a bond never glows, and
-   * nothing emits light along one: Observed's bonds do not.
-   */
-  beams?: boolean;
-  /**
    * How much white the lights carry onto the gray solids: `LIGHT.white` if
-   * not said (Multiplayer's and Orbit's, as they were made); 0 for their own
-   * colors, as the glowing shapes throw on each other (Observed's).
+   * not said (Multiplayer's, as it was made); 0 for their own colors, as the
+   * glowing shapes throw on each other (Observed's and Orbit's).
    */
   lightWhite?: number;
   /**
@@ -323,11 +317,20 @@ function along(step: number): readonly [number, number] {
   ];
 }
 
+/** The unit a triple's atoms are drawn at as solids: the one that draws the circle, a sphere, as wide as a flat atom. */
+const FLAT_SCALE = 1 / shapeSize('identity').width;
+
 /**
- * The triple's atoms as solids by the 3D recipe, at one unit: the one that
- * draws the circle, a sphere now, as wide as its flat atom was.
+ * A triple's three atoms as solids by the 3D recipe, facing straight on as
+ * flat atoms do, so the triangle and the square show only their fronts;
+ * all at one unit, the circle as wide as a flat atom. Observed's and
+ * Orbit's.
  */
-const TRIPLE_SCALE = 1 / shapeSize('identity').width;
+export const FACING_TRIPLE: NonNullable<Scene['turns']> = {
+  identity: { yaw: 0, pitch: 0, scale: FLAT_SCALE },
+  predicate: { yaw: 0, pitch: 0, scale: FLAT_SCALE },
+  object: { yaw: 0, pitch: 0, scale: FLAT_SCALE },
+};
 
 /**
  * Observed: its atoms in the dark, and its triple on one straight line, its
@@ -339,14 +342,8 @@ const TRIPLE_SCALE = 1 / shapeSize('identity').width;
 export const OBSERVED_SCENE: Scene = {
   solids: SOLIDS,
   triple: { identity: along(-1), predicate: along(0), object: along(1) },
-  turns: {
-    identity: { yaw: 0, pitch: 0, scale: TRIPLE_SCALE },
-    predicate: { yaw: 0, pitch: 0, scale: TRIPLE_SCALE },
-    object: { yaw: 0, pitch: 0, scale: TRIPLE_SCALE },
-  },
-  // Its bonds as the brand's bond rules draw them, with no glow; its light
-  // on the atoms in the dark in the triple's own colors, no white.
-  beams: false,
+  turns: FACING_TRIPLE,
+  // Its light on the atoms in the dark in the triple's own colors, no white.
   lightWhite: 0,
 };
 
@@ -959,7 +956,7 @@ export function sceneSvg(frame: AtomsFrame, scene: Scene): string {
     body.push(drawn.faces);
   }
 
-  // The bonds, over a soft beam where the scene keeps one, then the lights.
+  // The bonds and the lights, each bond as the brand's bond rules draw it: no glow.
   const [subject, predicate, object] = lights;
   // Each bond from and to a shape's true center: the first ends exactly at
   // the triangle's, the second starts there.
@@ -968,33 +965,7 @@ export function sceneSvg(frame: AtomsFrame, scene: Scene): string {
       scene.unit === undefined ? balance(l.role, atom) : { x: 0, y: 0 };
     return { x: l.at[0] + offset.x, y: l.at[1] + offset.y };
   };
-  // The beam's blur, its area round both bonds with room for the whole
-  // blur on every side: sized from a bond's own box, a bond running nearly
-  // straight up would have its glow cut into a strip.
-  const ends = [subject, predicate, object].map(point);
-  const margin = 3 * 11 + 13;
-  const left = Math.min(...ends.map((end) => end.x)) - margin;
-  const top = Math.min(...ends.map((end) => end.y)) - margin;
-  const right = Math.max(...ends.map((end) => end.x)) + margin;
-  const bottom = Math.max(...ends.map((end) => end.y)) + margin;
-  const hasBeams = scene.beams !== false;
-  if (hasBeams) {
-    defs.push(
-      `<filter id="remake-beam" filterUnits="userSpaceOnUse" x="${n(left)}" y="${n(top)}" width="${n(right - left)}" height="${n(bottom - top)}"><feGaussianBlur stdDeviation="11"/></filter>`,
-    );
-  }
-  // A scene without bonds has no beams either.
   const hasBonds = scene.bonds !== false;
-  for (const [from, to] of hasBonds && hasBeams
-    ? ([
-        [subject, predicate],
-        [predicate, object],
-      ] as const)
-    : []) {
-    body.push(
-      `<line x1="${n(point(from).x)}" y1="${n(point(from).y)}" x2="${n(point(to).x)}" y2="${n(point(to).y)}" stroke="#ffffff" stroke-opacity="0.18" stroke-width="13" stroke-linecap="round" filter="url(#remake-beam)"/>`,
-    );
-  }
   const drawLight = (source: Light) => {
     const id = `remake-light-${source.role}`;
     // How big the outline is drawn for a light `size` across.
